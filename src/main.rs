@@ -11,11 +11,6 @@ use winit::{
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 
-mod primitives;
-mod renderer;
-mod app;
-mod parser;
-
 #[tokio::main]
 async fn main() {
     let event_loop = EventLoop::new();

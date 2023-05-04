@@ -1,13 +1,16 @@
+#![allow(unused)]
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::is_not;
-use nom::character::complete::{char, line_ending, space0, newline, crlf};
+use nom::character::complete::{char, space0, newline, crlf};
 use nom::error::ParseError;
-use nom::multi::{many0_count, many0};
+use nom::multi::many0_count;
 use nom::sequence::{pair, separated_pair, terminated};
 use nom::{character::complete::satisfy, combinator::recognize, IResult};
-use nom::combinator::{opt, eof};
+use nom::combinator::eof;
+use nom::bytes::complete::tag;
 use nom::sequence::delimited;
+use crate::track::NoteType;
 
 /// An enum that represents a single unit of information in a TJA file.
 /// This is either a metadata tag, or an entire specification of the notes in
@@ -17,6 +20,31 @@ use nom::sequence::delimited;
 enum TJAFileItem<'a> {
     Metadata(&'a str, &'a str),
     Beatmap, // TODO
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum BeatTrackEntry<'a> {
+    Command(TrackCommand<'a>),
+    Notes(Vec<NoteType>),
+    EndMeasure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Player {
+    Player1,
+    Player2,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum TrackCommand<'a> {
+    Start { player: Option<Player> },
+    End,
+    Lyric(&'a str),
+    BpmChange(f32),
+
+    // I want to keep this parser as open as possible
+    // So as long as a command follows the syntax, it will just be ignored. 
+    Unknown, 
 }
 
 // --- Parsing helper functions ---
@@ -92,7 +120,23 @@ fn metadata_pair(i: &str) -> IResult<&str, (&str, &str)> {
 }
 
 // --- Parsing functions for tracks ---
+fn beat_command(name: &'static str) -> impl Fn(&str) -> IResult<&str, BeatTrackEntry> {
+    move |i| {
+        todo!()
+    }
+}
 
+fn beat_track_inner(i: &str) -> IResult<&str, TJAFileItem> {
+    todo!()
+}
+
+fn beat_track(i: &str) -> IResult<&str, TJAFileItem> {
+    delimited(
+        beat_command("START"),
+        beat_track_inner,
+        beat_command("END"),
+    )(i)
+}
 
 // --- Parsing for the file as a whole ---
 
@@ -102,13 +146,9 @@ fn tja_item(i: &str) -> IResult<&str, TJAFileItem> {
     ))(i)
 }
 
-fn tja_file(i: &str) -> IResult<&str, Vec<TJAFileItem>> {
-    many0(tja_item)(i)
-}
-
 mod test {
     #[allow(unused)]
-    use super::{metadata_pair, metadata_tagname, tja_file, TJAFileItem};
+    use super::{metadata_pair, metadata_tagname};
 
     #[test]
     fn test_meta_tag() {
@@ -136,23 +176,5 @@ mod test {
             metadata_pair("EXAM1:something"),
             Ok(("", ("EXAM1", "something")))
         );
-    }
-
-    #[test]
-    fn test_tja_file() {
-        let file = "
-TITLE:POP TEAM EPIC
-
-TITLEJA:POP TEAM EPIC
-SUBTITLE:--Sumire Uesaka/Pop Team Epic";
-
-        assert_eq!(
-            tja_file(file),
-            Ok(("", vec![
-                TJAFileItem::Metadata("TITLE", "POP TEAM EPIC"),
-                TJAFileItem::Metadata("TITLEJA", "POP TEAM EPIC"),
-                TJAFileItem::Metadata("SUBTITLE", "--Sumire Uesaka/Pop Team Epic"),
-            ]))
-        )
     }
 }
