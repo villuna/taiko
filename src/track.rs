@@ -1,10 +1,24 @@
 #![allow(unused)]
 //! Types for representing a song.
+//!
+//! The types in here so far are very minimal, and can't handle all of the
+//! possible songs that are defined in taiko, yet. Eventually I plan on
+//! accommodating these variations (such as diverging difficulty, different
+//! tracks for different players etc).
+//!
+//! Note that times are generally represented in milliseconds. Unless specified,
+//! that is the unit that time values will be in.
 
-/// The type of a note. This includes a special note, which defines the end
+use std::collections::HashMap;
+
+const DEFAULT_BPM: f32 = 120.0;
+
+/// The type of a note. 
+///
+/// This includes a special note, which defines the end
 /// of a drum roll. All drum rolls should be terminated with this note
-/// (with the exception of the `SpecialRoll`, which can be terminated
-/// with another `SpecialRoll`).
+/// (with the exception of the [SpecialRoll][NoteType::SpecialRoll], which can be terminated
+/// with another [SpecialRoll][NoteType::SpecialRoll]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NoteType {
     Don,
@@ -16,16 +30,61 @@ pub enum NoteType {
     BalloonRoll,
     RollEnd,
     SpecialRoll,
-    BothDon,
-    BothKa,
+    CoopDon,
+    CoopKa,
 }
-
-/// A struct representing a note, as it will be stored during the actual game.
-/// A note has a type, the time (in seconds, from the song start) that it has
-/// to be hit, and a constant speed.
+/// A note, as it will be stored during the actual game.
+///
+/// A note has a type, the time (from the song start) that it has
+/// to be hit on, and a constant speed.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Note {
-    note_type: NoteType,
-    time: f32,
-    scroll_speed: f32,
+    pub note_type: NoteType,
+    pub time: f32,
+    pub scroll_speed: f32,
+}
+
+/// The data for a song, including its metadata and difficulties/note tracks.
+pub struct Song {
+    title: String,
+    subtitle: String,
+    audio_filename: String,
+    bpm: f32,
+    /// The amount of time between the beginning of the track and the first measure,
+    /// measured in *seconds*.
+    /// note timing will be relative to this offset
+    offset: f32,
+    /// The time *in seconds* that the song preview should start from.
+    demostart: f32,
+    difficulties: [Option<Difficulty>; 5],
+}
+
+impl Default for Song {
+    fn default() -> Self {
+        Self {
+            title: "".to_string(),
+            subtitle: "".to_string(),
+            audio_filename: "".to_string(),
+            bpm: DEFAULT_BPM,
+            offset: 0.0,
+            demostart: 0.0,
+            difficulties: [None, None, None, None, None],
+        }
+    }
+}
+
+/// A single difficulty setting and its associated track.
+///
+/// TODO: currently this cannot handle "Diverge Notes". see [BeatTrack]
+/// for details.
+pub struct Difficulty {
+    pub star_level: u8,
+    pub track: BeatTrack,
+}
+
+/// The notes for a single difficulty setting.
+pub struct BeatTrack {
+    
+    pub notes: Vec<Note>,
+    pub measures: Vec<f32>,
 }

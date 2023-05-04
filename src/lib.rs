@@ -1,5 +1,5 @@
-mod primitives;
-mod renderer;
-mod app;
-mod parser;
-mod track;
+pub mod primitives;
+pub mod renderer;
+pub mod app;
+pub mod parser;
+pub mod track;
