@@ -19,9 +19,9 @@ const DEFAULT_BPM: f32 = 120.0;
 /// of a drum roll. All drum rolls should be terminated with this note
 /// (with the exception of the [SpecialRoll][NoteType::SpecialRoll], which can be terminated
 /// with another [SpecialRoll][NoteType::SpecialRoll]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, num_derive::FromPrimitive)]
 pub enum NoteType {
-    Don,
+    Don = 1,
     Kat,
     BigDon,
     BigKat,

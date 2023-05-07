@@ -1,9 +1,6 @@
 //! Functions for parsing tja files into beatmaps.
 //!
-//! This module uses [nom] for parsing, so contains a lot of private parsing
-//! functinos. Where necessary, I've tried my best to annotate them with a grammar, written in
-//! (some kind of) EBNF form with embedded regex.
-//!
+//! This module uses [nom] for parsing, so contains a lot of private parsing functinos. Where necessary, I've tried my best to annotate them with a grammar, written in (some kind of) EBNF form with embedded regex.
 //! Grammar format key:
 //!
 //! ```text
@@ -45,7 +42,7 @@ enum TJAFileItem<'a> {
 #[derive(Debug, Clone, PartialEq)]
 enum NoteTrackEntry<'a> {
     Command(TrackCommand<'a>),
-    Notes(Vec<NoteType>),
+    Notes(Vec<Option<NoteType>>),
     EndMeasure,
 }
 
@@ -74,12 +71,14 @@ enum TrackCommand<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum TJAParseError {
     TrackCommandError,
+    InvalidNoteError(char),
 }
 
 impl std::fmt::Display for TJAParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TJAParseError::TrackCommandError => f.write_str("error while parsing track command"),
+            TJAParseError::InvalidNoteError(c) => f.write_str(&format!(r#"error while parsing note track: invalid note "{}""#, c)),
         }
     }
 }
@@ -228,8 +227,22 @@ fn track_command_raw(i: &str) -> IResult<&str, (&str, Option<&str>)> {
     ))(i)
 }
 
-fn notes(i: &str) -> IResult<&str, Vec<NoteType>> {
-    todo!()
+fn note(i: &str) -> IResult<&str, Option<NoteType>> {
+    satisfy(|c| ('0'..'9').contains(&c) || ['A', 'B'].contains(&c)).map(
+        |c| {
+            if c == '0' {
+                None
+            } else if let Some(code) = c.to_digit(12) {
+                num_traits::FromPrimitive::from_u32(code)
+            } else {
+                unreachable!()
+            }
+        } 
+    ).parse(i)
+}
+
+fn notes(i: &str) -> IResult<&str, Vec<Option<NoteType>>> {
+    many0(note)(i)
 }
 
 fn note_track_inner(i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
@@ -330,5 +343,17 @@ mod test {
         ]
         .iter()
         .all(Result::is_err))
+    }
+
+    #[test]
+    fn test_notes() {
+        use NoteType::*;
+
+        assert_eq!(
+            notes("10201120,\n"),
+            Ok((",\n", vec![
+                Some(Don), None, Some(Kat), None, Some(Don), Some(Don), Some(Kat), None
+            ]))
+        );
     }
 }
