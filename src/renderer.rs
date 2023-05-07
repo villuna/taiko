@@ -1,10 +1,8 @@
-use std::collections::BinaryHeap;
-
 use anyhow::anyhow;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::primitives::{PrimitiveVertex, circle};
+use crate::primitives::PrimitiveVertex;
 
 const SAMPLE_COUNT: u32 = 4;
 

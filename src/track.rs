@@ -75,16 +75,20 @@ impl Default for Song {
 
 /// A single difficulty setting and its associated track.
 ///
-/// TODO: currently this cannot handle "Diverge Notes". see [BeatTrack]
-/// for details.
+/// TODO: currently this cannot handle "Diverge Notes". see [NoteTrack]
+/// for details. It also cannot handle multiple tracks for different
+/// players.
 pub struct Difficulty {
     pub star_level: u8,
-    pub track: BeatTrack,
+    pub track: NoteTrack,
 }
 
 /// The notes for a single difficulty setting.
-pub struct BeatTrack {
-    
+/// 
+/// TODO: Currently, this is just a linear stream of notes. Eventually
+/// we will have to handle songs with multiple streams that switch
+/// depending on the player's performance ("diverge notes").
+pub struct NoteTrack {
     pub notes: Vec<Note>,
     pub measures: Vec<f32>,
 }
