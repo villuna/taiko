@@ -245,12 +245,25 @@ fn notes(i: &str) -> IResult<&str, Vec<Option<NoteType>>> {
     many0(note)(i)
 }
 
-fn note_track_inner(i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
-    many0(alt((
-        inner_track_command.map(NoteTrackEntry::Command),
-        notes.map(NoteTrackEntry::Notes),
-        pair(tag(","), alt((tag("\n"), tag("\r\n")))).map(|_| NoteTrackEntry::EndMeasure),
-    )))(i)
+fn note_track_inner(mut i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
+    let mut res = Vec::new();
+
+    while !eof::<_, nom::error::Error<_>>(i).is_ok() {
+        if end_command(i).is_ok() {
+            return Ok((i, res))
+        }
+
+        let (new_i, entry) = alt((
+            inner_track_command.map(NoteTrackEntry::Command),
+            pair(tag(","), alt((tag("\n"), tag("\r\n")))).map(|_| NoteTrackEntry::EndMeasure),
+            notes.map(NoteTrackEntry::Notes),
+        ))(i)?;
+
+        res.push(entry);
+        i = new_i;
+    }
+
+    Err(nom::Err::Error(nom::error::Error { input: i, code: nom::error::ErrorKind::Many0}))
 }
 
 fn note_track(i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
@@ -355,5 +368,30 @@ mod test {
                 Some(Don), None, Some(Kat), None, Some(Don), Some(Don), Some(Kat), None
             ]))
         );
+    }
+
+    #[test]
+    fn test_note_track() {
+        use NoteType::*;
+        let track = "#START
+1100,
+1100,
+2,
+,
+#END";
+
+        assert_eq!(
+            note_track(track),
+            Ok(("", vec![
+                NoteTrackEntry::Command(TrackCommand::Start { player: None }),
+                NoteTrackEntry::Notes(vec![Some(Don), Some(Don), None, None]),
+                NoteTrackEntry::EndMeasure,
+                NoteTrackEntry::Notes(vec![Some(Don), Some(Don), None, None]),
+                NoteTrackEntry::EndMeasure,
+                NoteTrackEntry::Notes(vec![Some(Kat)]),
+                NoteTrackEntry::EndMeasure,
+                NoteTrackEntry::EndMeasure,
+            ]))
+        )
     }
 }
