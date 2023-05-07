@@ -77,8 +77,7 @@ pub fn circle(
     tesselator.tessellate_circle(
         point(centre[0], centre[1]),
         radius,
-        &StrokeOptions::DEFAULT
-            .with_line_width(stroke_width),
+        &StrokeOptions::DEFAULT.with_line_width(stroke_width),
         &mut BuffersBuilder::new(&mut output, VertexBuilder { colour }),
     )?;
 

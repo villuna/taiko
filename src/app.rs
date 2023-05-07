@@ -13,8 +13,7 @@ impl App {
         })
     }
 
-    pub fn update(&mut self, _delta: f32) {
-    }
+    pub fn update(&mut self, _delta: f32) {}
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.renderer.render(Some(wgpu::Color::BLACK))

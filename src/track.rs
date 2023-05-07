@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 const DEFAULT_BPM: f32 = 120.0;
 
-/// The type of a note. 
+/// The type of a note.
 ///
 /// This includes a special note, which defines the end
 /// of a drum roll. All drum rolls should be terminated with this note
@@ -84,7 +84,7 @@ pub struct Difficulty {
 }
 
 /// The notes for a single difficulty setting.
-/// 
+///
 /// TODO: Currently, this is just a linear stream of notes. Eventually
 /// we will have to handle songs with multiple streams that switch
 /// depending on the player's performance ("diverge notes").

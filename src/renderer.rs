@@ -13,7 +13,7 @@ struct ScreenUniform {
 }
 
 pub enum Drawable {
-    Primitive(Vec<PrimitiveVertex>, Vec<u32>)
+    Primitive(Vec<PrimitiveVertex>, Vec<u32>),
 }
 
 pub struct Renderer {
@@ -333,7 +333,12 @@ impl Renderer {
 
             // Need to create a new msaa target texture
             if SAMPLE_COUNT > 1 {
-                self.msaa_view = Some(create_msaa_texture(&self.device, &size, &self.config, SAMPLE_COUNT));
+                self.msaa_view = Some(create_msaa_texture(
+                    &self.device,
+                    &size,
+                    &self.config,
+                    SAMPLE_COUNT,
+                ));
             }
 
             // Resize the screen space transformation matrirx
