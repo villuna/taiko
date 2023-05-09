@@ -15,7 +15,6 @@ use std::collections::HashMap;
 
 use crate::track::NoteType;
 use crate::track::Song;
-use nom::Finish;
 use nom::branch::alt;
 use nom::bytes::complete::is_not;
 use nom::bytes::complete::tag;
@@ -28,6 +27,7 @@ use nom::multi::many0_count;
 use nom::sequence::delimited;
 use nom::sequence::preceded;
 use nom::sequence::{pair, separated_pair, terminated};
+use nom::Finish;
 use nom::Parser;
 use nom::{character::complete::satisfy, combinator::recognize, IResult};
 
@@ -60,7 +60,7 @@ enum TrackCommand<'a> {
     Lyric(&'a str),
     BpmChange(f32),
     Measure(u8, u8),
-    Delay(f32), 
+    Delay(f32),
     Scroll(f32),
     GogoStart,
     GogoEnd,
@@ -72,7 +72,10 @@ enum TrackCommand<'a> {
 /// Errors associated with parsing TJA files
 #[derive(Debug, PartialEq, Eq)]
 pub enum TJAParseError<'a> {
-    NomError { input: &'a str, kind: nom::error::ErrorKind },
+    NomError {
+        input: &'a str,
+        kind: nom::error::ErrorKind,
+    },
     TrackCommandError,
     UnexpectedEndCommand,
     InvalidNote(char),
@@ -82,10 +85,12 @@ pub enum TJAParseError<'a> {
 }
 
 impl<'a> TJAParseError<'a> {
-    fn to_nom_error(self) -> nom::Err<Self> {
+    fn into_nom_error(self) -> nom::Err<Self> {
         match self {
             // Recoverable errors:
-            TJAParseError::NomError {..} | TJAParseError::UnexpectedEndCommand | TJAParseError::InvalidNote(_) => nom::Err::Error(self),
+            TJAParseError::NomError { .. }
+            | TJAParseError::UnexpectedEndCommand
+            | TJAParseError::InvalidNote(_) => nom::Err::Error(self),
 
             // Unrecoverable errors:
             _ => nom::Err::Failure(self),
@@ -95,7 +100,7 @@ impl<'a> TJAParseError<'a> {
 
 impl<'a> ParseError<&'a str> for TJAParseError<'a> {
     fn from_error_kind(input: &'a str, kind: nom::error::ErrorKind) -> Self {
-        TJAParseError::NomError { input, kind } 
+        TJAParseError::NomError { input, kind }
     }
 
     fn append(_: &str, _: nom::error::ErrorKind, other: Self) -> Self {
@@ -110,24 +115,26 @@ impl<'a> TrackCommand<'a> {
         println!(r#"Command "{name}" "{arg:?}""#);
         // TODO: parse more commands
         use TJAParseError::TrackCommandError;
-        let arg_res = arg.ok_or_else(|| TrackCommandError);
-        
+        let arg_res = arg.ok_or(TrackCommandError);
+
         let command = match name {
             "END" => return Err(TJAParseError::UnexpectedEndCommand),
             "LYRIC" => TrackCommand::Lyric(arg_res?),
-            "BPMCHANGE" => TrackCommand::BpmChange(
-                arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?
-            ),
+            "BPMCHANGE" => {
+                TrackCommand::BpmChange(arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?)
+            }
             "MEASURE" => {
-                let (_, (numerator, denominator)) = parse_time_signature(arg_res?)
-                    .map_err(|_| TrackCommandError)?;
+                let (_, (numerator, denominator)) =
+                    parse_time_signature(arg_res?).map_err(|_| TrackCommandError)?;
 
                 TrackCommand::Measure(numerator, denominator)
-            },
+            }
             "DELAY" => TrackCommand::Delay(arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?),
-            "SCROLL" => TrackCommand::Scroll(arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?),
+            "SCROLL" => {
+                TrackCommand::Scroll(arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?)
+            }
             "GOGOSTART" | "GOGOEND" | "BARLINEOFF" | "BARLINEON" => {
-                // These dont take any arguments, so ensure there is no arg 
+                // These dont take any arguments, so ensure there is no arg
                 if arg.is_some() {
                     return Err(TrackCommandError);
                 }
@@ -151,12 +158,12 @@ impl<'a> TrackCommand<'a> {
 
 /// Parses a single uppercase letter.
 fn uppercase(i: &str) -> IResult<&str, char, TJAParseError> {
-    satisfy(|c| ('A'..='Z').contains(&c))(i)
+    satisfy(|c| c.is_ascii_uppercase())(i)
 }
 
 /// Parses a single digit from 0 to 9.
 fn digit(i: &str) -> IResult<&str, char, TJAParseError> {
-    satisfy(|c| ('0'..='9').contains(&c))(i)
+    satisfy(|c| c.is_ascii_digit())(i)
 }
 
 // Parses an empty line, i.e. whitespace terminated by a newline
@@ -239,7 +246,7 @@ fn parse_time_signature(i: &str) -> IResult<&str, (u8, u8)> {
             tag("/"),
             map_res(is_not("/"), |x: &str| x.parse::<u8>()),
         ),
-        eof
+        eof,
     )(i)
 }
 
@@ -267,7 +274,9 @@ fn end_command(i: &str) -> IResult<&str, (), TJAParseError> {
 // See [track_command_raw] for more details.
 fn inner_track_command(i: &str) -> IResult<&str, TrackCommand, TJAParseError> {
     let (i, (name, arg)) = track_command_raw(i)?;
-    TrackCommand::inner_from_name_arg(name, arg).map(|command| (i, command)).map_err(|e| e.to_nom_error())
+    TrackCommand::inner_from_name_arg(name, arg)
+        .map(|command| (i, command))
+        .map_err(|e| e.into_nom_error())
 }
 
 // Parses a track command, returning the name and value as raw strings.
@@ -284,8 +293,8 @@ fn track_command_raw(i: &str) -> IResult<&str, (&str, Option<&str>), TJAParseErr
 }
 
 fn note(i: &str) -> IResult<&str, Option<NoteType>, TJAParseError> {
-    satisfy(|c| ('0'..'9').contains(&c) || ['A', 'B'].contains(&c)).map(
-        |c| {
+    satisfy(|c| c.is_ascii_digit() || ['A', 'B'].contains(&c))
+        .map(|c| {
             if c == '0' {
                 None
             } else if let Some(code) = c.to_digit(12) {
@@ -293,8 +302,8 @@ fn note(i: &str) -> IResult<&str, Option<NoteType>, TJAParseError> {
             } else {
                 unreachable!()
             }
-        } 
-    ).parse(i)
+        })
+        .parse(i)
 }
 
 fn notes(i: &str) -> IResult<&str, Vec<Option<NoteType>>, TJAParseError> {
@@ -304,9 +313,9 @@ fn notes(i: &str) -> IResult<&str, Vec<Option<NoteType>>, TJAParseError> {
 fn note_track_inner(mut i: &str) -> IResult<&str, Vec<NoteTrackEntry>, TJAParseError> {
     let mut res = Vec::new();
 
-    while !eof::<_, nom::error::Error<_>>(i).is_ok() {
+    while eof::<_, nom::error::Error<_>>(i).is_err() {
         if end_command(i).is_ok() {
-            return Ok((i, res))
+            return Ok((i, res));
         }
 
         let (new_i, entry) = alt((
@@ -344,10 +353,7 @@ fn tja_item(i: &str) -> IResult<&str, TJAFileItem, TJAParseError> {
 }
 
 fn tja_file(i: &str) -> IResult<&str, Vec<TJAFileItem>, TJAParseError> {
-    terminated(
-        many0(tja_item),
-        eof,
-    )(i)
+    terminated(many0(tja_item), eof)(i)
 }
 
 pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError> {
@@ -366,12 +372,12 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError> {
                 // See what difficulty the track should be.
                 let difficulty = match metadata.get("COURSE") {
                     Some(&course) => match course {
-                            "Easy" | "0" => 0,
-                            "Normal" | "1" => 1,
-                            "Hard" | "2" => 2,
-                            "Oni" | "3" => 3,
-                            "Edit" | "4" => 4,
-                            _ => return Err(TJAParseError::InvalidMetadata("COURSE", course))
+                        "Easy" | "0" => 0,
+                        "Normal" | "1" => 1,
+                        "Hard" | "2" => 2,
+                        "Oni" | "3" => 3,
+                        "Edit" | "4" => 4,
+                        _ => return Err(TJAParseError::InvalidMetadata("COURSE", course)),
                     },
 
                     // Default difficulty is oni
@@ -380,11 +386,11 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError> {
 
                 // Ensure there isn't a track already defined with this difficulty
                 if song.difficulties[difficulty].is_some() {
-                    return Err(TJAParseError::MultipleTracksSameDifficulty(difficulty))
+                    return Err(TJAParseError::MultipleTracksSameDifficulty(difficulty));
                 }
 
                 todo!()
-            },
+            }
         };
     }
 
@@ -467,7 +473,10 @@ mod test {
 
     #[test]
     fn test_track_command() {
-        assert_eq!(inner_track_command("#GOGOSTART"), Ok(("", TrackCommand::GogoStart)));
+        assert_eq!(
+            inner_track_command("#GOGOSTART"),
+            Ok(("", TrackCommand::GogoStart))
+        );
         assert!(inner_track_command("#GOGOSTART testvalue").is_err());
     }
 
@@ -477,9 +486,19 @@ mod test {
 
         assert_eq!(
             notes("10201120,\n"),
-            Ok((",\n", vec![
-                Some(Don), None, Some(Kat), None, Some(Don), Some(Don), Some(Kat), None
-            ]))
+            Ok((
+                ",\n",
+                vec![
+                    Some(Don),
+                    None,
+                    Some(Kat),
+                    None,
+                    Some(Don),
+                    Some(Don),
+                    Some(Kat),
+                    None
+                ]
+            ))
         );
     }
 
@@ -495,24 +514,27 @@ mod test {
 
         assert_eq!(
             note_track(track),
-            Ok(("", vec![
-                NoteTrackEntry::Command(TrackCommand::Start { player: None }),
-                NoteTrackEntry::Notes(vec![Some(Don), Some(Don), None, None]),
-                NoteTrackEntry::EndMeasure,
-                NoteTrackEntry::Notes(vec![Some(Don), Some(Don), None, None]),
-                NoteTrackEntry::EndMeasure,
-                NoteTrackEntry::Notes(vec![Some(Kat)]),
-                NoteTrackEntry::EndMeasure,
-                NoteTrackEntry::EndMeasure,
-            ]))
+            Ok((
+                "",
+                vec![
+                    NoteTrackEntry::Command(TrackCommand::Start { player: None }),
+                    NoteTrackEntry::Notes(vec![Some(Don), Some(Don), None, None]),
+                    NoteTrackEntry::EndMeasure,
+                    NoteTrackEntry::Notes(vec![Some(Don), Some(Don), None, None]),
+                    NoteTrackEntry::EndMeasure,
+                    NoteTrackEntry::Notes(vec![Some(Kat)]),
+                    NoteTrackEntry::EndMeasure,
+                    NoteTrackEntry::EndMeasure,
+                ]
+            ))
         )
     }
 
     #[test]
     pub fn test_tja_file_item_list() {
-        use TJAFileItem::*;
-        use NoteType::*;
         use NoteTrackEntry::*;
+        use NoteType::*;
+        use TJAFileItem::*;
 
         let track = "TITLE: POP TEAM EPIC
 BPM:142
@@ -534,22 +556,25 @@ WAVE:POP TEAM EPIC.ogg
 
         assert_eq!(
             tja_file(track),
-            Ok(("", vec![
-                Metadata("TITLE", "POP TEAM EPIC"),
-                Metadata("BPM", "142"),
-                Metadata("WAVE", "POP TEAM EPIC.ogg"),
-                NoteTrack(vec![
-                    Command(TrackCommand::Start { player: None }),
-                    Command(TrackCommand::GogoStart),
-                    Notes(vec![Some(Don), Some(Don), None, None]),
-                    EndMeasure,
-                    Notes(vec![Some(Don), Some(Don), None, None]),
-                    EndMeasure,
-                    Notes(vec![Some(Kat)]),
-                    EndMeasure,
-                    EndMeasure,
-                ])
-            ]))
+            Ok((
+                "",
+                vec![
+                    Metadata("TITLE", "POP TEAM EPIC"),
+                    Metadata("BPM", "142"),
+                    Metadata("WAVE", "POP TEAM EPIC.ogg"),
+                    NoteTrack(vec![
+                        Command(TrackCommand::Start { player: None }),
+                        Command(TrackCommand::GogoStart),
+                        Notes(vec![Some(Don), Some(Don), None, None]),
+                        EndMeasure,
+                        Notes(vec![Some(Don), Some(Don), None, None]),
+                        EndMeasure,
+                        Notes(vec![Some(Kat)]),
+                        EndMeasure,
+                        EndMeasure,
+                    ])
+                ]
+            ))
         );
 
         let error = "TITLE: POP TEAM EPIC
