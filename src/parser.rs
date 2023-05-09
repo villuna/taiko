@@ -11,20 +11,22 @@
 //! embeddedExpression ::= "string with embedded expression: {1 + 2 * i}"
 //! ```
 
-#![allow(unused)]
+use std::collections::HashMap;
+
 use crate::track::NoteType;
+use crate::track::Song;
+use nom::Finish;
 use nom::branch::alt;
 use nom::bytes::complete::is_not;
 use nom::bytes::complete::tag;
-use nom::character::complete::{char, crlf, newline, space0};
+use nom::character::complete::{crlf, newline};
 use nom::combinator::opt;
 use nom::combinator::{eof, map_res};
 use nom::error::ParseError;
 use nom::multi::many0;
-use nom::multi::{many0_count, many_m_n};
+use nom::multi::many0_count;
 use nom::sequence::delimited;
 use nom::sequence::preceded;
-use nom::sequence::tuple;
 use nom::sequence::{pair, separated_pair, terminated};
 use nom::Parser;
 use nom::{character::complete::satisfy, combinator::recognize, IResult};
@@ -36,7 +38,7 @@ use nom::{character::complete::satisfy, combinator::recognize, IResult};
 #[derive(Debug, Clone, PartialEq)]
 enum TJAFileItem<'a> {
     Metadata(&'a str, &'a str),
-    NoteTrack, // TODO
+    NoteTrack(Vec<NoteTrackEntry<'a>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,57 +57,105 @@ enum Player {
 #[derive(Debug, Clone, PartialEq)]
 enum TrackCommand<'a> {
     Start { player: Option<Player> },
-    End,
     Lyric(&'a str),
     BpmChange(f32),
-
-    // I want to keep this parser as open as possible
-    // So as long as a command follows the syntax, it will just be ignored.
-    Unknown(&'a str, Option<&'a str>),
+    Measure(u8, u8),
+    Delay(f32), 
+    Scroll(f32),
+    GogoStart,
+    GogoEnd,
+    BarlineOff,
+    BarlineOn,
+    // TODO: Commands for diverge notes
 }
 
 /// Errors associated with parsing TJA files
-///
-/// TODO: improve these errors so we can have nice
-/// human readable error messages.
 #[derive(Debug, PartialEq, Eq)]
-pub enum TJAParseError {
+pub enum TJAParseError<'a> {
+    NomError { input: &'a str, kind: nom::error::ErrorKind },
     TrackCommandError,
-    InvalidNoteError(char),
+    UnexpectedEndCommand,
+    InvalidNote(char),
+    NoteTrackNotEnded,
+    MultipleTracksSameDifficulty(usize),
+    InvalidMetadata(&'a str, &'a str),
 }
 
-impl std::fmt::Display for TJAParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> TJAParseError<'a> {
+    fn to_nom_error(self) -> nom::Err<Self> {
         match self {
-            TJAParseError::TrackCommandError => f.write_str("error while parsing track command"),
-            TJAParseError::InvalidNoteError(c) => f.write_str(&format!(r#"error while parsing note track: invalid note "{}""#, c)),
+            // Recoverable errors:
+            TJAParseError::NomError {..} | TJAParseError::UnexpectedEndCommand | TJAParseError::InvalidNote(_) => nom::Err::Error(self),
+
+            // Unrecoverable errors:
+            _ => nom::Err::Failure(self),
         }
     }
 }
 
-impl std::error::Error for TJAParseError {}
+impl<'a> ParseError<&'a str> for TJAParseError<'a> {
+    fn from_error_kind(input: &'a str, kind: nom::error::ErrorKind) -> Self {
+        TJAParseError::NomError { input, kind } 
+    }
+
+    fn append(_: &str, _: nom::error::ErrorKind, other: Self) -> Self {
+        other
+    }
+}
 
 impl<'a> TrackCommand<'a> {
     /// Creates a new "inner track command" (that is one that isn't START or END), from name and
     /// value
-    fn inner_from_name_arg(name: &'a str, arg: Option<&'a str>) -> Result<Self, TJAParseError> {
+    fn inner_from_name_arg(name: &'a str, arg: Option<&'a str>) -> Result<Self, TJAParseError<'a>> {
+        println!(r#"Command "{name}" "{arg:?}""#);
         // TODO: parse more commands
-        match name {
-            "START" | "END" => Err(TJAParseError::TrackCommandError),
-            _ => Ok(TrackCommand::Unknown(name, arg)),
-        }
+        use TJAParseError::TrackCommandError;
+        let arg_res = arg.ok_or_else(|| TrackCommandError);
+        
+        let command = match name {
+            "END" => return Err(TJAParseError::UnexpectedEndCommand),
+            "LYRIC" => TrackCommand::Lyric(arg_res?),
+            "BPMCHANGE" => TrackCommand::BpmChange(
+                arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?
+            ),
+            "MEASURE" => {
+                let (_, (numerator, denominator)) = parse_time_signature(arg_res?)
+                    .map_err(|_| TrackCommandError)?;
+
+                TrackCommand::Measure(numerator, denominator)
+            },
+            "DELAY" => TrackCommand::Delay(arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?),
+            "SCROLL" => TrackCommand::Scroll(arg_res?.parse::<f32>().map_err(|_| TrackCommandError)?),
+            "GOGOSTART" | "GOGOEND" | "BARLINEOFF" | "BARLINEON" => {
+                // These dont take any arguments, so ensure there is no arg 
+                if arg.is_some() {
+                    return Err(TrackCommandError);
+                }
+
+                match name {
+                    "GOGOSTART" => TrackCommand::GogoStart,
+                    "GOGOEND" => TrackCommand::GogoEnd,
+                    "BARLINEOFF" => TrackCommand::BarlineOff,
+                    "BARLINEON" => TrackCommand::BarlineOn,
+                    _ => unreachable!(),
+                }
+            }
+            _ => return Err(TrackCommandError),
+        };
+
+        Ok(command)
     }
 }
 
 // --- Parsing helper functions ---
 
 /// Parses a single uppercase letter.
-fn uppercase(i: &str) -> IResult<&str, char> {
+fn uppercase(i: &str) -> IResult<&str, char, TJAParseError> {
     satisfy(|c| ('A'..='Z').contains(&c))(i)
 }
 
 /// Parses a single digit from 0 to 9.
-fn digit(i: &str) -> IResult<&str, char> {
+fn digit(i: &str) -> IResult<&str, char, TJAParseError> {
     satisfy(|c| ('0'..='9').contains(&c))(i)
 }
 
@@ -158,14 +208,14 @@ where
 // uppercase letters and numbers. It must start with an uppercase letter.
 //
 // metadata_tagname ::= /[A-Z][A-Z0-9]*/
-fn metadata_tagname(i: &str) -> IResult<&str, &str> {
+fn metadata_tagname(i: &str) -> IResult<&str, &str, TJAParseError> {
     recognize(pair(uppercase, many0_count(alt((uppercase, digit)))))(i)
 }
 
 // Parses a colon and an optional space, and throws away the result
 //
 // colon_separator ::= ":" [" "]
-fn colon_separator(i: &str) -> IResult<&str, ()> {
+fn colon_separator(i: &str) -> IResult<&str, (), TJAParseError> {
     toss(pair(tag(":"), opt(tag(" "))))(i)
 }
 
@@ -173,7 +223,7 @@ fn colon_separator(i: &str) -> IResult<&str, ()> {
 // colon and optional space, then the value.
 //
 // metadata_pair ::= metadata_tagname colon_separator /[^\n\r]*/
-fn metadata_pair(i: &str) -> IResult<&str, (&str, &str)> {
+fn metadata_pair(i: &str) -> IResult<&str, (&str, &str), TJAParseError> {
     line_of(separated_pair(
         metadata_tagname,
         colon_separator,
@@ -182,36 +232,42 @@ fn metadata_pair(i: &str) -> IResult<&str, (&str, &str)> {
 }
 
 // --- Parsing functions for tracks ---
-
-fn start_command(i: &str) -> IResult<&str, TrackCommand> {
-    map_res(
-        line_of(preceded(
-            tag("#START"),
-            opt(preceded(tag(" "), is_not("\n\r"))),
-        )),
-        |opt_player| {
-            let player = match opt_player {
-                None => None,
-                Some("P1") => Some(Player::Player1),
-                Some("P2") => Some(Player::Player2),
-                _ => return Err(TJAParseError::TrackCommandError),
-            };
-            Ok(TrackCommand::Start { player })
-        },
+fn parse_time_signature(i: &str) -> IResult<&str, (u8, u8)> {
+    terminated(
+        separated_pair(
+            map_res(is_not("/"), |x: &str| x.parse::<u8>()),
+            tag("/"),
+            map_res(is_not("/"), |x: &str| x.parse::<u8>()),
+        ),
+        eof
     )(i)
 }
 
-fn end_command(i: &str) -> IResult<&str, ()> {
+fn start_command(i: &str) -> IResult<&str, TrackCommand, TJAParseError> {
+    let (i, opt_player) = line_of(preceded(
+        tag("#START"),
+        opt(preceded(tag(" "), is_not("\n\r"))),
+    ))(i)?;
+
+    let player = match opt_player {
+        None => None,
+        Some("P1") => Some(Player::Player1),
+        Some("P2") => Some(Player::Player2),
+        _ => return Err(nom::Err::Failure(TJAParseError::TrackCommandError)),
+    };
+    Ok((i, TrackCommand::Start { player }))
+}
+
+fn end_command(i: &str) -> IResult<&str, (), TJAParseError> {
     toss(line_of(tag("#END")))(i)
 }
 
 // Parses a track command (that isn't #START or #END), converting the result into a [TrackCommand] enum type.
 //
 // See [track_command_raw] for more details.
-fn inner_track_command(i: &str) -> IResult<&str, TrackCommand> {
-    map_res(track_command_raw, |(name, arg)| {
-        TrackCommand::inner_from_name_arg(name, arg)
-    })(i)
+fn inner_track_command(i: &str) -> IResult<&str, TrackCommand, TJAParseError> {
+    let (i, (name, arg)) = track_command_raw(i)?;
+    TrackCommand::inner_from_name_arg(name, arg).map(|command| (i, command)).map_err(|e| e.to_nom_error())
 }
 
 // Parses a track command, returning the name and value as raw strings.
@@ -220,14 +276,14 @@ fn inner_track_command(i: &str) -> IResult<&str, TrackCommand> {
 // Returns a tuple containing the name and optional value.
 //
 // track_command ::= '#' metadata_tagname [' ' /[^\n\r]/]
-fn track_command_raw(i: &str) -> IResult<&str, (&str, Option<&str>)> {
+fn track_command_raw(i: &str) -> IResult<&str, (&str, Option<&str>), TJAParseError> {
     line_of(preceded(
         tag("#"),
         pair(metadata_tagname, opt(preceded(tag(" "), is_not("\n\r")))),
     ))(i)
 }
 
-fn note(i: &str) -> IResult<&str, Option<NoteType>> {
+fn note(i: &str) -> IResult<&str, Option<NoteType>, TJAParseError> {
     satisfy(|c| ('0'..'9').contains(&c) || ['A', 'B'].contains(&c)).map(
         |c| {
             if c == '0' {
@@ -241,11 +297,11 @@ fn note(i: &str) -> IResult<&str, Option<NoteType>> {
     ).parse(i)
 }
 
-fn notes(i: &str) -> IResult<&str, Vec<Option<NoteType>>> {
+fn notes(i: &str) -> IResult<&str, Vec<Option<NoteType>>, TJAParseError> {
     many0(note)(i)
 }
 
-fn note_track_inner(mut i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
+fn note_track_inner(mut i: &str) -> IResult<&str, Vec<NoteTrackEntry>, TJAParseError> {
     let mut res = Vec::new();
 
     while !eof::<_, nom::error::Error<_>>(i).is_ok() {
@@ -263,10 +319,10 @@ fn note_track_inner(mut i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
         i = new_i;
     }
 
-    Err(nom::Err::Error(nom::error::Error { input: i, code: nom::error::ErrorKind::Many0}))
+    Err(nom::Err::Failure(TJAParseError::NoteTrackNotEnded))
 }
 
-fn note_track(i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
+fn note_track(i: &str) -> IResult<&str, Vec<NoteTrackEntry>, TJAParseError> {
     terminated(
         pair(start_command.map(NoteTrackEntry::Command), note_track_inner),
         end_command,
@@ -280,8 +336,59 @@ fn note_track(i: &str) -> IResult<&str, Vec<NoteTrackEntry>> {
 
 // --- Parsing for the file as a whole ---
 
-fn tja_item(i: &str) -> IResult<&str, TJAFileItem> {
-    alt((metadata_pair.map(|(tag, value)| TJAFileItem::Metadata(tag, value)),))(i)
+fn tja_item(i: &str) -> IResult<&str, TJAFileItem, TJAParseError> {
+    alt((
+        metadata_pair.map(|(tag, value)| TJAFileItem::Metadata(tag, value)),
+        note_track.map(TJAFileItem::NoteTrack),
+    ))(i)
+}
+
+fn tja_file(i: &str) -> IResult<&str, Vec<TJAFileItem>, TJAParseError> {
+    terminated(
+        many0(tja_item),
+        eof,
+    )(i)
+}
+
+pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError> {
+    let (_, items) = tja_file(input).finish()?;
+    let mut song = Song::default();
+    let mut metadata: HashMap<&str, &str> = HashMap::new();
+
+    for item in items {
+        match item {
+            TJAFileItem::Metadata(key, value) => metadata.insert(key, value),
+            TJAFileItem::NoteTrack(track) => {
+                // Start by seeing what metadata is currently set.
+                // Since course metadata and song metadata can be freely mixed, we have to
+                // check the metadata every time before making a new track.
+
+                // See what difficulty the track should be.
+                let difficulty = match metadata.get("COURSE") {
+                    Some(&course) => match course {
+                            "Easy" | "0" => 0,
+                            "Normal" | "1" => 1,
+                            "Hard" | "2" => 2,
+                            "Oni" | "3" => 3,
+                            "Edit" | "4" => 4,
+                            _ => return Err(TJAParseError::InvalidMetadata("COURSE", course))
+                    },
+
+                    // Default difficulty is oni
+                    None => 3,
+                };
+
+                // Ensure there isn't a track already defined with this difficulty
+                if song.difficulties[difficulty].is_some() {
+                    return Err(TJAParseError::MultipleTracksSameDifficulty(difficulty))
+                }
+
+                todo!()
+            },
+        };
+    }
+
+    Ok(song)
 }
 
 mod test {
@@ -359,6 +466,12 @@ mod test {
     }
 
     #[test]
+    fn test_track_command() {
+        assert_eq!(inner_track_command("#GOGOSTART"), Ok(("", TrackCommand::GogoStart)));
+        assert!(inner_track_command("#GOGOSTART testvalue").is_err());
+    }
+
+    #[test]
     fn test_notes() {
         use NoteType::*;
 
@@ -393,5 +506,69 @@ mod test {
                 NoteTrackEntry::EndMeasure,
             ]))
         )
+    }
+
+    #[test]
+    pub fn test_tja_file_item_list() {
+        use TJAFileItem::*;
+        use NoteType::*;
+        use NoteTrackEntry::*;
+
+        let track = "TITLE: POP TEAM EPIC
+BPM:142
+
+WAVE:POP TEAM EPIC.ogg
+
+
+#START
+
+#GOGOSTART
+
+1100,
+1100,
+2,
+,
+
+#END
+";
+
+        assert_eq!(
+            tja_file(track),
+            Ok(("", vec![
+                Metadata("TITLE", "POP TEAM EPIC"),
+                Metadata("BPM", "142"),
+                Metadata("WAVE", "POP TEAM EPIC.ogg"),
+                NoteTrack(vec![
+                    Command(TrackCommand::Start { player: None }),
+                    Command(TrackCommand::GogoStart),
+                    Notes(vec![Some(Don), Some(Don), None, None]),
+                    EndMeasure,
+                    Notes(vec![Some(Don), Some(Don), None, None]),
+                    EndMeasure,
+                    Notes(vec![Some(Kat)]),
+                    EndMeasure,
+                    EndMeasure,
+                ])
+            ]))
+        );
+
+        let error = "TITLE: POP TEAM EPIC
+BPM:142
+
+WAVE:POP TEAM EPIC.ogg
+
+
+#START
+
+#GOGOSTART oops this value shouldnt exist
+
+1100,
+1100,
+2,
+,
+
+#END
+";
+        assert!(tja_file(error).is_err());
     }
 }

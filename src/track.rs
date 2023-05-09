@@ -46,17 +46,17 @@ pub struct Note {
 
 /// The data for a song, including its metadata and difficulties/note tracks.
 pub struct Song {
-    title: String,
-    subtitle: String,
-    audio_filename: String,
-    bpm: f32,
+    pub title: String,
+    pub subtitle: String,
+    pub audio_filename: String,
+    pub bpm: f32,
     /// The amount of time between the beginning of the track and the first measure,
     /// measured in *seconds*.
     /// note timing will be relative to this offset
-    offset: f32,
+    pub offset: f32,
     /// The time *in seconds* that the song preview should start from.
-    demostart: f32,
-    difficulties: [Option<Difficulty>; 5],
+    pub demostart: f32,
+    pub difficulties: [Option<Difficulty>; 5],
 }
 
 impl Default for Song {
