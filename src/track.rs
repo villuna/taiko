@@ -47,7 +47,7 @@ pub struct Note {
 /// The data for a song, including its metadata and difficulties/note tracks.
 pub struct Song {
     pub title: String,
-    pub subtitle: String,
+    pub subtitle: Option<String>,
     pub audio_filename: String,
     pub bpm: f32,
     /// The amount of time between the beginning of the track and the first measure,
@@ -63,7 +63,7 @@ impl Default for Song {
     fn default() -> Self {
         Self {
             title: "".to_string(),
-            subtitle: "".to_string(),
+            subtitle: None,
             audio_filename: "".to_string(),
             bpm: DEFAULT_BPM,
             offset: 0.0,
