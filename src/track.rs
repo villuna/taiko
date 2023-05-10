@@ -88,7 +88,9 @@ pub struct Difficulty {
 /// TODO: Currently, this is just a linear stream of notes. Eventually
 /// we will have to handle songs with multiple streams that switch
 /// depending on the player's performance ("diverge notes").
+#[derive(Default)]
 pub struct NoteTrack {
     pub notes: Vec<Note>,
+    pub balloons: Option<Vec<u16>>,
     pub measures: Vec<f32>,
 }

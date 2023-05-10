@@ -13,23 +13,17 @@
 
 use std::collections::HashMap;
 
-use crate::track::NoteType;
-use crate::track::Song;
+use crate::track::{Difficulty, NoteTrack, NoteType, Song, Note};
 use nom::branch::alt;
-use nom::bytes::complete::is_not;
-use nom::bytes::complete::tag;
+use nom::bytes::complete::{is_not, tag};
 use nom::character::complete::{crlf, newline};
-use nom::combinator::opt;
-use nom::combinator::{eof, map_res};
-use nom::error::ParseError;
-use nom::multi::many0;
-use nom::multi::many0_count;
-use nom::sequence::delimited;
-use nom::sequence::preceded;
-use nom::sequence::{pair, separated_pair, terminated};
-use nom::Finish;
-use nom::Parser;
-use nom::{character::complete::satisfy, combinator::recognize, IResult};
+use nom::combinator::{eof, map_res, opt};
+use nom::error::{ParseError, FromExternalError};
+use nom::multi::{many0, many0_count, separated_list1};
+use nom::sequence::{pair, separated_pair, terminated, delimited, preceded};
+use nom::{Finish, Parser, IResult};
+use nom::character::complete::satisfy;
+use nom::combinator::recognize;
 
 /// An enum that represents a single unit of information in a TJA file.
 /// This is either a metadata tag, or an entire specification of the notes in
@@ -82,6 +76,7 @@ pub enum TJAParseError<'a> {
     NoteTrackNotEnded,
     MultipleTracksSameDifficulty(usize),
     InvalidMetadata(&'a str, &'a str),
+    MetadataNeeded(&'a str),
 }
 
 impl<'a> TJAParseError<'a> {
@@ -107,6 +102,12 @@ impl<'a> ParseError<&'a str> for TJAParseError<'a> {
         other
     }
 }
+
+impl<'a, E> FromExternalError<&'a str, E> for TJAParseError<'a> {
+    fn from_external_error(input: &'a str, kind: nom::error::ErrorKind, _e: E) -> Self {
+        Self::from_error_kind(input, kind)
+    }
+} 
 
 impl<'a> TrackCommand<'a> {
     /// Creates a new "inner track command" (that is one that isn't START or END), from name and
@@ -356,6 +357,81 @@ fn tja_file(i: &str) -> IResult<&str, Vec<TJAFileItem>, TJAParseError> {
     terminated(many0(tja_item), eof)(i)
 }
 
+fn get_parsed_metadata<'a, T: std::str::FromStr>(metadata: &HashMap<&'a str, &'a str>, key: &'a str, default: Option<T>) -> Result<T, TJAParseError<'a>> {
+    metadata.get(key)
+        .map(|s| s.parse::<T>().map_err(|_| TJAParseError::InvalidMetadata(key, s)))
+        .unwrap_or(match default {
+            Some(t) => Ok(t),
+            None => Err(TJAParseError::MetadataNeeded(key)),
+        })
+}
+
+fn construct_difficulty<'a>(track_items: &[NoteTrackEntry<'a>], metadata: &HashMap<&'a str, &'a str>, song: &mut Song) -> Result<(), TJAParseError<'a>> {
+    // Start by seeing what metadata is currently set.
+    // Since course metadata and song metadata can be freely mixed, we have to
+    // check the metadata every time before making a new track.
+
+    // See what difficulty the track should be.
+    let difficulty_level = match metadata.get("COURSE") {
+        Some(&course) => match course {
+            "Easy" | "0" => 0,
+            "Normal" | "1" => 1,
+            "Hard" | "2" => 2,
+            "Oni" | "3" => 3,
+            "Edit" | "4" => 4,
+            _ => return Err(TJAParseError::InvalidMetadata("COURSE", course)),
+        },
+
+        // Default difficulty is oni
+        None => 3,
+    };
+
+    // Ensure there isn't a track already defined with this difficulty
+    if song.difficulties[difficulty_level].is_some() {
+        return Err(TJAParseError::MultipleTracksSameDifficulty(difficulty_level));
+    }
+
+    let mut track = NoteTrack::default();
+
+    // Various metadata needed for constructing the track
+    // The time signature, as numerator divided by denominator (musicians might
+    // disagree but I feel pretty good about it)
+    // Defaults to common time
+    let mut signature = 1f32;
+    let mut bpm = get_parsed_metadata::<f32>(metadata, "BPM", Some(120.0))?;
+    let mut balloon_count = 0;
+
+    // TODO: Parse track from items
+
+    // If the number of balloons in the course is nonzero, we have to store
+    // how many hits it takes to complete each one. This is the BALLOON metadata
+    //
+    // Isn't balloon such a weird word
+    let balloons = metadata.get("BALLOON");
+    if balloon_count != 0 {
+        let balloons_list = match balloons {
+            Some(list) => terminated(separated_list1(tag(","), map_res(is_not(","), |n: &str| n.parse::<u16>())), eof)(list).finish()?.1,
+
+            // Ensure that BALLOON metadata does not exist ==> balloon count is 0
+            None => return Err(TJAParseError::MetadataNeeded("BALLOON")),
+        };
+
+        // Also ensure that the number of balloons in the metadata matches
+        // the number of balloon notes.
+        if balloons_list.len() != balloon_count {
+            // Unwrapping balloons here is fine bc we've already checked it is not None.
+            return Err(TJAParseError::InvalidMetadata("BALLOON", balloons.unwrap()))
+        }
+
+        track.balloons = Some(balloons_list);
+    }
+
+    let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None)?;
+
+    song.difficulties[difficulty_level] = Some(Difficulty { star_level, track });
+    Ok(())
+}
+
 pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError> {
     let (_, items) = tja_file(input).finish()?;
     let mut song = Song::default();
@@ -363,33 +439,12 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError> {
 
     for item in items {
         match item {
-            TJAFileItem::Metadata(key, value) => metadata.insert(key, value),
+            TJAFileItem::Metadata(key, value) => { 
+                metadata.insert(key, value); 
+            }
+
             TJAFileItem::NoteTrack(track) => {
-                // Start by seeing what metadata is currently set.
-                // Since course metadata and song metadata can be freely mixed, we have to
-                // check the metadata every time before making a new track.
-
-                // See what difficulty the track should be.
-                let difficulty = match metadata.get("COURSE") {
-                    Some(&course) => match course {
-                        "Easy" | "0" => 0,
-                        "Normal" | "1" => 1,
-                        "Hard" | "2" => 2,
-                        "Oni" | "3" => 3,
-                        "Edit" | "4" => 4,
-                        _ => return Err(TJAParseError::InvalidMetadata("COURSE", course)),
-                    },
-
-                    // Default difficulty is oni
-                    None => 3,
-                };
-
-                // Ensure there isn't a track already defined with this difficulty
-                if song.difficulties[difficulty].is_some() {
-                    return Err(TJAParseError::MultipleTracksSameDifficulty(difficulty));
-                }
-
-                todo!()
+                construct_difficulty(&track, &metadata, &mut song)?;
             }
         };
     }
