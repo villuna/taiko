@@ -8,22 +8,22 @@
 //!
 //! symbol2 ::= alternative1 | alternative2
 //!
-//! embeddedExpression ::= "string with embedded expression: {1 + 2 * i}"
-//! ```
+//! embeddedExpression ::= "string with embedded expression: {1 + 2 * i}" ```
 
 use std::collections::HashMap;
 
-use crate::track::{Difficulty, NoteTrack, NoteType, Song, Note};
+use crate::track::{Difficulty, Note, NoteTrack, NoteType, Song};
+use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag};
-use nom::character::complete::{crlf, newline};
-use nom::combinator::{eof, map_res, opt};
-use nom::error::{ParseError, FromExternalError};
-use nom::multi::{many0, many0_count, separated_list1};
-use nom::sequence::{pair, separated_pair, terminated, delimited, preceded};
-use nom::{Finish, Parser, IResult};
 use nom::character::complete::satisfy;
+use nom::character::complete::{crlf, newline};
 use nom::combinator::recognize;
+use nom::combinator::{eof, map_res, opt};
+use nom::error::{FromExternalError, ParseError};
+use nom::multi::{many0, many0_count, separated_list1};
+use nom::sequence::{delimited, pair, preceded, separated_pair, terminated};
+use nom::{Finish, IResult, Parser};
 
 /// An enum that represents a single unit of information in a TJA file.
 /// This is either a metadata tag, or an entire specification of the notes in
@@ -107,13 +107,12 @@ impl<'a, E> FromExternalError<&'a str, E> for TJAParseError<'a> {
     fn from_external_error(input: &'a str, kind: nom::error::ErrorKind, _e: E) -> Self {
         Self::from_error_kind(input, kind)
     }
-} 
+}
 
 impl<'a> TrackCommand<'a> {
     /// Creates a new "inner track command" (that is one that isn't START or END), from name and
     /// value
     fn inner_from_name_arg(name: &'a str, arg: Option<&'a str>) -> Result<Self, TJAParseError<'a>> {
-        println!(r#"Command "{name}" "{arg:?}""#);
         // TODO: parse more commands
         use TJAParseError::TrackCommandError;
         let arg_res = arg.ok_or(TrackCommandError);
@@ -235,7 +234,7 @@ fn metadata_pair(i: &str) -> IResult<&str, (&str, &str), TJAParseError> {
     line_of(separated_pair(
         metadata_tagname,
         colon_separator,
-        is_not("\n\r"),
+        opt(is_not("\n\r")).map(|s| s.unwrap_or("")),
     ))(i)
 }
 
@@ -357,16 +356,48 @@ fn tja_file(i: &str) -> IResult<&str, Vec<TJAFileItem>, TJAParseError> {
     terminated(many0(tja_item), eof)(i)
 }
 
-fn get_parsed_metadata<'a, T: std::str::FromStr>(metadata: &HashMap<&'a str, &'a str>, key: &'a str, default: Option<T>) -> Result<T, TJAParseError<'a>> {
-    metadata.get(key)
-        .map(|s| s.parse::<T>().map_err(|_| TJAParseError::InvalidMetadata(key, s)))
+/// Strips away the comments from a tja file, and removes the zero width byte alignment character
+/// from the front if it exists.
+fn preprocess_tja_file(input: &str) -> String {
+    Itertools::intersperse(
+        input.lines()
+            // Get rid of zero width spaces, which for some reason keep starting the tja files I
+            // test.
+            .map(|line| line.strip_prefix("\u{feff}").unwrap_or(line))
+            // Remove comments
+            .map(|line| line.find("//").map(|i| &line[0..i]).unwrap_or(line)),
+        "\n",
+    )
+    .collect()
+}
+
+pub fn tja_file_bench(i: &str) {
+    let no_comments = preprocess_tja_file(i);
+    tja_file(&no_comments).finish().map(|_| ()).unwrap();
+}
+
+fn get_parsed_metadata<'a, T: std::str::FromStr>(
+    metadata: &HashMap<&'a str, &'a str>,
+    key: &'a str,
+    default: Option<T>,
+) -> Result<T, TJAParseError<'a>> {
+    metadata
+        .get(key)
+        .map(|s| {
+            s.parse::<T>()
+                .map_err(|_| TJAParseError::InvalidMetadata(key, s))
+        })
         .unwrap_or(match default {
             Some(t) => Ok(t),
             None => Err(TJAParseError::MetadataNeeded(key)),
         })
 }
 
-fn construct_difficulty<'a>(track_items: &[NoteTrackEntry<'a>], metadata: &HashMap<&'a str, &'a str>, song: &mut Song) -> Result<(), TJAParseError<'a>> {
+fn construct_difficulty<'a>(
+    track_items: &[NoteTrackEntry<'a>],
+    metadata: &HashMap<&'a str, &'a str>,
+    song: &mut Song,
+) -> Result<(), TJAParseError<'a>> {
     // Start by seeing what metadata is currently set.
     // Since course metadata and song metadata can be freely mixed, we have to
     // check the metadata every time before making a new track.
@@ -388,7 +419,9 @@ fn construct_difficulty<'a>(track_items: &[NoteTrackEntry<'a>], metadata: &HashM
 
     // Ensure there isn't a track already defined with this difficulty
     if song.difficulties[difficulty_level].is_some() {
-        return Err(TJAParseError::MultipleTracksSameDifficulty(difficulty_level));
+        return Err(TJAParseError::MultipleTracksSameDifficulty(
+            difficulty_level,
+        ));
     }
 
     let mut track = NoteTrack::default();
@@ -410,7 +443,14 @@ fn construct_difficulty<'a>(track_items: &[NoteTrackEntry<'a>], metadata: &HashM
     let balloons = metadata.get("BALLOON");
     if balloon_count != 0 {
         let balloons_list = match balloons {
-            Some(list) => terminated(separated_list1(tag(","), map_res(is_not(","), |n: &str| n.parse::<u16>())), eof)(list).finish()?.1,
+            Some(list) => {
+                terminated(
+                    separated_list1(tag(","), map_res(is_not(","), |n: &str| n.parse::<u16>())),
+                    eof,
+                )(list)
+                .finish()?
+                .1
+            }
 
             // Ensure that BALLOON metadata does not exist ==> balloon count is 0
             None => return Err(TJAParseError::MetadataNeeded("BALLOON")),
@@ -420,7 +460,7 @@ fn construct_difficulty<'a>(track_items: &[NoteTrackEntry<'a>], metadata: &HashM
         // the number of balloon notes.
         if balloons_list.len() != balloon_count {
             // Unwrapping balloons here is fine bc we've already checked it is not None.
-            return Err(TJAParseError::InvalidMetadata("BALLOON", balloons.unwrap()))
+            return Err(TJAParseError::InvalidMetadata("BALLOON", balloons.unwrap()));
         }
 
         track.balloons = Some(balloons_list);
@@ -439,8 +479,8 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError> {
 
     for item in items {
         match item {
-            TJAFileItem::Metadata(key, value) => { 
-                metadata.insert(key, value); 
+            TJAFileItem::Metadata(key, value) => {
+                metadata.insert(key, value);
             }
 
             TJAFileItem::NoteTrack(track) => {
@@ -470,6 +510,7 @@ mod test {
 
     #[test]
     fn test_meta_pair() {
+        // Line terminated metadata
         assert_eq!(
             metadata_pair("TITLE:さいたま2000\n"),
             Ok(("", ("TITLE", "さいたま2000")))
@@ -478,10 +519,13 @@ mod test {
             metadata_pair("TITLE:POP TEAM EPIC\r\n"),
             Ok(("", ("TITLE", "POP TEAM EPIC")))
         );
+        // EOF terminated metadata
         assert_eq!(
             metadata_pair("EXAM1:something"),
             Ok(("", ("EXAM1", "something")))
         );
+        // Empty metadata
+        assert_eq!(metadata_pair("EMPTY:"), Ok(("", ("EMPTY", ""))));
     }
 
     #[test]
@@ -650,5 +694,18 @@ WAVE:POP TEAM EPIC.ogg
 #END
 ";
         assert!(tja_file(error).is_err());
+    }
+
+    #[test]
+    fn test_real_tja_file() {
+        let ready_to = include_str!("../example-tracks/Ready To/Ready to.tja");
+        let no_comments = preprocess_tja_file(ready_to);
+
+        dbg!(&no_comments);
+
+        let res = tja_file(&no_comments);
+
+        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 }
