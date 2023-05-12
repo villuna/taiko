@@ -14,6 +14,7 @@ use std::collections::HashMap;
 
 use crate::track::{Difficulty, Note, NoteTrack, NoteType, Song};
 use itertools::Itertools;
+use lookahead::Lookahead;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag};
 use nom::character::complete::satisfy;
@@ -433,10 +434,36 @@ fn get_metadata_owned<'a>(
     key: &'a str,
     default: Option<&str>,
 ) -> Result<String, TJAParseError<&'a str>> {
-    Ok(metadata.get(key).cloned().map(|s| s.to_string()).unwrap_or(match default {
-        Some(s) => s.to_string(),
-        None => return Err(TJAParseError::MetadataNeeded(key)),
-    }))
+    let value = if let Some(s) = metadata.get(key) {
+        s.to_string()
+    } else {
+        match default {
+            Some(s) => s.to_string(),
+            None => return Err(TJAParseError::MetadataNeeded(key)),
+        }
+    };
+
+    Ok(value)
+}
+
+/// Calculate the number of notes between now and the end of the current measure.
+/// 
+/// Requires the argument to be a [lookahead::Lookahead] as we need to be able to walk through
+/// the rest of the iterator to count the notes.
+fn notes_in_next_measure<'a, I: Iterator<Item = &'a NoteTrackEntry<'a>>>(iter: &mut Lookahead<I>) -> usize {
+    let mut num_notes = 0;
+
+    for i in 0.. {
+        let Some(item) = iter.lookahead(i) else { break; };
+
+        match item {
+            NoteTrackEntry::Notes(notes) => num_notes += notes.iter().filter(|n| n.is_some()).count(),
+            NoteTrackEntry::EndMeasure => break,
+            _ => {},
+        }
+    }
+
+    return num_notes;
 }
 
 fn construct_difficulty<'a>(
@@ -478,10 +505,89 @@ fn construct_difficulty<'a>(
     // Defaults to common time
     let mut signature = 1f32;
     let mut bpm = get_parsed_metadata::<f32>(metadata, "BPM", Some(120.0))?;
-    let offset = get_parsed_metadata::<f32>(metadata, "OFFSET", Some(0.0));
+    let offset = get_parsed_metadata::<f32>(metadata, "OFFSET", Some(0.0))?;
+    let init_scroll_speed = get_parsed_metadata::<f32>(metadata, "HEADSCROLL", Some(1.0))?;
+    let mut scroll_speed = init_scroll_speed;
     let mut balloon_count = 0;
 
-    // TODO: Parse track from items
+    let mut items_iter = lookahead::lookahead(track_items);
+    let mut notes_in_measure = notes_in_next_measure(&mut items_iter);
+    let mut millis_per_measure = 60000.0 * signature * 4.0 / bpm;
+
+    let mut millis_per_note = if notes_in_measure == 0 {
+        0.0
+    } else {
+        millis_per_measure / notes_in_measure as f32
+    };
+
+    let mut time = -offset * 1000.0;
+    let mut measure_start_time = time;
+
+    while let Some(item) = items_iter.next() {
+        match item {
+            NoteTrackEntry::Command(command) => match command {
+                TrackCommand::BpmChange(new_bpm) => bpm = *new_bpm,
+                TrackCommand::Measure(num, den) => {
+                    signature = *num as f32 / *den as f32;
+                    millis_per_measure = 60000.0 * signature * 4.0 / bpm;
+                    millis_per_note = millis_per_measure / notes_in_measure as f32;
+                },
+                TrackCommand::Delay(t) => time += 1000.0 * *t,
+                TrackCommand::Scroll(s) => scroll_speed = init_scroll_speed * *s,
+                TrackCommand::GogoStart => todo!(),
+                TrackCommand::GogoEnd => todo!(),
+                TrackCommand::BarlineOff => todo!(),
+                TrackCommand::BarlineOn => todo!(),
+                _ => {},
+            }
+            NoteTrackEntry::Notes(notes) => {
+                let num_notes = notes.len();
+
+                // The notes that are to be added to the track.
+                // Each note is evenly spaced (including the Nones, which represent
+                // no notes). Thus, we can multiply the milliseconds per note by each note's
+                // index in the vector and add this to the current time to find when the note should
+                // be hit.
+                let new_notes = notes.into_iter()
+                    .enumerate()
+                    .filter_map(|(i, note)| {
+                        note.map(|note_type| {
+                            if matches!(note_type, NoteType::BalloonRoll | NoteType::SpecialRoll) {
+                                balloon_count += 1;
+                            };
+
+                            Note {
+                                note_type,
+                                time: time + millis_per_note * i as f32,
+                                scroll_speed,
+                            }
+                        })
+                    });
+
+                track.notes.extend(new_notes);
+                // Update the current time. We didn't have to do this for each note
+                // because they're evenly spaced.
+                time += num_notes as f32 * millis_per_note;
+            }
+
+            NoteTrackEntry::EndMeasure => {
+                // Make sure that even if we've had no notes we're still at
+                // the next measure
+                time = measure_start_time + millis_per_measure;
+                measure_start_time = time;
+
+                // Recalculate our measure-based variables
+                notes_in_measure = notes_in_next_measure(&mut items_iter);
+                millis_per_measure = 60000.0 * signature * 4.0 / bpm;
+
+                millis_per_note = if notes_in_measure == 0 {
+                    0.0
+                } else {
+                    millis_per_measure / notes_in_measure as f32
+                };
+            },
+        }
+    }
 
     // If the number of balloons in the course is nonzero, we have to store
     // how many hits it takes to complete each one. This is the BALLOON metadata
@@ -510,13 +616,11 @@ fn construct_difficulty<'a>(
             return Err(TJAParseError::InvalidMetadata("BALLOON", balloons.unwrap()));
         }
 
-        track.balloons = Some(balloons_list);
+        track.balloons = balloons_list;
     }
-
     
     let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None)?;
     
-
     difficulties[difficulty_level] = Some(Difficulty { star_level, track });
     Ok(())
 }
@@ -530,6 +634,7 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError<String>> {
     for item in items {
         match item {
             TJAFileItem::Metadata(key, value) => {
+                //println!("{key:?}: {value:?}");
                 metadata.insert(key, value);
             }
 
@@ -545,7 +650,7 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError<String>> {
     let audio_filename = get_metadata_owned(&metadata, "WAVE", None)?;
     let demostart = get_parsed_metadata::<f32>(&metadata, "DEMOSTART", Some(0.0))?;
     let offset = get_parsed_metadata::<f32>(&metadata, "OFFSET", Some(0.0))?;
-    let bpm = get_parsed_metadata::<f32>(&metadata, "BPM", Some(0.0))?;
+    let bpm = get_parsed_metadata::<f32>(&metadata, "BPM", Some(120.0))?;
 
     Ok(Song {
         title,

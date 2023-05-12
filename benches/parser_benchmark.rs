@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use taiko::parser::tja_file_bench;
+use taiko::parser::{tja_file_bench, parse_tja_file};
 
 pub fn tja_benchmark(c: &mut Criterion) {
     let ready_to = include_str!("../example-tracks/Ready To/Ready to.tja");
@@ -18,5 +18,13 @@ pub fn tja_benchmark_with_read_str(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, tja_benchmark, tja_benchmark_with_read_str);
+pub fn full_tja_benchmark(c: &mut Criterion) {
+    let ready_to = include_str!("../example-tracks/Ready To/Ready to.tja");
+
+    c.bench_function("tja test: \"Ready to\", full parse", |b| {
+        b.iter(|| parse_tja_file(black_box(ready_to)).unwrap());
+    });
+}
+
+criterion_group!(benches, tja_benchmark, tja_benchmark_with_read_str, full_tja_benchmark);
 criterion_main!(benches);

@@ -204,11 +204,38 @@ WAVE:POP TEAM EPIC.ogg
 }
 
 #[test]
-fn test_real_tja_file() {
+fn test_tja_file_full() {
+    let ok_track = "TITLE: POP TEAM EPIC
+BPM:142
+WAVE:POP TEAM EPIC.ogg
+
+
+BALLOON:10,20
+COURSE:Easy
+LEVEL:1
+
+#START
+
+1100,
+1100,
+2,
+7,
+,
+9,
+
+#END
+";
+
+    assert!(parse_tja_file(ok_track).is_ok());
+
+    let no_title = format!("//{}", ok_track);
+    assert_eq!(parse_tja_file(&no_title).unwrap_err(), TJAParseError::MetadataNeeded("TITLE".to_string()));
+}
+
+#[test]
+fn test_real_tja_file_succeeds() {
     let ready_to = include_str!("../../example-tracks/Ready To/Ready to.tja");
     let no_comments = preprocess_tja_file(ready_to);
-
-    dbg!(&no_comments);
 
     let res = tja_file(&no_comments);
 

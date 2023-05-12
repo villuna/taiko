@@ -45,6 +45,7 @@ pub struct Note {
 }
 
 /// The data for a song, including its metadata and difficulties/note tracks.
+#[derive(Debug, Clone)]
 pub struct Song {
     pub title: String,
     pub subtitle: Option<String>,
@@ -78,6 +79,7 @@ impl Default for Song {
 /// TODO: currently this cannot handle "Diverge Notes". see [NoteTrack]
 /// for details. It also cannot handle multiple tracks for different
 /// players.
+#[derive(Debug, Clone)]
 pub struct Difficulty {
     pub star_level: u8,
     pub track: NoteTrack,
@@ -88,9 +90,9 @@ pub struct Difficulty {
 /// TODO: Currently, this is just a linear stream of notes. Eventually
 /// we will have to handle songs with multiple streams that switch
 /// depending on the player's performance ("diverge notes").
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct NoteTrack {
     pub notes: Vec<Note>,
-    pub balloons: Option<Vec<u16>>,
+    pub balloons: Vec<u16>,
     pub measures: Vec<f32>,
 }

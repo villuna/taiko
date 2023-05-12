@@ -892,6 +892,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lookahead"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c0f442d1db442b524dd9fd704aafed0617b56f7090b2e46bc2da5144e34751"
+
+[[package]]
 name = "lyon"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1683,6 +1689,7 @@ dependencies = [
  "env_logger",
  "itertools",
  "log",
+ "lookahead",
  "lyon",
  "nom",
  "num-derive",
