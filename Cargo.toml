@@ -21,6 +21,7 @@ rand = "0.8.5"
 tokio = { version = "1.27.0", features = ["macros", "rt-multi-thread"] }
 wgpu = "0.16.0"
 winit = "0.28.3"
+map_enum_generic_derive = { path = "./src/parser/map_enum_generic_derive" }
 
 [dev-dependencies]
 criterion = "0.4"

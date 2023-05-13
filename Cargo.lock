@@ -959,6 +959,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "map_enum_generic_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
+
+[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1691,6 +1700,7 @@ dependencies = [
  "log",
  "lookahead",
  "lyon",
+ "map_enum_generic_derive",
  "nom",
  "num-derive",
  "num-traits",

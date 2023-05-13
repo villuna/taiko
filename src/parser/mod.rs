@@ -67,7 +67,7 @@ enum TrackCommand<'a> {
 }
 
 /// Errors associated with parsing TJA files
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, map_enum_generic_derive::MapStrToOwned)]
 pub enum TJAParseError<I> {
     NomError {
         input: I,
@@ -109,35 +109,6 @@ impl<'a> ParseError<&'a str> for TJAParseError<&'a str> {
 impl<'a, E> FromExternalError<&'a str, E> for TJAParseError<&'a str> {
     fn from_external_error(input: &'a str, kind: nom::error::ErrorKind, _e: E) -> Self {
         Self::from_error_kind(input, kind)
-    }
-}
-
-// This exists so we can return an owned version of the errors when we need to (for example, after
-// preprocessing the input into a string owned by the function, then returning a result that
-// references that string).
-//
-// It is obviously not ideal to have to map every variant manually like this. It would be better to
-// do this with a macro but I'm
-// not very good at rust macros.
-impl From<TJAParseError<&str>> for TJAParseError<String> {
-    fn from(value: TJAParseError<&str>) -> Self {
-        match value {
-            TJAParseError::NomError { input, kind } => TJAParseError::NomError {
-                input: input.to_string(),
-                kind,
-            },
-            TJAParseError::InvalidMetadata(name, value) => {
-                TJAParseError::InvalidMetadata(name.to_string(), value.to_string())
-            }
-            TJAParseError::MetadataNeeded(name) => TJAParseError::MetadataNeeded(name.to_string()),
-            TJAParseError::InvalidNote(c) => TJAParseError::InvalidNote(c),
-            TJAParseError::TrackCommandError => TJAParseError::TrackCommandError,
-            TJAParseError::NoteTrackNotEnded => TJAParseError::NoteTrackNotEnded,
-            TJAParseError::UnexpectedEndCommand => TJAParseError::UnexpectedEndCommand,
-            TJAParseError::MultipleTracksSameDifficulty(diff) => {
-                TJAParseError::MultipleTracksSameDifficulty(diff)
-            }
-        }
     }
 }
 
