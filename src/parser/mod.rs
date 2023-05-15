@@ -399,7 +399,7 @@ fn preprocess_tja_file(input: &str) -> String {
             .lines()
             // Get rid of zero width spaces, which for some reason keep starting the tja files I
             // test.
-            .map(|line| line.strip_prefix("\u{feff}").unwrap_or(line))
+            .map(|line| line.strip_prefix('\u{feff}').unwrap_or(line))
             // Remove comments
             .map(|line| line.find("//").map(|i| &line[0..i]).unwrap_or(line)),
         "\n",
@@ -467,7 +467,7 @@ fn notes_in_next_measure<'a, I: Iterator<Item = &'a NoteTrackEntry<'a>>>(
         }
     }
 
-    return num_notes;
+    num_notes
 }
 
 fn construct_difficulty<'a>(
@@ -552,7 +552,7 @@ fn construct_difficulty<'a>(
                 // no notes). Thus, we can multiply the milliseconds per note by each note's
                 // index in the vector and add this to the current time to find when the note should
                 // be hit.
-                let new_notes = notes.into_iter().enumerate().filter_map(|(i, note)| {
+                let new_notes = notes.iter().enumerate().filter_map(|(i, note)| {
                     note.map(|note_type| {
                         if matches!(note_type, NoteType::BalloonRoll | NoteType::SpecialRoll) {
                             balloon_count += 1;

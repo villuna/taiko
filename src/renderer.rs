@@ -218,7 +218,7 @@ impl Egui {
 
         for (id, image_delta) in textures_delta.set {
             self.renderer
-                .update_texture(&device, queue, id, &image_delta);
+                .update_texture(device, queue, id, &image_delta);
         }
 
         self.renderer
@@ -431,7 +431,8 @@ impl Renderer {
         // Rendering goes here...
 
         // Last step will be to render the debug gui
-        self.egui_handler.render(&mut render_pass, paint_jobs, &screen_descriptor);
+        self.egui_handler
+            .render(&mut render_pass, paint_jobs, &screen_descriptor);
 
         drop(render_pass);
 
