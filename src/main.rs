@@ -26,7 +26,7 @@ async fn main() {
     let mut renderer = Renderer::new(window).await.unwrap();
     let mut app = App::new().unwrap();
 
-    event_loop.run(move |event, _, control_flow| match event {
+    event_loop.run(move |event, _, control_flow| if !renderer.handle_event(&event) { match event {
         Event::WindowEvent { window_id, event } if window_id == renderer.window().id() => {
             match event {
                 WindowEvent::CloseRequested
@@ -59,7 +59,7 @@ async fn main() {
             let delta = time.duration_since(frame_time).as_secs_f32();
             frame_time = time;
             app.update(delta);
-            match renderer.render() {
+            match renderer.render(&app) {
                 Ok(_) => {}
 
                 Err(wgpu::SurfaceError::Lost) => {
@@ -74,5 +74,5 @@ async fn main() {
         Event::MainEventsCleared => renderer.window().request_redraw(),
 
         _ => {}
-    });
+    }});
 }

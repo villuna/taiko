@@ -229,7 +229,10 @@ LEVEL:1
     assert!(parse_tja_file(ok_track).is_ok());
 
     let no_title = format!("//{}", ok_track);
-    assert_eq!(parse_tja_file(&no_title).unwrap_err(), TJAParseError::MetadataNeeded("TITLE".to_string()));
+    assert_eq!(
+        parse_tja_file(&no_title).unwrap_err(),
+        TJAParseError::MetadataNeeded("TITLE".to_string())
+    );
 }
 
 #[test]

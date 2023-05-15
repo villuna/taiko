@@ -1,16 +1,27 @@
+use std::time::Instant;
+
 use anyhow::anyhow;
+use egui_wgpu::renderer::ScreenDescriptor;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
 
+use crate::app::App;
 use crate::primitives::PrimitiveVertex;
 
 const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
+const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct ScreenUniform {
     matrix: [[f32; 4]; 4],
+}
+
+struct Egui {
+    platform: egui_winit_platform::Platform,
+    renderer: egui_wgpu::Renderer,
+    start_time: Instant,
 }
 
 pub struct Renderer {
@@ -24,8 +35,9 @@ pub struct Renderer {
     depth_view: wgpu::TextureView,
     screen_uniform: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
-
     primitive_pipeline: wgpu::RenderPipeline,
+
+    egui_handler: Egui,
 }
 
 // A matrix that turns pixel coordinates into wgpu screen coordinates.
@@ -65,7 +77,7 @@ fn create_depth_texture(device: &wgpu::Device, size: &PhysicalSize<u32>) -> wgpu
             mip_level_count: 1,
             sample_count: SAMPLE_COUNT,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
+            format: DEPTH_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         })
@@ -148,6 +160,84 @@ fn create_render_pipeline(
     })
 }
 
+impl Egui {
+    /// Creates a new egui handler.
+    fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, scale_factor: f64) -> Self {
+        let platform =
+            egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
+                physical_width: config.width,
+                physical_height: config.height,
+                scale_factor,
+                ..Default::default()
+            });
+
+        let renderer =
+            egui_wgpu::Renderer::new(device, config.format, Some(DEPTH_FORMAT), SAMPLE_COUNT);
+
+        Self {
+            platform,
+            renderer,
+            start_time: Instant::now(),
+        }
+    }
+
+    /// Passes a winit event to egui for processing.
+    ///
+    /// Returns true if the event is "captured", which means it should not be handled by anything
+    /// else (for example, clicking on an egui element should not also click behind it).
+    fn handle_event<T>(&mut self, event: &winit::event::Event<'_, T>) -> bool {
+        self.platform.handle_event(event);
+        self.platform.captures_event(event)
+    }
+
+    fn begin_render(&mut self) {
+        self.platform
+            .update_time(self.start_time.elapsed().as_secs_f64());
+        self.platform.begin_frame();
+    }
+
+    fn context(&self) -> egui::Context {
+        self.platform.context()
+    }
+
+    fn end_render(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        screen_descriptor: &ScreenDescriptor,
+        window: &Window,
+    ) -> Vec<egui::ClippedPrimitive> {
+        let full_output = self.platform.end_frame(Some(window));
+        let paint_jobs = self.platform.context().tessellate(full_output.shapes);
+        let textures_delta = full_output.textures_delta;
+
+        for texture in textures_delta.free.iter() {
+            self.renderer.free_texture(texture);
+        }
+
+        for (id, image_delta) in textures_delta.set {
+            self.renderer
+                .update_texture(&device, queue, id, &image_delta);
+        }
+
+        self.renderer
+            .update_buffers(device, queue, encoder, &paint_jobs, screen_descriptor);
+
+        paint_jobs
+    }
+
+    fn render<'a>(
+        &'a self,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        paint_jobs: Vec<egui::ClippedPrimitive>,
+        screen_descriptor: &ScreenDescriptor,
+    ) {
+        self.renderer
+            .render(render_pass, &paint_jobs, screen_descriptor);
+    }
+}
+
 impl Renderer {
     pub async fn new(window: Window) -> anyhow::Result<Self> {
         let size = window.inner_size();
@@ -185,7 +275,7 @@ impl Renderer {
             .formats
             .iter()
             .copied()
-            .find(|f| f.is_srgb())
+            .find(|f| f.describe().srgb)
             .unwrap_or(surface_capabilities.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {
@@ -248,7 +338,6 @@ impl Renderer {
             source: wgpu::ShaderSource::Wgsl(
                 #[cfg(debug_assertions)]
                 std::fs::read_to_string("src/shaders/primitive_shader.wgsl")?.into(),
-
                 #[cfg(not(debug_assertions))]
                 include_str!("shaders/primitive_shader.wgsl").into(),
             ),
@@ -259,13 +348,14 @@ impl Renderer {
             "primitive pipeline",
             &primitive_pipeline_layout,
             config.format,
-            Some(wgpu::TextureFormat::Depth32Float),
+            Some(DEPTH_FORMAT),
             &[PrimitiveVertex::desc()],
             &primitive_shader,
             SAMPLE_COUNT,
         );
 
         let depth_view = create_depth_texture(&device, &size);
+        let egui_handler = Egui::new(&device, &config, window.scale_factor());
 
         Ok(Self {
             size,
@@ -276,14 +366,15 @@ impl Renderer {
             window,
             msaa_view,
             depth_view,
-
             primitive_pipeline,
             screen_uniform,
             screen_bind_group,
+
+            egui_handler,
         })
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, app: &App) -> Result<(), wgpu::SurfaceError> {
         let texture = self.surface.get_current_texture()?;
         let view = texture.texture.create_view(&Default::default());
 
@@ -292,6 +383,23 @@ impl Renderer {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render pass encoder"),
             });
+
+        self.egui_handler.begin_render();
+
+        app.debug_ui(self.egui_handler.context());
+
+        let screen_descriptor = ScreenDescriptor {
+            size_in_pixels: [self.size.width, self.size.height],
+            pixels_per_point: self.window.scale_factor() as _,
+        };
+
+        let paint_jobs = self.egui_handler.end_render(
+            &self.device,
+            &self.queue,
+            &mut encoder,
+            &screen_descriptor,
+            &self.window,
+        );
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render pass"),
@@ -307,21 +415,23 @@ impl Renderer {
                     store: true,
                 },
             })],
-            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { 
-                view: &self.depth_view, 
-                depth_ops: Some(wgpu::Operations { 
-                    load: wgpu::LoadOp::Clear(1.0), 
-                    store: true, 
-                }), 
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
                 stencil_ops: None,
             }),
         });
 
         render_pass.set_pipeline(&self.primitive_pipeline);
-
         render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
 
-        // TODO: Drawing stuff
+        // Rendering goes here...
+
+        // Last step will be to render the debug gui
+        self.egui_handler.render(&mut render_pass, paint_jobs, &screen_descriptor);
 
         drop(render_pass);
 
@@ -356,6 +466,14 @@ impl Renderer {
                 bytemuck::cast_slice(&[screen_uniform]),
             )
         }
+    }
+
+    /// Handles a [winit] window event.
+    ///
+    /// Returns a bool indicating whether the event was 'captured' by the renderer.
+    /// That is, if this returns true, the event should not be processed further.
+    pub fn handle_event<T>(&mut self, event: &winit::event::Event<'_, T>) -> bool {
+        self.egui_handler.handle_event(event)
     }
 
     pub fn window(&self) -> &Window {

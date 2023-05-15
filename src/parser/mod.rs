@@ -447,19 +447,23 @@ fn get_metadata_owned<'a>(
 }
 
 /// Calculate the number of notes between now and the end of the current measure.
-/// 
+///
 /// Requires the argument to be a [lookahead::Lookahead] as we need to be able to walk through
 /// the rest of the iterator to count the notes.
-fn notes_in_next_measure<'a, I: Iterator<Item = &'a NoteTrackEntry<'a>>>(iter: &mut Lookahead<I>) -> usize {
+fn notes_in_next_measure<'a, I: Iterator<Item = &'a NoteTrackEntry<'a>>>(
+    iter: &mut Lookahead<I>,
+) -> usize {
     let mut num_notes = 0;
 
     for i in 0.. {
         let Some(item) = iter.lookahead(i) else { break; };
 
         match item {
-            NoteTrackEntry::Notes(notes) => num_notes += notes.iter().filter(|n| n.is_some()).count(),
+            NoteTrackEntry::Notes(notes) => {
+                num_notes += notes.iter().filter(|n| n.is_some()).count()
+            }
             NoteTrackEntry::EndMeasure => break,
-            _ => {},
+            _ => {}
         }
     }
 
@@ -531,15 +535,15 @@ fn construct_difficulty<'a>(
                     signature = *num as f32 / *den as f32;
                     millis_per_measure = 60000.0 * signature * 4.0 / bpm;
                     millis_per_note = millis_per_measure / notes_in_measure as f32;
-                },
+                }
                 TrackCommand::Delay(t) => time += 1000.0 * *t,
                 TrackCommand::Scroll(s) => scroll_speed = init_scroll_speed * *s,
                 TrackCommand::GogoStart => todo!(),
                 TrackCommand::GogoEnd => todo!(),
                 TrackCommand::BarlineOff => todo!(),
                 TrackCommand::BarlineOn => todo!(),
-                _ => {},
-            }
+                _ => {}
+            },
             NoteTrackEntry::Notes(notes) => {
                 let num_notes = notes.len();
 
@@ -548,21 +552,19 @@ fn construct_difficulty<'a>(
                 // no notes). Thus, we can multiply the milliseconds per note by each note's
                 // index in the vector and add this to the current time to find when the note should
                 // be hit.
-                let new_notes = notes.into_iter()
-                    .enumerate()
-                    .filter_map(|(i, note)| {
-                        note.map(|note_type| {
-                            if matches!(note_type, NoteType::BalloonRoll | NoteType::SpecialRoll) {
-                                balloon_count += 1;
-                            };
+                let new_notes = notes.into_iter().enumerate().filter_map(|(i, note)| {
+                    note.map(|note_type| {
+                        if matches!(note_type, NoteType::BalloonRoll | NoteType::SpecialRoll) {
+                            balloon_count += 1;
+                        };
 
-                            Note {
-                                note_type,
-                                time: time + millis_per_note * i as f32,
-                                scroll_speed,
-                            }
-                        })
-                    });
+                        Note {
+                            note_type,
+                            time: time + millis_per_note * i as f32,
+                            scroll_speed,
+                        }
+                    })
+                });
 
                 track.notes.extend(new_notes);
                 // Update the current time. We didn't have to do this for each note
@@ -585,7 +587,7 @@ fn construct_difficulty<'a>(
                 } else {
                     millis_per_measure / notes_in_measure as f32
                 };
-            },
+            }
         }
     }
 
@@ -618,9 +620,9 @@ fn construct_difficulty<'a>(
 
         track.balloons = balloons_list;
     }
-    
+
     let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None)?;
-    
+
     difficulties[difficulty_level] = Some(Difficulty { star_level, track });
     Ok(())
 }
