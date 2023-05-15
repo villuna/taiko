@@ -112,6 +112,38 @@ impl<'a, E> FromExternalError<&'a str, E> for TJAParseError<&'a str> {
     }
 }
 
+impl<I: std::fmt::Display> std::fmt::Display for TJAParseError<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_str = match self {
+            TJAParseError::NomError { input, kind: _ } => format!("syntax error at input: {input}"),
+            TJAParseError::TrackCommandError => "error while parsing track command".to_string(),
+            TJAParseError::UnexpectedEndCommand => "unexpected #END command".to_string(),
+            TJAParseError::InvalidNote(c) => format!("invalid note: {c}"),
+            TJAParseError::NoteTrackNotEnded => "note track not ended".to_string(),
+            TJAParseError::MultipleTracksSameDifficulty(diff) => {
+                let diff_str = match diff {
+                    0 => "easy",
+                    1 => "normal",
+                    2 => "hard",
+                    3 => "oni",
+                    4 => "ura oni",
+                    _ => "unknown difficulty",
+                };
+
+                format!("multiple tracks with the same difficulty ({})", diff_str)
+            }
+            TJAParseError::InvalidMetadata(name, value) => {
+                format!("invalid metadata given: \"{name}: {value}\"")
+            }
+            TJAParseError::MetadataNeeded(name) => format!("metadata missing: {name}"),
+        };
+
+        f.write_str(&error_str)
+    }
+}
+
+impl<I: std::fmt::Display + std::fmt::Debug> std::error::Error for TJAParseError<I> {}
+
 // This exists so we can return an owned version of the errors when we need to (for example, after
 // preprocessing the input into a string owned by the function, then returning a result that
 // references that string).
