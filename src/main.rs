@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use taiko::app::App;
+use taiko::{app::App, renderer::Renderer};
 use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -23,10 +23,11 @@ async fn main() {
 
     let mut frame_time = Instant::now();
 
-    let mut app = App::new(window).await.unwrap();
+    let mut renderer = Renderer::new(window).await.unwrap();
+    let mut app = App::new().unwrap();
 
     event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent { window_id, event } if window_id == app.renderer.window().id() => {
+        Event::WindowEvent { window_id, event } if window_id == renderer.window().id() => {
             match event {
                 WindowEvent::CloseRequested
                 | WindowEvent::KeyboardInput {
@@ -42,35 +43,35 @@ async fn main() {
                 }
 
                 WindowEvent::Resized(size) => {
-                    app.renderer.resize(size);
+                    renderer.resize(size);
                 }
 
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                    app.renderer.resize(*new_inner_size);
+                    renderer.resize(*new_inner_size);
                 }
 
                 _ => {}
             }
         }
 
-        Event::RedrawRequested(window_id) if window_id == app.renderer.window().id() => {
+        Event::RedrawRequested(window_id) if window_id == renderer.window().id() => {
             let time = Instant::now();
             let delta = time.duration_since(frame_time).as_secs_f32();
             frame_time = time;
             app.update(delta);
-            match app.render() {
+            match renderer.render() {
                 Ok(_) => {}
 
                 Err(wgpu::SurfaceError::Lost) => {
-                    let size = app.renderer.size();
-                    app.renderer.resize(*size);
+                    let size = renderer.size();
+                    renderer.resize(*size);
                 }
                 Err(wgpu::SurfaceError::OutOfMemory) => control_flow.set_exit(),
                 Err(e) => log::error!("{e:?}"),
             }
         }
 
-        Event::MainEventsCleared => app.renderer.window().request_redraw(),
+        Event::MainEventsCleared => renderer.window().request_redraw(),
 
         _ => {}
     });

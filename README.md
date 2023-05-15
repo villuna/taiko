@@ -7,7 +7,7 @@ play anything yet.
 
 ## Goals
 Current goals
-- [ ] Parse tja files (ideally, in a way that can efficiently load many songs)
+- [x] Parse tja files (ideally, in a way that can efficiently load many songs)
 - [ ] Create a working prototype that can play basic taiko mode songs
 - [ ] Handle input: keyboard/tatacon/general input configuration settings
 - [ ] Handle multiplayer

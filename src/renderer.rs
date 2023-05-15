@@ -5,15 +5,12 @@ use winit::{dpi::PhysicalSize, window::Window};
 use crate::primitives::PrimitiveVertex;
 
 const SAMPLE_COUNT: u32 = 4;
+const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct ScreenUniform {
     matrix: [[f32; 4]; 4],
-}
-
-pub enum Drawable {
-    Primitive(Vec<PrimitiveVertex>, Vec<u32>),
 }
 
 pub struct Renderer {
@@ -24,6 +21,7 @@ pub struct Renderer {
     queue: wgpu::Queue,
     window: Window,
     msaa_view: Option<wgpu::TextureView>,
+    depth_view: wgpu::TextureView,
     screen_uniform: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
 
@@ -55,7 +53,6 @@ fn create_screen_uniform(size: &PhysicalSize<u32>) -> ScreenUniform {
 // and every object has a constant fixed z value (flat)
 //
 // Creates a z buffer for depth-based pixel culling
-#[allow(unused)]
 fn create_depth_texture(device: &wgpu::Device, size: &PhysicalSize<u32>) -> wgpu::TextureView {
     device
         .create_texture(&wgpu::TextureDescriptor {
@@ -132,11 +129,8 @@ fn create_render_pipeline(
             strip_index_format: None,
             front_face: wgpu::FrontFace::Ccw,
             cull_mode: None,
-            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
             polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
             unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
             conservative: false,
         },
         depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
@@ -252,7 +246,11 @@ impl Renderer {
         let primitive_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Primitive shader"),
             source: wgpu::ShaderSource::Wgsl(
+                #[cfg(debug_assertions)]
                 std::fs::read_to_string("src/shaders/primitive_shader.wgsl")?.into(),
+
+                #[cfg(not(debug_assertions))]
+                include_str!("shaders/primitive_shader.wgsl").into(),
             ),
         });
 
@@ -261,11 +259,13 @@ impl Renderer {
             "primitive pipeline",
             &primitive_pipeline_layout,
             config.format,
-            None,
+            Some(wgpu::TextureFormat::Depth32Float),
             &[PrimitiveVertex::desc()],
             &primitive_shader,
             SAMPLE_COUNT,
         );
+
+        let depth_view = create_depth_texture(&device, &size);
 
         Ok(Self {
             size,
@@ -275,6 +275,7 @@ impl Renderer {
             queue,
             window,
             msaa_view,
+            depth_view,
 
             primitive_pipeline,
             screen_uniform,
@@ -282,7 +283,7 @@ impl Renderer {
         })
     }
 
-    pub fn render(&mut self, clear: Option<wgpu::Color>) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let texture = self.surface.get_current_texture()?;
         let view = texture.texture.create_view(&Default::default());
 
@@ -302,19 +303,25 @@ impl Renderer {
                 },
                 resolve_target: if SAMPLE_COUNT == 1 { None } else { Some(&view) },
                 ops: wgpu::Operations {
-                    load: match clear {
-                        Some(colour) => wgpu::LoadOp::Clear(colour),
-                        None => wgpu::LoadOp::Load,
-                    },
+                    load: wgpu::LoadOp::Clear(CLEAR_COLOUR),
                     store: true,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { 
+                view: &self.depth_view, 
+                depth_ops: Some(wgpu::Operations { 
+                    load: wgpu::LoadOp::Clear(1.0), 
+                    store: true, 
+                }), 
+                stencil_ops: None,
+            }),
         });
 
         render_pass.set_pipeline(&self.primitive_pipeline);
 
         render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
+
+        // TODO: Drawing stuff
 
         drop(render_pass);
 
