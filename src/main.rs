@@ -8,18 +8,20 @@ use winit::{
     window::WindowBuilder,
 };
 
-const WIDTH: u32 = 1280;
-const HEIGHT: u32 = 720;
+const WIDTH: u32 = 1920;
+const HEIGHT: u32 = 1080;
 
 #[tokio::main]
 async fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_inner_size(PhysicalSize::new(WIDTH, HEIGHT))
+        .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
         .with_title("Taiko!!")
         .with_resizable(false)
         .build(&event_loop)
         .unwrap();
+
 
     let mut frame_time = Instant::now();
 
@@ -64,7 +66,7 @@ async fn main() {
                     match renderer.render(&mut app) {
                         Ok(_) => {}
 
-                        Err(wgpu::SurfaceError::Lost) => {
+                        Err(wgpu::SurfaceError::Lost) | Err(wgpu::SurfaceError::Outdated) => {
                             let size = renderer.size();
                             renderer.resize(*size);
                         }
