@@ -16,9 +16,5 @@ pub fn full_tja_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(
-    benches,
-    tja_benchmark,
-    full_tja_benchmark
-);
+criterion_group!(benches, tja_benchmark, full_tja_benchmark);
 criterion_main!(benches);
