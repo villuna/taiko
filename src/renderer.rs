@@ -374,7 +374,7 @@ impl Renderer {
         })
     }
 
-    pub fn render(&mut self, app: &App) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, app: &mut App) -> Result<(), wgpu::SurfaceError> {
         let texture = self.surface.get_current_texture()?;
         let view = texture.texture.create_view(&Default::default());
 

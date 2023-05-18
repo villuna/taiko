@@ -570,8 +570,8 @@ fn construct_difficulty<'a>(
                 }
                 TrackCommand::Delay(t) => time += 1000.0 * *t,
                 TrackCommand::Scroll(s) => scroll_speed = init_scroll_speed * *s,
-                TrackCommand::GogoStart => todo!(),
-                TrackCommand::GogoEnd => todo!(),
+                TrackCommand::GogoStart => {}
+                TrackCommand::GogoEnd => {}
                 TrackCommand::BarlineOff => todo!(),
                 TrackCommand::BarlineOn => todo!(),
                 _ => {}

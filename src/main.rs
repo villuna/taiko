@@ -61,7 +61,7 @@ async fn main() {
                     let delta = time.duration_since(frame_time).as_secs_f32();
                     frame_time = time;
                     app.update(delta);
-                    match renderer.render(&app) {
+                    match renderer.render(&mut app) {
                         Ok(_) => {}
 
                         Err(wgpu::SurfaceError::Lost) => {
