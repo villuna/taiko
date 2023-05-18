@@ -26,6 +26,8 @@ lazy_static! {
     };
 }
 
+const SONGS_DIR: &str = "songs";
+
 pub enum StateTransition {
     Continue,
     Push(Box<dyn GameState>),
@@ -91,7 +93,7 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 
 impl SongSelect {
     pub fn new() -> anyhow::Result<Self> {
-        let test_tracks = read_song_list_dir("example-tracks")?;
+        let test_tracks = read_song_list_dir(SONGS_DIR)?;
 
         Ok(SongSelect {
             test_tracks,
