@@ -113,7 +113,6 @@ impl SongSelect {
 
 impl GameState for SongSelect {
     fn debug_ui(&mut self, ctx: egui::Context, audio: &mut AudioManager) {
-        //egui::Window::new("Taiko Test!").show(&ctx, |ui| {
         egui::SidePanel::left("main menu")
             .resizable(false)
             .show(&ctx, |ui| {
@@ -133,15 +132,15 @@ impl GameState for SongSelect {
 
                 egui::ComboBox::from_label("Song select")
                     .selected_text(
-                        self.selected
+                        RichText::new(self.selected
                             .map(|id| self.test_tracks[id].title.as_str())
-                            .unwrap_or("None"),
+                            .unwrap_or("None")).size(20.0),
                     )
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.selected, None, "none");
+                        ui.selectable_value(&mut self.selected, None, RichText::new("none").size(15.0));
 
                         for (id, song) in self.test_tracks.iter().enumerate() {
-                            ui.selectable_value(&mut self.selected, Some(id), &song.title);
+                            ui.selectable_value(&mut self.selected, Some(id), RichText::new(&song.title).size(15.0));
                         }
                     });
 
