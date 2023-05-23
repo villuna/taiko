@@ -3,6 +3,8 @@ use kira::manager::{backend::DefaultBackend, AudioManager};
 mod song_select;
 use song_select::SongSelect;
 
+use crate::renderer;
+
 pub enum StateTransition {
     Continue,
     Push(Box<dyn GameState>),
@@ -16,17 +18,25 @@ pub trait GameState {
         StateTransition::Continue
     }
     fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
+    fn render<'a>(
+        &'a mut self,
+        _renderer: &'a renderer::Renderer,
+        _render_pass: &mut wgpu::RenderPass<'a>,
+    ) {
+    }
 }
 
 pub struct App {
     audio_manager: AudioManager,
+
+    // TODO: Write a resources manager struct for this kind of thing
     state: Vec<Box<dyn GameState>>,
 }
 
 impl App {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new(renderer: &renderer::Renderer) -> anyhow::Result<Self> {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
-        let state = Box::new(SongSelect::new()?);
+        let state = Box::new(SongSelect::new(renderer)?);
 
         Ok(App {
             audio_manager,
@@ -46,10 +56,8 @@ impl App {
                 self.state
                     .pop()
                     .expect("found no previous state to return to!");
-            },
-            StateTransition::Swap(state) => {
-                *self.state.last_mut().unwrap() = state
             }
+            StateTransition::Swap(state) => *self.state.last_mut().unwrap() = state,
             StateTransition::Continue => {}
         }
     }
@@ -59,5 +67,13 @@ impl App {
             .last_mut()
             .unwrap()
             .debug_ui(ctx, &mut self.audio_manager);
+    }
+
+    pub fn render<'a>(
+        &'a mut self,
+        renderer: &'a renderer::Renderer,
+        render_pass: &mut wgpu::RenderPass<'a>,
+    ) {
+        self.state.last_mut().unwrap().render(renderer, render_pass)
     }
 }

@@ -8,8 +8,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-const WIDTH: u32 = 1920;
-const HEIGHT: u32 = 1080;
+use taiko::{HEIGHT, WIDTH};
 
 #[tokio::main]
 async fn main() {
@@ -22,11 +21,10 @@ async fn main() {
         .build(&event_loop)
         .unwrap();
 
-
     let mut frame_time = Instant::now();
 
     let mut renderer = Renderer::new(window).await.unwrap();
-    let mut app = App::new().unwrap();
+    let mut app = App::new(&renderer).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         if !renderer.handle_event(&event) {

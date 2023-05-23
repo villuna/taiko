@@ -7,6 +7,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
 use crate::primitives::PrimitiveVertex;
+use crate::texture::TextureVertex;
 
 const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
@@ -25,17 +26,19 @@ struct Egui {
 }
 
 pub struct Renderer {
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
     size: PhysicalSize<u32>,
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
     window: Window,
     msaa_view: Option<wgpu::TextureView>,
     depth_view: wgpu::TextureView,
     screen_uniform: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
     primitive_pipeline: wgpu::RenderPipeline,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
+    texture_pipeline: wgpu::RenderPipeline,
 
     egui_handler: Egui,
 }
@@ -354,6 +357,57 @@ impl Renderer {
             SAMPLE_COUNT,
         );
 
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("texture bind group layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+        let texture_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("texture shader"),
+            source: wgpu::ShaderSource::Wgsl(
+                #[cfg(debug_assertions)]
+                std::fs::read_to_string("src/shaders/texture_shader.wgsl")?.into(),
+                #[cfg(not(debug_assertions))]
+                include_str!("shaders/texture_shader.wgsl").into(),
+            ),
+        });
+
+        let texture_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("texture pipeline layout"),
+                bind_group_layouts: &[&screen_bind_group_layout, &texture_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let texture_pipeline = create_render_pipeline(
+            &device,
+            "texture pipeline",
+            &texture_pipeline_layout,
+            wgpu::TextureFormat::Bgra8UnormSrgb,
+            Some(DEPTH_FORMAT),
+            &[TextureVertex::desc()],
+            &texture_shader,
+            4,
+        );
+
         let depth_view = create_depth_texture(&device, &size);
         let egui_handler = Egui::new(&device, &config, window.scale_factor());
 
@@ -369,6 +423,8 @@ impl Renderer {
             primitive_pipeline,
             screen_uniform,
             screen_bind_group,
+            texture_bind_group_layout,
+            texture_pipeline,
 
             egui_handler,
         })
@@ -425,10 +481,10 @@ impl Renderer {
             }),
         });
 
-        render_pass.set_pipeline(&self.primitive_pipeline);
         render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
 
         // Rendering goes here...
+        app.render(self, &mut render_pass);
 
         // Last step will be to render the debug gui
         self.egui_handler
@@ -483,5 +539,31 @@ impl Renderer {
 
     pub fn size(&self) -> &PhysicalSize<u32> {
         &self.size
+    }
+
+    pub fn create_texture_bind_group(
+        &self,
+        label: Option<&str>,
+        view: &wgpu::TextureView,
+        sampler: &wgpu::Sampler,
+    ) -> wgpu::BindGroup {
+        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label,
+            layout: &self.texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+        })
+    }
+
+    pub fn texture_pipeline(&self) -> &wgpu::RenderPipeline {
+        &self.texture_pipeline
     }
 }

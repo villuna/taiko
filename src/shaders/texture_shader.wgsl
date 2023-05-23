@@ -1,13 +1,13 @@
-// Primitive filled shader: Basic coloured triangles
+// Texture shader: Draws 2d textures
 
 struct VertexInput {
     @location(0) position: vec2<f32>,
-    @location(1) colour: vec4<f32>,
+    @location(1) tex_coord: vec2<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) colour: vec4<f32>,
+    @location(0) tex_coord: vec2<f32>,
 };
 
 struct ScreenUniform {
@@ -20,9 +20,9 @@ struct ScreenUniform {
 @group(0) @binding(0)
 var<uniform> screen_uniform: ScreenUniform;
 
-fn quick_sigmoid(z: f32) -> f32 {
-    return 0.5 * ((z / (1.0 + abs(z))) + 1.0);
-}
+//fn quick_sigmoid(z: f32) -> f32 {
+//    return 0.5 * ((z / (1.0 + abs(z))) + 1.0);
+//}
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
@@ -36,12 +36,17 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     );
 
     out.clip_position = screen_matrix * vec4<f32>(in.position, 0.0, 1.0);
-    out.clip_position.z = quick_sigmoid(out.clip_position.z);
-    out.colour = in.colour;
+    //out.clip_position.z = quick_sigmoid(out.clip_position.z);
+    out.tex_coord= in.tex_coord;
     return out;
 }
 
+@group(1) @binding(0)
+var texture: texture_2d<f32>;
+@group(1) @binding(1)
+var texture_sampler: sampler;
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return in.colour;
+    return textureSample(texture, texture_sampler, in.tex_coord);
 }
