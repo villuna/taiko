@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use taiko::{app::App, renderer::Renderer};
+use taiko::{app::App, render::Renderer};
 use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},

@@ -1,7 +1,7 @@
 use image::GenericImageView;
 use std::{io, path::Path};
 
-use crate::{parser::parse_tja_file, renderer, texture::TextureVertex, track::Song, HEIGHT, WIDTH};
+use crate::{parser::parse_tja_file, render, render::texture::TextureVertex, track::Song, HEIGHT, WIDTH};
 use egui::RichText;
 use kira::{
     manager::AudioManager,
@@ -107,7 +107,7 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 }
 
 impl SongSelect {
-    pub fn new(renderer: &renderer::Renderer) -> anyhow::Result<Self> {
+    pub fn new(renderer: &render::Renderer) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
 
         let bg_image = image::load_from_memory(&std::fs::read("assets/song_select_bg.jpg")?)?;
@@ -211,7 +211,7 @@ impl SongSelect {
 impl GameState for SongSelect {
     fn render<'a>(
         &'a mut self,
-        renderer: &'a renderer::Renderer,
+        renderer: &'a render::Renderer,
         render_pass: &mut wgpu::RenderPass<'a>,
     ) {
         render_pass.set_pipeline(renderer.texture_pipeline());

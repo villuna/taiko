@@ -3,7 +3,7 @@ use kira::manager::{backend::DefaultBackend, AudioManager};
 mod song_select;
 use song_select::SongSelect;
 
-use crate::renderer;
+use crate::render;
 
 pub enum StateTransition {
     Continue,
@@ -20,7 +20,7 @@ pub trait GameState {
     fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
     fn render<'a>(
         &'a mut self,
-        _renderer: &'a renderer::Renderer,
+        _renderer: &'a render::Renderer,
         _render_pass: &mut wgpu::RenderPass<'a>,
     ) {
     }
@@ -34,7 +34,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(renderer: &renderer::Renderer) -> anyhow::Result<Self> {
+    pub fn new(renderer: &render::Renderer) -> anyhow::Result<Self> {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
         let state = Box::new(SongSelect::new(renderer)?);
 
@@ -71,7 +71,7 @@ impl App {
 
     pub fn render<'a>(
         &'a mut self,
-        renderer: &'a renderer::Renderer,
+        renderer: &'a render::Renderer,
         render_pass: &mut wgpu::RenderPass<'a>,
     ) {
         self.state.last_mut().unwrap().render(renderer, render_pass)

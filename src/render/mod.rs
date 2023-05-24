@@ -6,12 +6,15 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
-use crate::primitives::PrimitiveVertex;
-use crate::texture::TextureVertex;
+use primitives::PrimitiveVertex;
+use texture::TextureVertex;
 
 const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+pub mod texture;
+pub mod primitives;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
