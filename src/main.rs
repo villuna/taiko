@@ -60,7 +60,7 @@ async fn main() {
                     let time = Instant::now();
                     let delta = time.duration_since(frame_time).as_secs_f32();
                     frame_time = time;
-                    app.update(delta);
+                    app.update(delta, &renderer);
                     match renderer.render(&mut app) {
                         Ok(_) => {}
 

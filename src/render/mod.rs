@@ -9,6 +9,8 @@ use crate::app::App;
 use primitives::PrimitiveVertex;
 use texture::TextureVertex;
 
+use self::texture::SpriteInstance;
+
 const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -31,10 +33,10 @@ struct Egui {
 pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub window: Window,
     size: PhysicalSize<u32>,
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
-    window: Window,
     msaa_view: Option<wgpu::TextureView>,
     depth_view: wgpu::TextureView,
     screen_uniform: wgpu::Buffer,
@@ -343,7 +345,7 @@ impl Renderer {
             label: Some("Primitive shader"),
             source: wgpu::ShaderSource::Wgsl(
                 #[cfg(debug_assertions)]
-                std::fs::read_to_string("src/shaders/primitive_shader.wgsl")?.into(),
+                std::fs::read_to_string("src/render/shaders/primitive_shader.wgsl")?.into(),
                 #[cfg(not(debug_assertions))]
                 include_str!("shaders/primitive_shader.wgsl").into(),
             ),
@@ -387,7 +389,7 @@ impl Renderer {
             label: Some("texture shader"),
             source: wgpu::ShaderSource::Wgsl(
                 #[cfg(debug_assertions)]
-                std::fs::read_to_string("src/shaders/texture_shader.wgsl")?.into(),
+                std::fs::read_to_string("src/render/shaders/texture_shader.wgsl")?.into(),
                 #[cfg(not(debug_assertions))]
                 include_str!("shaders/texture_shader.wgsl").into(),
             ),
@@ -406,7 +408,7 @@ impl Renderer {
             &texture_pipeline_layout,
             wgpu::TextureFormat::Bgra8UnormSrgb,
             Some(DEPTH_FORMAT),
-            &[TextureVertex::desc()],
+            &[TextureVertex::vertex_layout(), SpriteInstance::vertex_layout()],
             &texture_shader,
             4,
         );
