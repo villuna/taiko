@@ -36,6 +36,8 @@ pub struct SongSelect {
     selected: Option<usize>,
     song_handle: Option<SongHandle>,
     bg_sprite: Sprite,
+    go_to_credits: bool,
+    exit: bool,
 }
 
 fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Song>> {
@@ -90,6 +92,8 @@ impl SongSelect {
             bg_sprite,
             selected: None,
             song_handle: None,
+            go_to_credits: false,
+            exit: false,
         })
     }
 
@@ -114,6 +118,20 @@ impl SongSelect {
 }
 
 impl GameState for SongSelect {
+    fn update(&mut self, _delta: f32, _audio: &mut AudioManager, _renderer: &render::Renderer) -> super::StateTransition {
+        if self.go_to_credits {
+            if let Some(handle) = self.song_handle.as_mut() {
+                handle.stop(*OUT_TWEEN).unwrap();
+            }
+
+            self.go_to_credits = false;
+            super::StateTransition::Push(Box::new(TestCredits::new()))
+        } else if self.exit {
+            super::StateTransition::Exit
+        } else {
+            super::StateTransition::Continue
+        }
+    }
     fn render<'a>(
         &'a mut self,
         renderer: &'a render::Renderer,
@@ -173,6 +191,53 @@ impl GameState for SongSelect {
                     self.song_handle = self
                         .selected
                         .map(|id| self.play_preview(audio, id).unwrap());
+                }
+
+                ui.add_space(800.0);
+
+                if ui.button(RichText::new("credits").size(20.0)).clicked() {
+                    self.go_to_credits = true;
+                }
+
+                ui.add_space(10.0);
+
+                if ui.button(RichText::new("exit").size(20.0)).clicked() {
+                    self.exit = true;
+                }
+            });
+    }
+}
+
+struct TestCredits {
+    exit: bool,
+}
+
+impl TestCredits {
+    fn new() -> Self {
+        Self { exit: false}
+    }
+}
+
+impl GameState for TestCredits {
+    fn update(&mut self, _delta: f32, _audio: &mut AudioManager, _renderer: &render::Renderer) -> super::StateTransition {
+        if self.exit {
+            super::StateTransition::Pop
+        } else {
+            super::StateTransition::Continue
+        }
+    }
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
+        egui::Area::new("Credits")
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(&ctx, |ui| {
+                // Main credits
+                ui.label(RichText::new("Made with love by:").size(50.0));
+                ui.label(RichText::new("villi aka luna").size(30.0));
+
+                ui.add_space(100.0);
+                
+                if ui.button(RichText::new("return").size(20.0)).clicked() {
+                    self.exit = true;
                 }
             });
     }

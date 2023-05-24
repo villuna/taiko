@@ -4,6 +4,7 @@ use kira::manager::{backend::DefaultBackend, AudioManager};
 
 mod song_select;
 use song_select::SongSelect;
+use winit::event_loop::ControlFlow;
 
 use crate::render::{self, texture::{Texture, Sprite}};
 
@@ -14,6 +15,7 @@ pub enum StateTransition {
     Push(Box<dyn GameState>),
     Swap(Box<dyn GameState>),
     Pop,
+    Exit,
 }
 
 pub trait GameState {
@@ -65,7 +67,7 @@ impl App {
         })
     }
 
-    pub fn update(&mut self, delta: f32, renderer: &render::Renderer) {
+    pub fn update(&mut self, delta: f32, renderer: &render::Renderer, control_flow: &mut ControlFlow) {
         self.fps_counter += delta;
         self.frames_counted += 1;
 
@@ -88,7 +90,8 @@ impl App {
                     .expect("found no previous state to return to!");
             }
             StateTransition::Swap(state) => *self.state.last_mut().unwrap() = state,
-            StateTransition::Continue => {}
+            StateTransition::Exit => control_flow.set_exit(),
+            StateTransition::Continue => {},
         }
     }
 
