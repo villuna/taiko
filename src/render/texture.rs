@@ -1,12 +1,12 @@
 //! Various types used for drawing textures
 
-use image::GenericImageView;
-use wgpu::{vertex_attr_array, util::DeviceExt};
-use std::{rc::Rc, path::Path};
 use crate::render;
+use image::GenericImageView;
+use std::{path::Path, rc::Rc};
+use wgpu::{util::DeviceExt, vertex_attr_array};
 
 /// A vertex of a sprite drawn to the screen
-/// 
+///
 /// This is for use in rendering, in particular see the (texture
 /// shader)[shaders/texture_shader.wgsl].
 ///
@@ -37,7 +37,7 @@ fn texture_vertices(width: u32, height: u32) -> [TextureVertex; 4] {
             position: [width as f32, height as f32],
             tex_coord: [1.0, 1.0],
         },
-    ] 
+    ]
 }
 
 const TEXTURE_INDICES: &[u16] = &[0, 1, 2, 1, 3, 2];
@@ -130,26 +130,27 @@ impl Texture {
             ..Default::default()
         });
 
-        let bind_group =
-            renderer.create_texture_bind_group(Some(&format!("{} bind group", name)), &view, &sampler);
+        let bind_group = renderer.create_texture_bind_group(
+            Some(&format!("{} bind group", name)),
+            &view,
+            &sampler,
+        );
 
-        let vertex_buffer =
-            renderer
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{} vertex buffer", name)),
-                    contents: bytemuck::cast_slice(&texture_vertices(dimensions.0, dimensions.1)),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
+        let vertex_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("{} vertex buffer", name)),
+                contents: bytemuck::cast_slice(&texture_vertices(dimensions.0, dimensions.1)),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
 
-        let index_buffer =
-            renderer
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{} index buffer", name)),
-                    contents: bytemuck::cast_slice(TEXTURE_INDICES),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
+        let index_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("{} index buffer", name)),
+                contents: bytemuck::cast_slice(TEXTURE_INDICES),
+                usage: wgpu::BufferUsages::INDEX,
+            });
 
         Ok(Self {
             bind_group,
@@ -167,27 +168,35 @@ pub struct Sprite {
 
 impl Sprite {
     pub fn new(texture: Rc<Texture>, position: [f32; 3], renderer: &render::Renderer) -> Self {
-        let instance = SpriteInstance {
-            position,
-        };
+        let instance = SpriteInstance { position };
 
-        let instance_buffer = renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { 
-            label: None,  //TODO probably give this a name aye
-            contents: bytemuck::cast_slice(&[instance]),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST, 
-        });
+        let instance_buffer =
+            renderer
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None, //TODO probably give this a name aye
+                    contents: bytemuck::cast_slice(&[instance]),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                });
 
         Sprite {
             texture,
             instance,
-            instance_buffer
+            instance_buffer,
         }
     }
 
-    pub fn render<'a>(&'a self, renderer: &'a render::Renderer, render_pass: &mut wgpu::RenderPass<'a>) {
+    pub fn render<'a>(
+        &'a self,
+        renderer: &'a render::Renderer,
+        render_pass: &mut wgpu::RenderPass<'a>,
+    ) {
         render_pass.set_pipeline(renderer.texture_pipeline());
         render_pass.set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(self.texture.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.set_index_buffer(
+            self.texture.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
         render_pass.set_bind_group(1, &self.texture.bind_group, &[]);
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.draw_indexed(0..6 as _, 0, 0..1);
@@ -197,8 +206,12 @@ impl Sprite {
         self.instance.position
     }
 
-    pub fn set_position(&mut self, position: [f32; 3], renderer: &render::Renderer)  {
+    pub fn set_position(&mut self, position: [f32; 3], renderer: &render::Renderer) {
         self.instance.position = position;
-        renderer.queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&[self.instance]))
+        renderer.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&[self.instance]),
+        )
     }
-}    
+}

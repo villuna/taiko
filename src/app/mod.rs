@@ -1,12 +1,17 @@
-use std::{collections::HashMap, rc::{Rc, Weak}};
+use std::{collections::HashMap, rc::Rc};
 
 use kira::manager::{backend::DefaultBackend, AudioManager};
 
+mod credits;
 mod song_select;
+
 use song_select::SongSelect;
 use winit::event_loop::ControlFlow;
 
-use crate::render::{self, texture::{Texture, Sprite}};
+use crate::render::{
+    self,
+    texture::{Sprite, Texture},
+};
 
 const FPS_POLL_TIME: f32 = 0.5;
 
@@ -20,7 +25,12 @@ pub enum StateTransition {
 
 pub trait GameState {
     // TODO: Make a context struct instead of passing in the raw audio manager
-    fn update(&mut self, _delta: f32, _audio: &mut AudioManager, _renderer: &render::Renderer) -> StateTransition {
+    fn update(
+        &mut self,
+        _delta: f32,
+        _audio: &mut AudioManager,
+        _renderer: &render::Renderer,
+    ) -> StateTransition {
         StateTransition::Continue
     }
     fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
@@ -36,7 +46,7 @@ pub struct App {
     audio_manager: AudioManager,
 
     // TODO: Write a resources manager struct for this kind of thing
-    textures: HashMap<&'static str, Weak<Texture>>,
+    textures: HashMap<&'static str, Rc<Texture>>,
 
     state: Vec<Box<dyn GameState>>,
 
@@ -50,24 +60,32 @@ impl App {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
         let bg_filename = "assets/song_select_bg.jpg";
         let bg_texture = Rc::new(Texture::from_file(bg_filename, renderer)?);
-        let bg_texture_weak = Rc::downgrade(&bg_texture);
 
-        let state = Box::new(SongSelect::new(Sprite::new(bg_texture, [0.0, 0.0, 0.0], renderer))?);
+        let state = Box::new(SongSelect::new(Sprite::new(
+            Rc::clone(&bg_texture),
+            [0.0, 0.0, 0.0],
+            renderer,
+        ))?);
 
         let mut textures = HashMap::new();
-        textures.insert(bg_filename, bg_texture_weak);
+        textures.insert(bg_filename, bg_texture);
 
         Ok(App {
             audio_manager,
             state: vec![state],
-            textures, 
+            textures,
             fps_counter: 0.0,
             frames_counted: 0,
             fps: 0.0,
         })
     }
 
-    pub fn update(&mut self, delta: f32, renderer: &render::Renderer, control_flow: &mut ControlFlow) {
+    pub fn update(
+        &mut self,
+        delta: f32,
+        renderer: &render::Renderer,
+        control_flow: &mut ControlFlow,
+    ) {
         self.fps_counter += delta;
         self.frames_counted += 1;
 
@@ -91,7 +109,7 @@ impl App {
             }
             StateTransition::Swap(state) => *self.state.last_mut().unwrap() = state,
             StateTransition::Exit => control_flow.set_exit(),
-            StateTransition::Continue => {},
+            StateTransition::Continue => {}
         }
     }
 
@@ -104,7 +122,11 @@ impl App {
         egui::Area::new("fps counter")
             .fixed_pos(egui::pos2(1800.0, 0.0))
             .show(&ctx, |ui| {
-                ui.label(egui::RichText::new(format!("fps: {:.2}", self.fps)).color(egui::Color32::from_rgb(255, 0, 255)).size(20.0));
+                ui.label(
+                    egui::RichText::new(format!("fps: {:.2}", self.fps))
+                        .color(egui::Color32::from_rgb(255, 0, 255))
+                        .size(20.0),
+                );
             });
     }
 

@@ -1,6 +1,11 @@
 use std::{io, path::Path};
 
-use crate::{parser::parse_tja_file, render::{self, texture::Sprite}, track::Song};
+use crate::{
+    app::credits::CreditsScreen,
+    parser::parse_tja_file,
+    render::{self, texture::Sprite},
+    track::Song,
+};
 use egui::RichText;
 use kira::{
     manager::AudioManager,
@@ -34,6 +39,7 @@ const SONGS_DIR: &str = "songs";
 pub struct SongSelect {
     test_tracks: Vec<Song>,
     selected: Option<usize>,
+    difficulty: usize,
     song_handle: Option<SongHandle>,
     bg_sprite: Sprite,
     go_to_credits: bool,
@@ -91,6 +97,7 @@ impl SongSelect {
             test_tracks,
             bg_sprite,
             selected: None,
+            difficulty: 0,
             song_handle: None,
             go_to_credits: false,
             exit: false,
@@ -118,14 +125,19 @@ impl SongSelect {
 }
 
 impl GameState for SongSelect {
-    fn update(&mut self, _delta: f32, _audio: &mut AudioManager, _renderer: &render::Renderer) -> super::StateTransition {
+    fn update(
+        &mut self,
+        _delta: f32,
+        _audio: &mut AudioManager,
+        _renderer: &render::Renderer,
+    ) -> super::StateTransition {
         if self.go_to_credits {
             if let Some(handle) = self.song_handle.as_mut() {
                 handle.stop(*OUT_TWEEN).unwrap();
             }
 
             self.go_to_credits = false;
-            super::StateTransition::Push(Box::new(TestCredits::new()))
+            super::StateTransition::Push(Box::new(CreditsScreen::new()))
         } else if self.exit {
             super::StateTransition::Exit
         } else {
@@ -205,40 +217,37 @@ impl GameState for SongSelect {
                     self.exit = true;
                 }
             });
-    }
-}
 
-struct TestCredits {
-    exit: bool,
-}
+        if let Some(song_index) = self.selected {
+            egui::Window::new("difficulty select").show(&ctx, |ui| {
+                const DIFFICULTY_NAMES: [&str; 5] = ["Easy", "Normal", "Hard", "Oni", "Ura"];
 
-impl TestCredits {
-    fn new() -> Self {
-        Self { exit: false}
-    }
-}
+                egui::TopBottomPanel::top("difficulty select panel").show_inside(ui, |ui| {
+                    for (i, difficulty) in self.test_tracks[song_index]
+                        .difficulties
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, d)| d.as_ref().map(|dinner| (i, dinner)))
+                    {
+                        egui::SidePanel::left(format!("{} difficulty block", DIFFICULTY_NAMES[i]))
+                            .show_inside(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut self.difficulty,
+                                    i,
+                                    RichText::new(format!(
+                                        "{}\n{}★",
+                                        DIFFICULTY_NAMES[i], difficulty.star_level
+                                    ))
+                                    .size(20.0),
+                                );
+                            });
+                    }
+                });
 
-impl GameState for TestCredits {
-    fn update(&mut self, _delta: f32, _audio: &mut AudioManager, _renderer: &render::Renderer) -> super::StateTransition {
-        if self.exit {
-            super::StateTransition::Pop
-        } else {
-            super::StateTransition::Continue
-        }
-    }
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
-        egui::Area::new("Credits")
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .show(&ctx, |ui| {
-                // Main credits
-                ui.label(RichText::new("Made with love by:").size(50.0));
-                ui.label(RichText::new("villi aka luna").size(30.0));
-
-                ui.add_space(100.0);
-                
-                if ui.button(RichText::new("return").size(20.0)).clicked() {
-                    self.exit = true;
+                if ui.button(RichText::new("Play!").size(17.0)).clicked() {
+                    println!("sa! chousen da don!")
                 }
             });
+        }
     }
 }

@@ -15,8 +15,8 @@ const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-pub mod texture;
 pub mod primitives;
+pub mod texture;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -408,7 +408,10 @@ impl Renderer {
             &texture_pipeline_layout,
             wgpu::TextureFormat::Bgra8UnormSrgb,
             Some(DEPTH_FORMAT),
-            &[TextureVertex::vertex_layout(), SpriteInstance::vertex_layout()],
+            &[
+                TextureVertex::vertex_layout(),
+                SpriteInstance::vertex_layout(),
+            ],
             &texture_shader,
             4,
         );
