@@ -480,6 +480,9 @@ fn get_metadata_owned<'a>(
 
 /// Calculate the number of notes between now and the end of the current measure.
 ///
+/// Since this number is used for timing calculations, the number includes empty notes that are 
+/// used in the tja format for timing.
+///
 /// Requires the argument to be a [lookahead::Lookahead] as we need to be able to walk through
 /// the rest of the iterator to count the notes.
 fn notes_in_next_measure<'a, I: Iterator<Item = &'a NoteTrackEntry<'a>>>(
@@ -492,7 +495,7 @@ fn notes_in_next_measure<'a, I: Iterator<Item = &'a NoteTrackEntry<'a>>>(
 
         match item {
             NoteTrackEntry::Notes(notes) => {
-                num_notes += notes.iter().filter(|n| n.is_some()).count()
+                num_notes += notes.iter().count()
             }
             NoteTrackEntry::EndMeasure => break,
             _ => {}
@@ -612,7 +615,7 @@ fn construct_difficulty<'a>(
 
                 // Recalculate our measure-based variables
                 notes_in_measure = notes_in_next_measure(&mut items_iter);
-                millis_per_measure = 60000.0 * signature * 4.0 / bpm;
+                //millis_per_measure = 60000.0 * signature * 4.0 / bpm;
 
                 millis_per_note = if notes_in_measure == 0 {
                     0.0
