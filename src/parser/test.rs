@@ -245,3 +245,22 @@ fn test_real_tja_file_succeeds() {
     println!("{:?}", res);
     assert!(res.is_ok());
 }
+
+#[test]
+fn test_measure_command() {
+    let five_four = "#START
+#MEASURE 5/4
+#END
+
+";
+
+    assert_eq!(
+        tja_file(five_four),
+        Ok(("", vec![
+            TJAFileItem::NoteTrack(vec![
+                NoteTrackEntry::Command(TrackCommand::Start{ player: None }),
+                NoteTrackEntry::Command(TrackCommand::Measure(5,4)),
+            ])
+        ]))
+    );
+}

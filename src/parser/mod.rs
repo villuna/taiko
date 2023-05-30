@@ -22,7 +22,7 @@ use nom::character::complete::{crlf, newline};
 use nom::combinator::recognize;
 use nom::combinator::{eof, map_res, opt};
 use nom::error::{FromExternalError, ParseError};
-use nom::multi::{many0, many0_count, separated_list1};
+use nom::multi::{many0, many0_count, separated_list1, separated_list0};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated};
 use nom::{Finish, IResult, Parser};
 
@@ -115,7 +115,7 @@ impl<'a, E> FromExternalError<&'a str, E> for TJAParseError<&'a str> {
 impl<I: std::fmt::Display> std::fmt::Display for TJAParseError<I> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error_str = match self {
-            TJAParseError::NomError { input, kind: _ } => format!("syntax error at input: {input}"),
+            TJAParseError::NomError { input, kind } => format!("syntax error at input: \"{input}\" ({kind:?})"),
             TJAParseError::TrackCommandError => "error while parsing track command".to_string(),
             TJAParseError::UnexpectedEndCommand => "unexpected #END command".to_string(),
             TJAParseError::InvalidNote(c) => format!("invalid note: {c}"),
@@ -305,13 +305,24 @@ fn metadata_pair(i: &str) -> IResult<&str, (&str, &str), TJAParseError<&str>> {
     ))(i)
 }
 
+fn integer<T: std::str::FromStr>(i: &str) -> IResult<&str, T, TJAParseError<&str>> {
+    let onenine = satisfy(|c| ('1'..'9').contains(&c));
+
+    map_res(alt((
+            recognize(pair(onenine, many0_count(digit))),
+            recognize(digit)
+        )),
+        |i_str: &str| i_str.parse::<T>()
+    )(i)
+}
+
 // --- Parsing functions for tracks ---
-fn parse_time_signature(i: &str) -> IResult<&str, (u8, u8)> {
+fn parse_time_signature(i: &str) -> IResult<&str, (u8, u8), TJAParseError<&str>> {
     terminated(
         separated_pair(
-            map_res(is_not("/"), |x: &str| x.parse::<u8>()),
+            integer::<u8>,
             tag("/"),
-            map_res(is_not("/"), |x: &str| x.parse::<u8>()),
+            integer::<u8>,
         ),
         eof,
     )(i)
@@ -630,10 +641,10 @@ fn construct_difficulty<'a>(
     // Isn't balloon such a weird word
     let balloons = metadata.get("BALLOON");
     if balloon_count != 0 {
-        let balloons_list = match balloons {
+        let mut balloons_list = match balloons {
             Some(list) => {
                 terminated(
-                    separated_list1(tag(","), map_res(is_not(","), |n: &str| n.parse::<u16>())),
+                    separated_list0(tag(","), integer::<u16>),
                     eof,
                 )(list)
                 .finish()?
@@ -647,8 +658,13 @@ fn construct_difficulty<'a>(
         // Also ensure that the number of balloons in the metadata matches
         // the number of balloon notes.
         if balloons_list.len() != balloon_count {
+            // If the balloon list given is empty, use the default value (5) for all hits
+            if balloons_list.len() == 0 {
+                balloons_list = vec![5; balloon_count];
+            } else {
+                return Err(TJAParseError::InvalidMetadata("BALLOON", balloons.unwrap()));
             // Unwrapping balloons here is fine bc we've already checked it is not None.
-            return Err(TJAParseError::InvalidMetadata("BALLOON", balloons.unwrap()));
+            }
         }
 
         track.balloons = balloons_list;
