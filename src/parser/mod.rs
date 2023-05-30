@@ -17,12 +17,12 @@ use itertools::Itertools;
 use lookahead::Lookahead;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag};
-use nom::character::complete::satisfy;
+use nom::character::complete::{satisfy, multispace0};
 use nom::character::complete::{crlf, newline};
 use nom::combinator::recognize;
 use nom::combinator::{eof, map_res, opt};
 use nom::error::{FromExternalError, ParseError};
-use nom::multi::{many0, many0_count, separated_list1, separated_list0};
+use nom::multi::{many0, many0_count, separated_list0};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated};
 use nom::{Finish, IResult, Parser};
 
@@ -399,7 +399,7 @@ fn note_track_inner(mut i: &str) -> IResult<&str, Vec<NoteTrackEntry>, TJAParseE
         let (new_i, entry) = alt((
             inner_track_command.map(NoteTrackEntry::Command),
             pair(tag(","), alt((tag("\n"), tag("\r\n")))).map(|_| NoteTrackEntry::EndMeasure),
-            notes.map(NoteTrackEntry::Notes),
+            preceded(multispace0, notes.map(NoteTrackEntry::Notes)),
         ))(i)?;
 
         res.push(entry);
@@ -584,8 +584,8 @@ fn construct_difficulty<'a>(
                 TrackCommand::Scroll(s) => scroll_speed = init_scroll_speed * *s,
                 TrackCommand::GogoStart => {}
                 TrackCommand::GogoEnd => {}
-                TrackCommand::BarlineOff => todo!(),
-                TrackCommand::BarlineOn => todo!(),
+                TrackCommand::BarlineOff => {},
+                TrackCommand::BarlineOn => {},
                 _ => {}
             },
             NoteTrackEntry::Notes(notes) => {
