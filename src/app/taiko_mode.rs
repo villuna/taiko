@@ -21,7 +21,7 @@ use super::{GameState, StateTransition};
 
 const WAIT_SECONDS: f32 = 3.0;
 const DRAW_THRESHOLD: f32 = 3.0;
-const DISAPPEAR_POS: f32 = 200.0;
+const DISAPPEAR_POS: f32 = 400.0;
 const VELOCITY: f32 = 600.0;
 const DRAW_Y: f32 = 500.0;
 
@@ -35,6 +35,7 @@ pub struct TaikoMode {
     sprites: Vec<Option<Sprite>>,
     elapsed: f32,
     paused: bool,
+    started: bool,
 }
 
 impl TaikoMode {
@@ -77,6 +78,7 @@ impl TaikoMode {
             sprites,
             elapsed: 0.0,
             paused: false,
+            started: false,
         }
     }
 
@@ -112,8 +114,9 @@ impl GameState for TaikoMode {
         if !self.paused {
             let current = self.current_time();
 
-            if current >= 0.0 {
+            if current >= 0.0 && !self.started {
                 self.song_handle.resume(Default::default()).unwrap();
+                self.started = true;
             }
 
             self.next_note = self.song.difficulties[self.difficulty]
@@ -153,19 +156,21 @@ impl GameState for TaikoMode {
             .filter_map(|(i, sprite)| {
                 let note = notes[i];
 
-                if (current..current + DRAW_THRESHOLD).contains(&(note.time / 1000.0)) {
-                    sprite.as_mut().map(|s| (s, note.time))
+                if (current..current + DRAW_THRESHOLD / note.scroll_speed).contains(&(note.time / 1000.0)) {
+                    sprite.as_mut().map(|s| (s, i))
                 } else {
                     None
                 }
             });
 
-        for (sprite, note_time) in draw_sprites {
+        for (sprite, note_index) in draw_sprites {
+            let note = &notes[note_index];
+
             sprite.set_position(
                 [
-                    DISAPPEAR_POS + VELOCITY * (note_time / 1000.0 - current),
+                    DISAPPEAR_POS + VELOCITY * (note.time / 1000.0 - current) * note.scroll_speed,
                     DRAW_Y,
-                    note_time / 1000.0,
+                    note.time / 1000.0,
                 ],
                 renderer,
             );
