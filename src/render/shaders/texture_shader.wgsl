@@ -52,5 +52,11 @@ var texture_sampler: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(texture, texture_sampler, in.tex_coord);
+    let sample = textureSample(texture, texture_sampler, in.tex_coord);
+
+    if sample.a <= 0.1 {
+        discard;
+    }
+
+    return sample;
 }

@@ -1,9 +1,10 @@
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use kira::manager::{backend::DefaultBackend, AudioManager};
 
 mod credits;
 mod song_select;
+mod taiko_mode;
 
 use song_select::SongSelect;
 use winit::event_loop::ControlFlow;
@@ -45,9 +46,6 @@ pub trait GameState {
 pub struct App {
     audio_manager: AudioManager,
 
-    // TODO: Write a resources manager struct for this kind of thing
-    textures: HashMap<&'static str, Rc<Texture>>,
-
     state: Vec<Box<dyn GameState>>,
 
     fps_counter: f32,
@@ -61,19 +59,16 @@ impl App {
         let bg_filename = "assets/song_select_bg.jpg";
         let bg_texture = Rc::new(Texture::from_file(bg_filename, renderer)?);
 
-        let state = Box::new(SongSelect::new(Sprite::new(
-            Rc::clone(&bg_texture),
-            [0.0, 0.0, 0.0],
-            renderer,
-        ))?);
+        let bg_sprite = Sprite::new(Rc::clone(&bg_texture), [0.0, 0.0, 0.0], renderer);
 
-        let mut textures = HashMap::new();
-        textures.insert(bg_filename, bg_texture);
+        let don_tex = Rc::new(Texture::from_file("assets/don.png", renderer)?);
+        let kat_tex = Rc::new(Texture::from_file("assets/kat.png", renderer)?);
+
+        let state = Box::new(SongSelect::new(bg_sprite, don_tex, kat_tex)?);
 
         Ok(App {
             audio_manager,
             state: vec![state],
-            textures,
             fps_counter: 0.0,
             frames_counted: 0,
             fps: 0.0,

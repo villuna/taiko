@@ -1,15 +1,19 @@
-use std::{io, path::Path};
+use std::{io, path::Path, rc::Rc};
 
 use crate::{
     app::credits::CreditsScreen,
     parser::parse_tja_file,
-    render::{self, texture::Sprite},
+    render::{
+        self,
+        texture::{Sprite, Texture},
+    },
     track::Song,
 };
 use egui::RichText;
 use kira::{
     manager::AudioManager,
     sound::{
+        static_sound::{StaticSoundData, StaticSoundSettings},
         streaming::{StreamingSoundData, StreamingSoundHandle, StreamingSoundSettings},
         FromFileError,
     },
@@ -17,7 +21,7 @@ use kira::{
 };
 use lazy_static::lazy_static;
 
-use super::GameState;
+use super::{taiko_mode::TaikoMode, GameState};
 
 type SongHandle = StreamingSoundHandle<FromFileError>;
 
@@ -37,16 +41,21 @@ lazy_static! {
 const SONGS_DIR: &str = "songs";
 
 pub struct SongSelect {
-    test_tracks: Vec<Song>,
+    test_tracks: Vec<Rc<Song>>,
     selected: Option<usize>,
     difficulty: usize,
     song_handle: Option<SongHandle>,
     bg_sprite: Sprite,
     go_to_credits: bool,
     exit: bool,
+
+    don_tex: Rc<Texture>,
+    kat_tex: Rc<Texture>,
+
+    go_to_song: Option<(usize, usize)>,
 }
 
-fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Song>> {
+fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Rc<Song>>> {
     let dir = std::fs::read_dir(path)?;
     let mut res = Vec::new();
 
@@ -55,7 +64,7 @@ fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Song>> {
             let subdir_path = file.path();
 
             match read_song_dir(&subdir_path) {
-                Ok(song) => res.push(song),
+                Ok(song) => res.push(Rc::new(song)),
                 Err(e) => eprintln!(
                     "error encountered while trying to read song at directory {}: {e}",
                     subdir_path.to_string_lossy()
@@ -90,7 +99,11 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 }
 
 impl SongSelect {
-    pub fn new(bg_sprite: Sprite) -> anyhow::Result<Self> {
+    pub fn new(
+        bg_sprite: Sprite,
+        don_tex: Rc<Texture>,
+        kat_tex: Rc<Texture>,
+    ) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
 
         Ok(SongSelect {
@@ -101,6 +114,9 @@ impl SongSelect {
             song_handle: None,
             go_to_credits: false,
             exit: false,
+            go_to_song: None,
+            don_tex,
+            kat_tex,
         })
     }
 
@@ -128,8 +144,8 @@ impl GameState for SongSelect {
     fn update(
         &mut self,
         _delta: f32,
-        _audio: &mut AudioManager,
-        _renderer: &render::Renderer,
+        audio: &mut AudioManager,
+        renderer: &render::Renderer,
     ) -> super::StateTransition {
         if self.go_to_credits {
             if let Some(handle) = self.song_handle.as_mut() {
@@ -138,6 +154,28 @@ impl GameState for SongSelect {
 
             self.go_to_credits = false;
             super::StateTransition::Push(Box::new(CreditsScreen::new()))
+        } else if let Some((song_id, difficulty)) = self.go_to_song {
+            let sound_data = StaticSoundData::from_file(
+                &self.test_tracks[song_id].audio_filename,
+                StaticSoundSettings::default(),
+            )
+            .unwrap();
+
+            self.go_to_song = None;
+
+            if let Some(handle) = self.song_handle.as_mut() {
+                handle.stop(Default::default()).unwrap();
+            }
+
+            super::StateTransition::Push(Box::new(TaikoMode::new(
+                Rc::clone(&self.test_tracks[song_id]),
+                difficulty,
+                sound_data,
+                audio,
+                &self.don_tex,
+                &self.kat_tex,
+                renderer,
+            )))
         } else if self.exit {
             super::StateTransition::Exit
         } else {
@@ -245,7 +283,7 @@ impl GameState for SongSelect {
                 });
 
                 if ui.button(RichText::new("Play!").size(17.0)).clicked() {
-                    println!("sa! chousen da don!")
+                    self.go_to_song = Some((song_index, self.difficulty));
                 }
             });
         }

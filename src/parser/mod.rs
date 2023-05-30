@@ -480,7 +480,7 @@ fn get_metadata_owned<'a>(
 
 /// Calculate the number of notes between now and the end of the current measure.
 ///
-/// Since this number is used for timing calculations, the number includes empty notes that are 
+/// Since this number is used for timing calculations, the number includes empty notes that are
 /// used in the tja format for timing.
 ///
 /// Requires the argument to be a [lookahead::Lookahead] as we need to be able to walk through
@@ -494,9 +494,7 @@ fn notes_in_next_measure<'a, I: Iterator<Item = &'a NoteTrackEntry<'a>>>(
         let Some(item) = iter.lookahead(i) else { break; };
 
         match item {
-            NoteTrackEntry::Notes(notes) => {
-                num_notes += notes.iter().count()
-            }
+            NoteTrackEntry::Notes(notes) => num_notes += notes.iter().count(),
             NoteTrackEntry::EndMeasure => break,
             _ => {}
         }
