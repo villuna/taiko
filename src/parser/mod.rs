@@ -552,10 +552,11 @@ fn construct_difficulty<'a>(
     // disagree but I feel pretty good about it)
     // Defaults to common time
     let mut signature = 1f32;
-    let mut bpm = get_parsed_metadata::<f32>(metadata, "BPM", Some(120.0))?;
+    const DEFAULT_BPM: f32 = 120.0;
+    let mut bpm = get_parsed_metadata::<f32>(metadata, "BPM", Some(DEFAULT_BPM))?;
     let offset = get_parsed_metadata::<f32>(metadata, "OFFSET", Some(0.0))?;
     let init_scroll_speed = get_parsed_metadata::<f32>(metadata, "HEADSCROLL", Some(1.0))?;
-    let mut scroll_speed = init_scroll_speed;
+    let mut scroll_speed = init_scroll_speed * bpm / DEFAULT_BPM;
     let mut balloon_count = 0;
 
     let mut items_iter = lookahead::lookahead(track_items);
@@ -581,7 +582,7 @@ fn construct_difficulty<'a>(
                     millis_per_note = millis_per_measure / notes_in_measure as f32;
                 }
                 TrackCommand::Delay(t) => time += 1000.0 * *t,
-                TrackCommand::Scroll(s) => scroll_speed = init_scroll_speed * *s,
+                TrackCommand::Scroll(s) => scroll_speed = init_scroll_speed * (*s) * bpm / DEFAULT_BPM,
                 TrackCommand::GogoStart => {}
                 TrackCommand::GogoEnd => {}
                 TrackCommand::BarlineOff => {},
