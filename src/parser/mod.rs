@@ -561,27 +561,32 @@ fn construct_difficulty<'a>(
 
     let mut items_iter = lookahead::lookahead(track_items);
     let mut notes_in_measure = notes_in_next_measure(&mut items_iter);
-    let mut millis_per_measure = 60000.0 * signature * 4.0 / bpm;
+    let mut seconds_per_measure = 60.0 * signature * 4.0 / bpm;
 
-    let mut millis_per_note = if notes_in_measure == 0 {
+    let mut seconds_per_note = if notes_in_measure == 0 {
         0.0
     } else {
-        millis_per_measure / notes_in_measure as f32
+        seconds_per_measure / notes_in_measure as f32
     };
 
-    let mut time = -offset * 1000.0;
+    let mut time = -offset;
     let mut measure_start_time = time;
+    let mut measures = vec![time];
 
     while let Some(item) = items_iter.next() {
         match item {
             NoteTrackEntry::Command(command) => match command {
-                TrackCommand::BpmChange(new_bpm) => bpm = *new_bpm,
+                TrackCommand::BpmChange(new_bpm) => {
+                    bpm = *new_bpm;
+                    seconds_per_measure = 60.0 * signature * 4.0 / bpm;
+                    seconds_per_note = seconds_per_measure / notes_in_measure as f32;
+                }
                 TrackCommand::Measure(num, den) => {
                     signature = *num as f32 / *den as f32;
-                    millis_per_measure = 60000.0 * signature * 4.0 / bpm;
-                    millis_per_note = millis_per_measure / notes_in_measure as f32;
+                    seconds_per_measure = 60.0 * signature * 4.0 / bpm;
+                    seconds_per_note = seconds_per_measure / notes_in_measure as f32;
                 }
-                TrackCommand::Delay(t) => time += 1000.0 * *t,
+                TrackCommand::Delay(t) => time += *t,
                 TrackCommand::Scroll(s) => scroll_speed = init_scroll_speed * (*s) * bpm / DEFAULT_BPM,
                 TrackCommand::GogoStart => {}
                 TrackCommand::GogoEnd => {}
@@ -605,7 +610,7 @@ fn construct_difficulty<'a>(
 
                         Note {
                             note_type,
-                            time: time + millis_per_note * i as f32,
+                            time: time + seconds_per_note * i as f32,
                             scroll_speed,
                         }
                     })
@@ -614,23 +619,27 @@ fn construct_difficulty<'a>(
                 track.notes.extend(new_notes);
                 // Update the current time. We didn't have to do this for each note
                 // because they're evenly spaced.
-                time += num_notes as f32 * millis_per_note;
+                let elapsed_time = num_notes as f32 * seconds_per_note;
+                time += elapsed_time;
             }
 
             NoteTrackEntry::EndMeasure => {
-                // Make sure that even if we've had no notes we're still at
-                // the next measure
-                time = measure_start_time + millis_per_measure;
+                if notes_in_measure == 0 {
+                    // Make sure that even if we've had no notes we're still at
+                    // the next measure
+                    time = measure_start_time + seconds_per_measure;
+                }
+                
                 measure_start_time = time;
+                measures.push(time);
 
                 // Recalculate our measure-based variables
                 notes_in_measure = notes_in_next_measure(&mut items_iter);
-                //millis_per_measure = 60000.0 * signature * 4.0 / bpm;
 
-                millis_per_note = if notes_in_measure == 0 {
+                seconds_per_note = if notes_in_measure == 0 {
                     0.0
                 } else {
-                    millis_per_measure / notes_in_measure as f32
+                    seconds_per_measure / notes_in_measure as f32
                 };
             }
         }
@@ -672,6 +681,7 @@ fn construct_difficulty<'a>(
     }
 
     let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None)?;
+    track.measures = measures;
 
     difficulties[difficulty_level] = Some(Difficulty { star_level, track });
     Ok(())

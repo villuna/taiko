@@ -88,6 +88,11 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
     let tja_file_contents = std::fs::read_to_string(tja_file_path)?;
 
     let mut song = parse_tja_file(&tja_file_contents)?;
+
+    if dir_name.to_str().unwrap() == "Donkama 2000" {
+        println!("{:#?}", &song.difficulties[3].as_ref().unwrap().track.measures);
+    }
+
     let audio_filename = path
         .as_ref()
         .join(&song.audio_filename)

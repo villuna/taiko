@@ -125,7 +125,7 @@ impl GameState for TaikoMode {
                 .track
                 .notes
                 .iter()
-                .find(|note| note.time >= current * 1000.0)
+                .find(|note| note.time >= current)
                 .cloned();
         }
 
@@ -156,7 +156,7 @@ impl GameState for TaikoMode {
             .filter_map(|(i, sprite)| {
                 let note = notes[i];
 
-                if (current..current + DRAW_THRESHOLD / note.scroll_speed).contains(&(note.time / 1000.0)) {
+                if (current..current + DRAW_THRESHOLD / note.scroll_speed).contains(&(note.time)) {
                     sprite.as_mut().map(|s| (s, i))
                 } else {
                     None
@@ -168,9 +168,9 @@ impl GameState for TaikoMode {
 
             sprite.set_position(
                 [
-                    DISAPPEAR_POS + VELOCITY * (note.time / 1000.0 - current) * note.scroll_speed,
+                    DISAPPEAR_POS + VELOCITY * (note.time - current) * note.scroll_speed,
                     DRAW_Y,
-                    note.time / 1000.0,
+                    note.time,
                 ],
                 renderer,
             );
@@ -186,7 +186,7 @@ impl GameState for TaikoMode {
             let mut note_str = "Note: ".to_string();
 
             if let Some(note) = self.next_note.as_ref() {
-                if (note.time - current * 1000.0).abs() < 100.0 {
+                if (note.time - current).abs() < 0.1 {
                     note_str.push_str(&format!("{:?}", note.note_type));
                 }
             }

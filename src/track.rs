@@ -6,7 +6,7 @@
 //! accommodating these variations (such as diverging difficulty, different
 //! tracks for different players etc).
 //!
-//! Note that times are generally represented in milliseconds. Unless specified,
+//! Note that times are generally represented in seconds. Unless specified,
 //! that is the unit that time values will be in.
 
 use std::collections::HashMap;
@@ -52,10 +52,9 @@ pub struct Song {
     pub audio_filename: String,
     pub bpm: f32,
     /// The amount of time between the beginning of the track and the first measure,
-    /// measured in *seconds*.
     /// note timing will be relative to this offset
     pub offset: f32,
-    /// The time *in seconds* that the song preview should start from.
+    /// The time that the song preview should start from.
     pub demostart: f32,
     pub difficulties: [Option<Difficulty>; 5],
 }
