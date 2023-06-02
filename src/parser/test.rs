@@ -256,11 +256,12 @@ fn test_measure_command() {
 
     assert_eq!(
         tja_file(five_four),
-        Ok(("", vec![
-            TJAFileItem::NoteTrack(vec![
-                NoteTrackEntry::Command(TrackCommand::Start{ player: None }),
-                NoteTrackEntry::Command(TrackCommand::Measure(5,4)),
-            ])
-        ]))
+        Ok((
+            "",
+            vec![TJAFileItem::NoteTrack(vec![
+                NoteTrackEntry::Command(TrackCommand::Start { player: None }),
+                NoteTrackEntry::Command(TrackCommand::Measure(5, 4)),
+            ])]
+        ))
     );
 }

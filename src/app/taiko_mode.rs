@@ -6,7 +6,7 @@ use std::{rc::Rc, time::Instant};
 
 use kira::{
     manager::AudioManager,
-    sound::static_sound::{StaticSoundData, StaticSoundHandle, PlaybackState},
+    sound::static_sound::{PlaybackState, StaticSoundData, StaticSoundHandle},
 };
 
 use crate::{
@@ -48,7 +48,7 @@ impl TaikoMode {
         kat_tex: &Rc<Texture>,
         renderer: &render::Renderer,
     ) -> Self {
-        let mut song_handle = manager.play(song_data.clone()).unwrap();
+        let mut song_handle = manager.play(song_data).unwrap();
         song_handle.pause(Default::default()).unwrap();
 
         let sprites = song.difficulties[difficulty]
@@ -87,7 +87,11 @@ impl TaikoMode {
     }
 
     fn total_elapsed_time(&self) -> f32 {
-        self.elapsed + self.start_time.map(|time| time.elapsed().as_secs_f32()).unwrap_or_default()
+        self.elapsed
+            + self
+                .start_time
+                .map(|time| time.elapsed().as_secs_f32())
+                .unwrap_or_default()
     }
 
     fn pause_song(&mut self) {
@@ -198,7 +202,7 @@ impl GameState for TaikoMode {
                 match self.song_handle.state() {
                     PlaybackState::Playing => self.pause_song(),
                     PlaybackState::Paused => self.resume_song(),
-                    _ => {},
+                    _ => {}
                 }
             }
 
