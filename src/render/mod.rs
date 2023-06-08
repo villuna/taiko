@@ -286,7 +286,7 @@ impl Renderer {
             .formats
             .iter()
             .copied()
-            .find(|f| f.describe().srgb)
+            .find(|f| f.is_srgb())
             .unwrap_or(surface_capabilities.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {
