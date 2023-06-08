@@ -237,7 +237,7 @@ LEVEL:1
 
 #[test]
 fn test_real_tja_file_succeeds() {
-    let ready_to = include_str!("../../benches/Ready to.tja");
+    let ready_to = include_str!("./Ready to.tja");
     let no_comments = preprocess_tja_file(ready_to);
 
     let res = tja_file(&no_comments);
