@@ -1,7 +1,3 @@
-// Note to self and anyone reading this
-// a lot of the timing logic in this code will probably be quite off because this is just a demo
-// fix that
-
 use std::{rc::Rc, time::Instant};
 
 use kira::{
@@ -21,9 +17,13 @@ use super::{GameState, StateTransition};
 
 const WAIT_SECONDS: f32 = 3.0;
 const DRAW_THRESHOLD: f32 = 3.0;
-const DISAPPEAR_X: f32 = 400.0;
-const VELOCITY: f32 = 600.0;
+const DISAPPEAR_X: f32 = 550.0;
 const DRAW_Y: f32 = 500.0;
+
+// The base velocity is such that at 120 beats per minute, exactly one full measure is shown on the
+// screen. This will eventually have to be set based on the current resolution instead of this 
+// hardcoded value.
+const VELOCITY: f32 = (1920.0 - DISAPPEAR_X) / 2.0;
 
 pub struct TaikoMode {
     song: Rc<Song>,
