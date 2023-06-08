@@ -78,6 +78,7 @@ pub struct Texture {
     bind_group: wgpu::BindGroup,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
+    dimensions: (u32, u32),
 }
 
 impl Texture {
@@ -156,6 +157,7 @@ impl Texture {
             bind_group,
             vertex_buffer,
             index_buffer,
+            dimensions,
         })
     }
 }
@@ -184,6 +186,10 @@ impl Sprite {
             instance,
             instance_buffer,
         }
+    }
+
+    pub fn dimensions(&self) -> (u32, u32) {
+        self.texture.dimensions
     }
 
     pub fn render<'a>(

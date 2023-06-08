@@ -2,7 +2,10 @@ use std::time::Instant;
 
 use anyhow::anyhow;
 use egui_wgpu::renderer::ScreenDescriptor;
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
+use wgpu::{
+    include_wgsl,
+    util::{BufferInitDescriptor, DeviceExt},
+};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
@@ -341,15 +344,8 @@ impl Renderer {
                 push_constant_ranges: &[],
             });
 
-        let primitive_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Primitive shader"),
-            source: wgpu::ShaderSource::Wgsl(
-                #[cfg(debug_assertions)]
-                std::fs::read_to_string("src/render/shaders/primitive_shader.wgsl")?.into(),
-                #[cfg(not(debug_assertions))]
-                include_str!("shaders/primitive_shader.wgsl").into(),
-            ),
-        });
+        let primitive_shader =
+            device.create_shader_module(include_wgsl!("shaders/primitive_shader.wgsl"));
 
         let primitive_pipeline = create_render_pipeline(
             &device,
@@ -385,15 +381,8 @@ impl Renderer {
                 ],
             });
 
-        let texture_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("texture shader"),
-            source: wgpu::ShaderSource::Wgsl(
-                #[cfg(debug_assertions)]
-                std::fs::read_to_string("src/render/shaders/texture_shader.wgsl")?.into(),
-                #[cfg(not(debug_assertions))]
-                include_str!("shaders/texture_shader.wgsl").into(),
-            ),
-        });
+        let texture_shader =
+            device.create_shader_module(include_wgsl!("shaders/texture_shader.wgsl"));
 
         let texture_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

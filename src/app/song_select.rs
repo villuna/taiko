@@ -51,6 +51,8 @@ pub struct SongSelect {
 
     don_tex: Rc<Texture>,
     kat_tex: Rc<Texture>,
+    big_don_tex: Rc<Texture>,
+    big_kat_tex: Rc<Texture>,
 
     go_to_song: Option<(usize, usize)>,
 }
@@ -104,6 +106,8 @@ impl SongSelect {
         bg_sprite: Sprite,
         don_tex: Rc<Texture>,
         kat_tex: Rc<Texture>,
+        big_don_tex: Rc<Texture>,
+        big_kat_tex: Rc<Texture>,
     ) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
 
@@ -118,6 +122,8 @@ impl SongSelect {
             go_to_song: None,
             don_tex,
             kat_tex,
+            big_don_tex,
+            big_kat_tex,
         })
     }
 
@@ -175,6 +181,8 @@ impl GameState for SongSelect {
                 audio,
                 &self.don_tex,
                 &self.kat_tex,
+                &self.big_don_tex,
+                &self.big_kat_tex,
                 renderer,
             )))
         } else if self.exit {

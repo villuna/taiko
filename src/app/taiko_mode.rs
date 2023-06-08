@@ -14,14 +14,14 @@ use crate::{
         self,
         texture::{Sprite, Texture},
     },
-    track::{Note, NoteType, Song},
+    track::{NoteType, Song},
 };
 
 use super::{GameState, StateTransition};
 
 const WAIT_SECONDS: f32 = 3.0;
 const DRAW_THRESHOLD: f32 = 3.0;
-const DISAPPEAR_POS: f32 = 400.0;
+const DISAPPEAR_X: f32 = 400.0;
 const VELOCITY: f32 = 600.0;
 const DRAW_Y: f32 = 500.0;
 
@@ -31,7 +31,6 @@ pub struct TaikoMode {
     start_time: Option<Instant>,
     song_handle: StaticSoundHandle,
     exit: bool,
-    next_note: Option<Note>,
     sprites: Vec<Option<Sprite>>,
     elapsed: f32,
     paused: bool,
@@ -46,6 +45,8 @@ impl TaikoMode {
         manager: &mut AudioManager,
         don_tex: &Rc<Texture>,
         kat_tex: &Rc<Texture>,
+        big_don_tex: &Rc<Texture>,
+        big_kat_tex: &Rc<Texture>,
         renderer: &render::Renderer,
     ) -> Self {
         let mut song_handle = manager.play(song_data).unwrap();
@@ -58,12 +59,18 @@ impl TaikoMode {
             .notes
             .iter()
             .map(|note| match note.note_type {
-                NoteType::Don | NoteType::BigDon => {
-                    Some(Sprite::new(Rc::clone(don_tex), [0.0, 0.0, 0.0], renderer))
-                }
-                NoteType::Kat | NoteType::BigKat => {
-                    Some(Sprite::new(Rc::clone(kat_tex), [0.0, 0.0, 0.0], renderer))
-                }
+                NoteType::Don => Some(Sprite::new(Rc::clone(don_tex), [0.0, 0.0, 0.0], renderer)),
+                NoteType::Kat => Some(Sprite::new(Rc::clone(kat_tex), [0.0, 0.0, 0.0], renderer)),
+                NoteType::BigDon => Some(Sprite::new(
+                    Rc::clone(big_don_tex),
+                    [0.0, 0.0, 0.0],
+                    renderer,
+                )),
+                NoteType::BigKat => Some(Sprite::new(
+                    Rc::clone(big_kat_tex),
+                    [0.0, 0.0, 0.0],
+                    renderer,
+                )),
                 _ => None,
             })
             .collect();
@@ -74,7 +81,6 @@ impl TaikoMode {
             start_time: Some(Instant::now()),
             song_handle,
             exit: false,
-            next_note: None,
             sprites,
             elapsed: 0.0,
             paused: false,
@@ -122,15 +128,6 @@ impl GameState for TaikoMode {
                 self.song_handle.resume(Default::default()).unwrap();
                 self.started = true;
             }
-
-            self.next_note = self.song.difficulties[self.difficulty]
-                .as_ref()
-                .unwrap()
-                .track
-                .notes
-                .iter()
-                .find(|note| note.time >= current)
-                .cloned();
         }
 
         if self.exit {
@@ -170,10 +167,13 @@ impl GameState for TaikoMode {
         for (sprite, note_index) in draw_sprites {
             let note = &notes[note_index];
 
+            let (x, y) = sprite.dimensions();
+            let (x_offset, y_offset) = (x as f32 / 2.0, y as f32 / 2.0);
+
             sprite.set_position(
                 [
-                    DISAPPEAR_POS + VELOCITY * (note.time - current) * note.scroll_speed,
-                    DRAW_Y,
+                    DISAPPEAR_X + VELOCITY * (note.time - current) * note.scroll_speed - x_offset,
+                    DRAW_Y - y_offset,
                     note.time,
                 ],
                 renderer,
@@ -186,16 +186,6 @@ impl GameState for TaikoMode {
         egui::Window::new("taiko mode debug menu").show(&ctx, |ui| {
             let current = self.current_time();
             ui.label(format!("song time: {}", current));
-
-            let mut note_str = "Note: ".to_string();
-
-            if let Some(note) = self.next_note.as_ref() {
-                if (note.time - current).abs() < 0.1 {
-                    note_str.push_str(&format!("{:?}", note.note_type));
-                }
-            }
-
-            ui.label(note_str);
 
             if ui.button("Pause/Play").clicked() && current >= 0.0 {
                 println!("{:?}", self.song_handle.state());
