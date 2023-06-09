@@ -11,7 +11,7 @@ anyhow = "1.0.70"
 bytemuck = { version = "1.13.1", features = ["derive"] }
 egui = "0.22.0"
 egui-wgpu = "0.22.0"
-egui_winit_platform = { path = "../egui_winit_platform" }
+egui_winit_platform = { git = "https://github.com/hasenbanck/egui_winit_platform" }
 env_logger = "0.10.0"
 image = "0.24.6"
 itertools = "0.10.5"
