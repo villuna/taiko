@@ -93,5 +93,5 @@ pub struct Difficulty {
 pub struct NoteTrack {
     pub notes: Vec<Note>,
     pub balloons: Vec<u16>,
-    pub measures: Vec<f32>,
+    pub barlines: Vec<f32>,
 }

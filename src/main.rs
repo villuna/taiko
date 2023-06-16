@@ -30,6 +30,8 @@ async fn main() {
         if !renderer.handle_event(&event) {
             match event {
                 Event::WindowEvent { window_id, event } if window_id == renderer.window().id() => {
+                    app.handle_event(&event);
+
                     match event {
                         WindowEvent::CloseRequested
                         | WindowEvent::KeyboardInput {

@@ -567,7 +567,8 @@ fn construct_difficulty<'a>(
 
     let mut time = -offset;
     let mut measure_start_time = time;
-    let mut measures = vec![time];
+    let mut barlines = vec![time];
+    let mut barline_on = true;
 
     while let Some(item) = items_iter.next() {
         match item {
@@ -588,8 +589,8 @@ fn construct_difficulty<'a>(
                 }
                 TrackCommand::GogoStart => {}
                 TrackCommand::GogoEnd => {}
-                TrackCommand::BarlineOff => {}
-                TrackCommand::BarlineOn => {}
+                TrackCommand::BarlineOff => barline_on = false,
+                TrackCommand::BarlineOn => barline_on = true,
                 _ => {}
             },
             NoteTrackEntry::Notes(notes) => {
@@ -629,7 +630,10 @@ fn construct_difficulty<'a>(
                 }
 
                 measure_start_time = time;
-                measures.push(time);
+
+                if barline_on {
+                    barlines.push(time);
+                }
 
                 // Recalculate our measure-based variables
                 notes_in_measure = notes_in_next_measure(&mut items_iter);
@@ -676,7 +680,7 @@ fn construct_difficulty<'a>(
     }
 
     let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None)?;
-    track.measures = measures;
+    track.barlines = barlines;
 
     difficulties[difficulty_level] = Some(Difficulty { star_level, track });
     Ok(())
@@ -691,7 +695,6 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError<String>> {
     for item in items {
         match item {
             TJAFileItem::Metadata(key, value) => {
-                //println!("{key:?}: {value:?}");
                 metadata.insert(key, value);
             }
 

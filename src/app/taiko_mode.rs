@@ -1,9 +1,11 @@
+// TODO: Refactor this. Create a new temporary song struct to be used just by this module.
 use std::{rc::Rc, time::Instant};
 
 use kira::{
     manager::AudioManager,
     sound::static_sound::{PlaybackState, StaticSoundData, StaticSoundHandle},
 };
+use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
 use crate::{
     render::{
@@ -21,9 +23,12 @@ const DISAPPEAR_X: f32 = 550.0;
 const DRAW_Y: f32 = 500.0;
 
 // The base velocity is such that at 120 beats per minute, exactly one full measure is shown on the
-// screen. This will eventually have to be set based on the current resolution instead of this 
+// screen. This will eventually have to be set based on the current resolution instead of this
 // hardcoded value.
 const VELOCITY: f32 = (1920.0 - DISAPPEAR_X) / 2.0;
+const DON_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::S, VirtualKeyCode::Numpad4];
+const KAT_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::A, VirtualKeyCode::Numpad5];
+const OK_WINDOW: f32 = 0.1;
 
 pub struct TaikoMode {
     song: Rc<Song>,
@@ -35,6 +40,8 @@ pub struct TaikoMode {
     elapsed: f32,
     paused: bool,
     started: bool,
+    hits: Vec<bool>,
+    last_hit: Option<NoteType>,
 }
 
 impl TaikoMode {
@@ -73,7 +80,9 @@ impl TaikoMode {
                 )),
                 _ => None,
             })
-            .collect();
+            .collect::<Vec<_>>();
+
+        let notes = sprites.len();
 
         Self {
             song,
@@ -85,6 +94,8 @@ impl TaikoMode {
             elapsed: 0.0,
             paused: false,
             started: false,
+            hits: vec![false; notes],
+            last_hit: None,
         }
     }
 
@@ -185,10 +196,10 @@ impl GameState for TaikoMode {
     fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
         egui::Window::new("taiko mode debug menu").show(&ctx, |ui| {
             let current = self.current_time();
-            ui.label(format!("song time: {}", current));
+            ui.label(format!("song time: {current}"));
+            ui.label(format!("last hit: {:?}", self.last_hit));
 
             if ui.button("Pause/Play").clicked() && current >= 0.0 {
-                println!("{:?}", self.song_handle.state());
                 match self.song_handle.state() {
                     PlaybackState::Playing => self.pause_song(),
                     PlaybackState::Paused => self.resume_song(),
@@ -198,5 +209,65 @@ impl GameState for TaikoMode {
 
             self.exit = ui.button("Return").clicked();
         });
+    }
+
+    fn handle_event(&mut self, event: &WindowEvent<'_>, keyboard: &super::KeyboardState) {
+        if let &WindowEvent::KeyboardInput {
+            input,
+            is_synthetic: false,
+            ..
+        } = event
+        {
+            if let Some(code) = input.virtual_keycode {
+                let pressed = !keyboard.is_pressed(code) && input.state == ElementState::Pressed;
+
+                if pressed {
+                    // Don
+                    let current = self.current_time();
+
+                    if DON_KEYS.contains(&code) {
+                        let next_don = self.song.difficulties[self.difficulty]
+                            .as_ref()
+                            .unwrap()
+                            .track
+                            .notes
+                            .iter()
+                            .enumerate()
+                            .filter(|(i, note)| {
+                                (note.time - current).abs() <= OK_WINDOW
+                                    && matches!(note.note_type, NoteType::Don | NoteType::BigDon)
+                                    && !self.hits[*i]
+                            })
+                            .next();
+
+                        if let Some((i, note)) = next_don {
+                            self.hits[i] = true;
+                            self.last_hit = Some(note.note_type)
+                        }
+                    }
+
+                    if KAT_KEYS.contains(&code) {
+                        let next_don = self.song.difficulties[self.difficulty]
+                            .as_ref()
+                            .unwrap()
+                            .track
+                            .notes
+                            .iter()
+                            .enumerate()
+                            .filter(|(i, note)| {
+                                (note.time - current).abs() <= OK_WINDOW
+                                    && matches!(note.note_type, NoteType::Kat | NoteType::BigKat)
+                                    && !self.hits[*i]
+                            })
+                            .next();
+
+                        if let Some((i, note)) = next_don {
+                            self.hits[i] = true;
+                            self.last_hit = Some(note.note_type)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
