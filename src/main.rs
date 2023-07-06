@@ -22,6 +22,7 @@ async fn main() {
         .unwrap();
 
     let mut frame_time = Instant::now();
+    let mut delta = 1.0/60.0;
 
     let mut renderer = Renderer::new(window).await.unwrap();
     let mut app = App::new(&renderer).unwrap();
@@ -59,9 +60,6 @@ async fn main() {
                 }
 
                 Event::RedrawRequested(window_id) if window_id == renderer.window().id() => {
-                    let time = Instant::now();
-                    let delta = time.duration_since(frame_time).as_secs_f32();
-                    frame_time = time;
                     app.update(delta, &renderer, control_flow);
                     match renderer.render(&mut app) {
                         Ok(_) => {}
@@ -73,6 +71,10 @@ async fn main() {
                         Err(wgpu::SurfaceError::OutOfMemory) => control_flow.set_exit(),
                         Err(e) => log::error!("{e:?}"),
                     }
+
+                    let time = Instant::now();
+                    delta = time.duration_since(frame_time).as_secs_f32();
+                    frame_time = time;
                 }
 
                 Event::MainEventsCleared => renderer.window().request_redraw(),
