@@ -1,4 +1,4 @@
-//! Tests for the parser module.
+#![cfg(test)]
 
 #[allow(unused)]
 use super::*;
