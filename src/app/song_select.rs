@@ -193,10 +193,9 @@ impl GameState for SongSelect {
     }
     fn render<'a>(
         &'a mut self,
-        renderer: &'a render::Renderer,
-        render_pass: &mut wgpu::RenderPass<'a>,
+        ctx: &mut render::RenderContext<'a>,
     ) {
-        self.bg_sprite.render(renderer, render_pass)
+        ctx.render(&self.bg_sprite)
     }
 
     fn debug_ui(&mut self, ctx: egui::Context, audio: &mut AudioManager) {

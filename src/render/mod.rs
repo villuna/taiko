@@ -20,6 +20,9 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub mod primitives;
 pub mod texture;
+pub mod context;
+
+pub use context::RenderContext;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -454,7 +457,7 @@ impl Renderer {
             &self.window,
         );
 
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: if SAMPLE_COUNT == 1 {
@@ -478,16 +481,18 @@ impl Renderer {
             }),
         });
 
-        render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
+        let mut ctx = RenderContext::new(render_pass, self);
+
+        ctx.render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
 
         // Rendering goes here...
-        app.render(self, &mut render_pass);
+        app.render(&mut ctx);
 
         // Last step will be to render the debug gui
         self.egui_handler
-            .render(&mut render_pass, paint_jobs, &screen_descriptor);
+            .render(&mut ctx.render_pass, paint_jobs, &screen_descriptor);
 
-        drop(render_pass);
+        drop(ctx);
 
         self.queue.submit(std::iter::once(encoder.finish()));
         texture.present();

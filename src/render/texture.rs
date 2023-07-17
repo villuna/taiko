@@ -5,6 +5,8 @@ use image::GenericImageView;
 use std::{path::Path, rc::Rc};
 use wgpu::{util::DeviceExt, vertex_attr_array};
 
+use super::context::Renderable;
+
 /// A vertex of a sprite drawn to the screen
 ///
 /// This is for use in rendering, in particular see the (texture
@@ -192,7 +194,7 @@ impl Sprite {
         self.texture.dimensions
     }
 
-    pub fn render<'a>(
+    fn render<'a>(
         &'a self,
         renderer: &'a render::Renderer,
         render_pass: &mut wgpu::RenderPass<'a>,
@@ -219,5 +221,11 @@ impl Sprite {
             0,
             bytemuck::cast_slice(&[self.instance]),
         )
+    }
+}
+
+impl Renderable for Sprite {
+    fn render<'a>(&'a self, ctx: &mut render::context::RenderContext<'a>) {
+        self.render(ctx.renderer, &mut ctx.render_pass);
     }
 }

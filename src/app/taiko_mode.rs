@@ -151,8 +151,7 @@ impl GameState for TaikoMode {
 
     fn render<'a>(
         &'a mut self,
-        renderer: &'a render::Renderer,
-        render_pass: &mut wgpu::RenderPass<'a>,
+        ctx: &mut render::RenderContext<'a>,
     ) {
         let current = self.current_time();
         let notes = &self.song.difficulties[self.difficulty]
@@ -187,9 +186,9 @@ impl GameState for TaikoMode {
                     DRAW_Y - y_offset,
                     note.time,
                 ],
-                renderer,
+                ctx.renderer,
             );
-            sprite.render(renderer, render_pass);
+            ctx.render(sprite)
         }
     }
 

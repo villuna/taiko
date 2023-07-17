@@ -43,8 +43,7 @@ pub trait GameState {
 
     fn render<'a>(
         &'a mut self,
-        _renderer: &'a render::Renderer,
-        _render_pass: &mut wgpu::RenderPass<'a>,
+        _ctx: &mut render::RenderContext<'a>
     ) {
     }
 
@@ -186,10 +185,9 @@ impl App {
 
     pub fn render<'a>(
         &'a mut self,
-        renderer: &'a render::Renderer,
-        render_pass: &mut wgpu::RenderPass<'a>,
+        ctx: &mut render::RenderContext<'a>,
     ) {
-        self.state.last_mut().unwrap().render(renderer, render_pass)
+        self.state.last_mut().unwrap().render(ctx)
     }
 
     pub fn handle_event(&mut self, event: &WindowEvent<'_>) {
