@@ -128,7 +128,7 @@ fn create_render_pipeline(
     label: &str,
     layout: &wgpu::PipelineLayout,
     colour_format: wgpu::TextureFormat,
-    depth_format: Option<wgpu::TextureFormat>,
+    use_depth: bool,
     vertex_layouts: &[wgpu::VertexBufferLayout],
     shader: &wgpu::ShaderModule,
     samples: u32,
@@ -159,10 +159,10 @@ fn create_render_pipeline(
             unclipped_depth: false,
             conservative: false,
         },
-        depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
-            format,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: DEPTH_FORMAT,
+            depth_write_enabled: use_depth,
+            depth_compare: if use_depth { wgpu::CompareFunction::Less } else { wgpu::CompareFunction::Always },
             stencil: Default::default(),
             bias: Default::default(),
         }),
@@ -355,7 +355,7 @@ impl Renderer {
             "primitive pipeline",
             &primitive_pipeline_layout,
             config.format,
-            Some(DEPTH_FORMAT),
+            false,
             &[PrimitiveVertex::desc()],
             &primitive_shader,
             SAMPLE_COUNT,
@@ -399,13 +399,13 @@ impl Renderer {
             "texture pipeline",
             &texture_pipeline_layout,
             wgpu::TextureFormat::Bgra8UnormSrgb,
-            Some(DEPTH_FORMAT),
+            true,
             &[
                 TextureVertex::vertex_layout(),
                 SpriteInstance::vertex_layout(),
             ],
             &texture_shader,
-            4,
+            SAMPLE_COUNT,
         );
 
         let depth_view = create_depth_texture(&device, &size);
@@ -567,5 +567,9 @@ impl Renderer {
 
     pub fn texture_pipeline(&self) -> &wgpu::RenderPipeline {
         &self.texture_pipeline
+    }
+
+    pub fn primitive_pipeline(&self) -> &wgpu::RenderPipeline {
+        &self.primitive_pipeline
     }
 }
