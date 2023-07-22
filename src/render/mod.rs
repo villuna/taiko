@@ -18,9 +18,9 @@ const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
+pub mod context;
 pub mod primitives;
 pub mod texture;
-pub mod context;
 
 pub use context::RenderContext;
 
@@ -162,7 +162,11 @@ fn create_render_pipeline(
         depth_stencil: Some(wgpu::DepthStencilState {
             format: DEPTH_FORMAT,
             depth_write_enabled: use_depth,
-            depth_compare: if use_depth { wgpu::CompareFunction::Less } else { wgpu::CompareFunction::Always },
+            depth_compare: if use_depth {
+                wgpu::CompareFunction::Less
+            } else {
+                wgpu::CompareFunction::Always
+            },
             stencil: Default::default(),
             bias: Default::default(),
         }),
@@ -483,7 +487,8 @@ impl Renderer {
 
         let mut ctx = RenderContext::new(render_pass, self);
 
-        ctx.render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
+        ctx.render_pass
+            .set_bind_group(0, &self.screen_bind_group, &[]);
 
         // Rendering goes here...
         app.render(&mut ctx);

@@ -41,11 +41,7 @@ pub trait GameState {
 
     fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
 
-    fn render<'a>(
-        &'a mut self,
-        _ctx: &mut render::RenderContext<'a>
-    ) {
-    }
+    fn render<'a>(&'a mut self, _ctx: &mut render::RenderContext<'a>) {}
 
     fn handle_event(&mut self, _event: &WindowEvent<'_>, _keyboard: &KeyboardState) {}
 }
@@ -183,10 +179,7 @@ impl App {
             });
     }
 
-    pub fn render<'a>(
-        &'a mut self,
-        ctx: &mut render::RenderContext<'a>,
-    ) {
+    pub fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
         self.state.last_mut().unwrap().render(ctx)
     }
 
@@ -197,7 +190,7 @@ impl App {
         self.state
             .last_mut()
             .unwrap()
-            .handle_event(&event, &self.keyboard);
+            .handle_event(event, &self.keyboard);
 
         if let WindowEvent::KeyboardInput {
             input,

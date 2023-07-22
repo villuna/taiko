@@ -1,10 +1,13 @@
 //! Primitives - functions for constructing and drawing primitives
 
 use lyon::lyon_tessellation::{
-    FillTessellator, FillVertex, FillVertexConstructor,
-    StrokeVertex, StrokeVertexConstructor, VertexBuffers, StrokeTessellator,
+    FillTessellator, FillVertex, FillVertexConstructor, StrokeTessellator, StrokeVertex,
+    StrokeVertexConstructor, VertexBuffers,
 };
-use wgpu::{vertex_attr_array, util::{DeviceExt, BufferInitDescriptor}};
+use wgpu::{
+    util::{BufferInitDescriptor, DeviceExt},
+    vertex_attr_array,
+};
 
 use super::context::Renderable;
 
@@ -58,7 +61,11 @@ pub struct Primitive {
 
 impl Primitive {
     pub fn filled_shape<F>(device: &wgpu::Device, mut build_shapes: F) -> anyhow::Result<Self>
-    where F: FnMut(&mut FillTessellator, &mut VertexBuffers<PrimitiveVertex, u32>) -> anyhow::Result<()>,
+    where
+        F: FnMut(
+            &mut FillTessellator,
+            &mut VertexBuffers<PrimitiveVertex, u32>,
+        ) -> anyhow::Result<()>,
     {
         let mut output: VertexBuffers<PrimitiveVertex, u32> = VertexBuffers::new();
         let mut tesselator = FillTessellator::new();
@@ -85,7 +92,11 @@ impl Primitive {
     }
 
     pub fn stroke_shape<F>(device: &wgpu::Device, mut build_shapes: F) -> anyhow::Result<Self>
-    where F: FnMut(&mut StrokeTessellator, &mut VertexBuffers<PrimitiveVertex, u32>) -> anyhow::Result<()>,
+    where
+        F: FnMut(
+            &mut StrokeTessellator,
+            &mut VertexBuffers<PrimitiveVertex, u32>,
+        ) -> anyhow::Result<()>,
     {
         let mut output: VertexBuffers<PrimitiveVertex, u32> = VertexBuffers::new();
         let mut tesselator = StrokeTessellator::new();
@@ -114,9 +125,11 @@ impl Primitive {
 
 impl Renderable for Primitive {
     fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
-        ctx.render_pass.set_pipeline(&ctx.renderer.primitive_pipeline);
+        ctx.render_pass
+            .set_pipeline(&ctx.renderer.primitive_pipeline);
         ctx.render_pass.set_vertex_buffer(0, self.vertex.slice(..));
-        ctx.render_pass.set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
+        ctx.render_pass
+            .set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
         ctx.render_pass.draw_indexed(0..self.indices, 0, 0..1);
     }
 }

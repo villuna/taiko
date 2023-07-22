@@ -22,7 +22,7 @@ async fn main() {
         .unwrap();
 
     let mut frame_time = Instant::now();
-    let mut delta = 1.0/60.0;
+    let mut delta = 1.0 / 60.0;
 
     let mut renderer = Renderer::new(window).await.unwrap();
     let mut app = App::new(&renderer).unwrap();

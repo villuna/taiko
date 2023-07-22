@@ -41,6 +41,11 @@ pub enum NoteType {
 pub struct Note {
     pub note_type: NoteType,
     pub time: f32,
+    /// The scroll speed as a multiple of the default speed.
+    ///
+    /// Default speed is such that at 120bpm, exactly one bar of notes is displayed on the screen.
+    /// This will automatically be scaled with frame rate, so default scroll for notes at 240bpm
+    /// will be 2.0.
     pub scroll_speed: f32,
 }
 

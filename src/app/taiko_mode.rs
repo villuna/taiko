@@ -5,29 +5,40 @@ use kira::{
     manager::AudioManager,
     sound::static_sound::{PlaybackState, StaticSoundData, StaticSoundHandle},
 };
-use lyon::{geom::{Box2D, point}, lyon_tessellation::{FillOptions, BuffersBuilder, StrokeOptions}, path::Path};
+use lyon::{
+    geom::{point, Box2D},
+    lyon_tessellation::{BuffersBuilder, FillOptions, StrokeOptions},
+    path::Path,
+};
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
 use crate::{
     render::{
         self,
-        texture::{Sprite, Texture}, primitives::{Primitive, VertexBuilder},
+        primitives::{Primitive, VertexBuilder},
+        texture::{Sprite, Texture},
     },
     track::{NoteType, Song},
 };
 
 use super::{GameState, StateTransition};
 
+// This is a hard-coded value, big enough to make sure that at default scroll speed every note is
+// drawn for this long. It will be scaled depending on scroll speed, so every note will be drawn
+// for at least as long as it needs to. It's not very elegant but it works.
+const DEFAULT_DRAW_TIME: f32 = 3.0;
+// The number of seconds to wait before starting the song
 const WAIT_SECONDS: f32 = 3.0;
-const DRAW_THRESHOLD: f32 = 3.0;
-const DISAPPEAR_X: f32 = 550.0;
-const DRAW_Y: f32 = 400.0;
+// The point on the screen where notes should be hit
+const NOTE_HIT_X: f32 = 550.0;
+// The Y value where notes should be drawn
+const NOTE_Y: f32 = 400.0;
 const NOTE_FIELD_HEIGHT: f32 = 250.0;
 
 // The base velocity is such that at 120 beats per minute, exactly one full measure is shown on the
 // screen. This will eventually have to be set based on the current resolution instead of this
 // hardcoded value.
-const VELOCITY: f32 = (1920.0 - DISAPPEAR_X) / 2.0;
+const VELOCITY: f32 = (1920.0 - NOTE_HIT_X) / 2.0;
 const DON_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::S, VirtualKeyCode::Numpad4];
 const KAT_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::A, VirtualKeyCode::Numpad5];
 const OK_WINDOW: f32 = 0.1;
@@ -48,6 +59,7 @@ pub struct TaikoMode {
     // TODO: make some ui structs or something
     note_field: Primitive,
     note_line: Primitive,
+    left_panel: Primitive,
 }
 
 impl TaikoMode {
@@ -91,52 +103,69 @@ impl TaikoMode {
         let notes = sprites.len();
 
         let note_field = Primitive::filled_shape(&renderer.device, |tess, out| {
-            tess.tessellate_rectangle(&Box2D::new(
-                    point(DISAPPEAR_X - 200.0, DRAW_Y - NOTE_FIELD_HEIGHT / 2.0), 
-                    point(1920.0, DRAW_Y + NOTE_FIELD_HEIGHT / 2.0)),
+            tess.tessellate_rectangle(
+                &Box2D::new(
+                    point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                    point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, VertexBuilder { colour: [0.01, 0.01, 0.01, 1.0] }),
+                &mut BuffersBuilder::new(
+                    out,
+                    VertexBuilder {
+                        colour: [0.01, 0.01, 0.01, 1.0],
+                    },
+                ),
             )?;
 
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         let note_line = Primitive::stroke_shape(&renderer.device, |tess, out| {
             let mut path = Path::builder();
-            path.begin(point(DISAPPEAR_X, DRAW_Y - NOTE_FIELD_HEIGHT / 2.0));
-            path.line_to(point(DISAPPEAR_X, DRAW_Y + NOTE_FIELD_HEIGHT / 2.0));
+            path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
+            path.line_to(point(NOTE_HIT_X, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0));
             path.end(false);
 
             let options = StrokeOptions::DEFAULT.with_line_width(4.0);
-            let mut builder = BuffersBuilder::new(out, VertexBuilder {
-                colour: [0.05, 0.05, 0.05, 1.0],
-            });
+            let mut builder = BuffersBuilder::new(
+                out,
+                VertexBuilder {
+                    colour: [0.05, 0.05, 0.05, 1.0],
+                },
+            );
 
             // A line that shows exactly where notes should be hit
-            tess.tessellate_path(
-                &path.build(),
-                &options,
-                &mut builder
-            )?;
+            tess.tessellate_path(&path.build(), &options, &mut builder)?;
 
             // The outline of a small note
-            tess.tessellate_circle(
-                point(DISAPPEAR_X, DRAW_Y),
-                50.0,
-                &options,
-                &mut builder
-            )?;
+            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 50.0, &options, &mut builder)?;
 
             // The outline of a large note
-            tess.tessellate_circle(
-                point(DISAPPEAR_X, DRAW_Y),
-                75.0,
-                &options,
-                &mut builder
+            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 75.0, &options, &mut builder)?;
+
+            Ok(())
+        })
+        .unwrap();
+
+        let left_panel = Primitive::filled_shape(&renderer.device, |tess, out| {
+            tess.tessellate_rectangle(
+                &Box2D::new(
+                    point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                    point(NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                ),
+                &FillOptions::DEFAULT,
+                &mut BuffersBuilder::new(
+                    out,
+                    VertexBuilder {
+                        colour: [0.91, 0.29, 0.1, 1.0],
+                    },
+                ),
             )?;
 
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         Self {
             song,
@@ -152,6 +181,7 @@ impl TaikoMode {
             last_hit: None,
             note_field,
             note_line,
+            left_panel,
         }
     }
 
@@ -205,10 +235,7 @@ impl GameState for TaikoMode {
         }
     }
 
-    fn render<'a>(
-        &'a mut self,
-        ctx: &mut render::RenderContext<'a>,
-    ) {
+    fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
         let current = self.current_time();
         let notes = &self.song.difficulties[self.difficulty]
             .as_ref()
@@ -223,7 +250,9 @@ impl GameState for TaikoMode {
             .filter_map(|(i, sprite)| {
                 let note = notes[i];
 
-                if (current..current + DRAW_THRESHOLD / note.scroll_speed).contains(&(note.time)) {
+                if ((current - 1.0)..current + DEFAULT_DRAW_TIME / note.scroll_speed)
+                    .contains(&(note.time))
+                {
                     sprite.as_mut().map(|s| (s, i))
                 } else {
                     None
@@ -241,14 +270,16 @@ impl GameState for TaikoMode {
 
             sprite.set_position(
                 [
-                    DISAPPEAR_X + VELOCITY * (note.time - current) * note.scroll_speed - x_offset,
-                    DRAW_Y - y_offset,
+                    NOTE_HIT_X + VELOCITY * (note.time - current) * note.scroll_speed - x_offset,
+                    NOTE_Y - y_offset,
                     note.time,
                 ],
                 ctx.renderer,
             );
             ctx.render(sprite)
         }
+
+        ctx.render(&self.left_panel);
     }
 
     fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
@@ -291,12 +322,11 @@ impl GameState for TaikoMode {
                             .notes
                             .iter()
                             .enumerate()
-                            .filter(|(i, note)| {
+                            .find(|(i, note)| {
                                 (note.time - current).abs() <= OK_WINDOW
                                     && matches!(note.note_type, NoteType::Don | NoteType::BigDon)
                                     && !self.hits[*i]
-                            })
-                            .next();
+                            });
 
                         if let Some((i, note)) = next_don {
                             self.hits[i] = true;
@@ -312,12 +342,11 @@ impl GameState for TaikoMode {
                             .notes
                             .iter()
                             .enumerate()
-                            .filter(|(i, note)| {
+                            .find(|(i, note)| {
                                 (note.time - current).abs() <= OK_WINDOW
                                     && matches!(note.note_type, NoteType::Kat | NoteType::BigKat)
                                     && !self.hits[*i]
-                            })
-                            .next();
+                            });
 
                         if let Some((i, note)) = next_don {
                             self.hits[i] = true;
