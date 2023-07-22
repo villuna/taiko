@@ -158,7 +158,7 @@ impl TaikoMode {
                 &mut BuffersBuilder::new(
                     out,
                     VertexBuilder {
-                        colour: [0.91, 0.29, 0.1, 1.0],
+                        colour: [0.8, 0.07, 0.03, 1.0],
                     },
                 ),
             )?;
