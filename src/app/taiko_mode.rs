@@ -43,6 +43,98 @@ const DON_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::S, VirtualKeyCode::Numpad4
 const KAT_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::A, VirtualKeyCode::Numpad5];
 const OK_WINDOW: f32 = 0.1;
 
+struct UI {
+    note_field: Primitive,
+    note_line: Primitive,
+    left_panel: Primitive,
+}
+
+impl UI {
+    fn new(device: &wgpu::Device) -> anyhow::Result<Self> {
+        let note_field = Primitive::filled_shape(device, |tess, out| {
+            tess.tessellate_rectangle(
+                &Box2D::new(
+                    point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                    point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                ),
+                &FillOptions::DEFAULT,
+                &mut BuffersBuilder::new(
+                    out,
+                    VertexBuilder {
+                        colour: [0.01, 0.01, 0.01, 1.0],
+                    },
+                ),
+            )?;
+
+            Ok(())
+        })?;
+
+        let note_line = Primitive::stroke_shape(device, |tess, out| {
+            let mut path = Path::builder();
+            path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
+            path.line_to(point(NOTE_HIT_X, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0));
+            path.end(false);
+
+            let options = StrokeOptions::DEFAULT.with_line_width(4.0);
+            let mut builder = BuffersBuilder::new(
+                out,
+                VertexBuilder {
+                    colour: [0.05, 0.05, 0.05, 1.0],
+                },
+            );
+
+            // A line that shows exactly where notes should be hit
+            tess.tessellate_path(&path.build(), &options, &mut builder)?;
+
+            // The outline of a small note
+            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 50.0, &options, &mut builder)?;
+
+            // The outline of a large note
+            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 75.0, &options, &mut builder)?;
+
+            Ok(())
+        })?;
+
+        let left_panel = Primitive::filled_shape(device, |tess, out| {
+            tess.tessellate_rectangle(
+                &Box2D::new(
+                    point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                    point(NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                ),
+                &FillOptions::DEFAULT,
+                &mut BuffersBuilder::new(
+                    out,
+                    VertexBuilder {
+                        colour: [0.8, 0.07, 0.03, 1.0],
+                    },
+                ),
+            )?;
+
+            tess.tessellate_rectangle(
+                &Box2D::new(
+                    point(NOTE_HIT_X - 203.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                    point(NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                ),
+                &FillOptions::DEFAULT,
+                &mut BuffersBuilder::new(
+                    out,
+                    VertexBuilder {
+                        colour: [0.0, 0.0, 0.0, 1.0],
+                    }
+                ),
+            )?;
+
+            Ok(())
+        })?;
+
+        Ok(Self {
+            note_field,
+            note_line,
+            left_panel,
+        })
+    }
+}
+
 pub struct TaikoMode {
     song: Rc<Song>,
     difficulty: usize,
@@ -55,11 +147,7 @@ pub struct TaikoMode {
     started: bool,
     hits: Vec<bool>,
     last_hit: Option<NoteType>,
-
-    // TODO: make some ui structs or something
-    note_field: Primitive,
-    note_line: Primitive,
-    left_panel: Primitive,
+    ui: UI,
 }
 
 impl TaikoMode {
@@ -102,70 +190,7 @@ impl TaikoMode {
 
         let notes = sprites.len();
 
-        let note_field = Primitive::filled_shape(&renderer.device, |tess, out| {
-            tess.tessellate_rectangle(
-                &Box2D::new(
-                    point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                    point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                ),
-                &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(
-                    out,
-                    VertexBuilder {
-                        colour: [0.01, 0.01, 0.01, 1.0],
-                    },
-                ),
-            )?;
-
-            Ok(())
-        })
-        .unwrap();
-
-        let note_line = Primitive::stroke_shape(&renderer.device, |tess, out| {
-            let mut path = Path::builder();
-            path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
-            path.line_to(point(NOTE_HIT_X, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0));
-            path.end(false);
-
-            let options = StrokeOptions::DEFAULT.with_line_width(4.0);
-            let mut builder = BuffersBuilder::new(
-                out,
-                VertexBuilder {
-                    colour: [0.05, 0.05, 0.05, 1.0],
-                },
-            );
-
-            // A line that shows exactly where notes should be hit
-            tess.tessellate_path(&path.build(), &options, &mut builder)?;
-
-            // The outline of a small note
-            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 50.0, &options, &mut builder)?;
-
-            // The outline of a large note
-            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 75.0, &options, &mut builder)?;
-
-            Ok(())
-        })
-        .unwrap();
-
-        let left_panel = Primitive::filled_shape(&renderer.device, |tess, out| {
-            tess.tessellate_rectangle(
-                &Box2D::new(
-                    point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                    point(NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                ),
-                &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(
-                    out,
-                    VertexBuilder {
-                        colour: [0.8, 0.07, 0.03, 1.0],
-                    },
-                ),
-            )?;
-
-            Ok(())
-        })
-        .unwrap();
+        let ui = UI::new(&renderer.device).unwrap();
 
         Self {
             song,
@@ -179,9 +204,7 @@ impl TaikoMode {
             started: false,
             hits: vec![false; notes],
             last_hit: None,
-            note_field,
-            note_line,
-            left_panel,
+            ui,
         }
     }
 
@@ -252,6 +275,7 @@ impl GameState for TaikoMode {
 
                 if ((current - 1.0)..current + DEFAULT_DRAW_TIME / note.scroll_speed)
                     .contains(&(note.time))
+                    && !self.hits[i]
                 {
                     sprite.as_mut().map(|s| (s, i))
                 } else {
@@ -259,8 +283,8 @@ impl GameState for TaikoMode {
                 }
             });
 
-        ctx.render(&self.note_field);
-        ctx.render(&self.note_line);
+        ctx.render(&self.ui.note_field);
+        ctx.render(&self.ui.note_line);
 
         for (sprite, note_index) in draw_sprites {
             let note = &notes[note_index];
@@ -279,7 +303,7 @@ impl GameState for TaikoMode {
             ctx.render(sprite)
         }
 
-        ctx.render(&self.left_panel);
+        ctx.render(&self.ui.left_panel);
     }
 
     fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
