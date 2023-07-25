@@ -101,15 +101,15 @@ pub struct App {
 impl App {
     pub fn new(renderer: &render::Renderer) -> anyhow::Result<Self> {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
-        let bg_filename = "assets/song_select_bg.jpg";
+        let bg_filename = "assets/images/song_select_bg.jpg";
         let bg_texture = Rc::new(Texture::from_file(bg_filename, renderer)?);
 
         let bg_sprite = Sprite::new(Rc::clone(&bg_texture), [0.0, 0.0, 0.0], renderer);
 
-        let don_tex = Rc::new(Texture::from_file("assets/don.png", renderer)?);
-        let kat_tex = Rc::new(Texture::from_file("assets/kat.png", renderer)?);
-        let big_don_tex = Rc::new(Texture::from_file("assets/big_don.png", renderer)?);
-        let big_kat_tex = Rc::new(Texture::from_file("assets/big_kat.png", renderer)?);
+        let don_tex = Rc::new(Texture::from_file("assets/images/don.png", renderer)?);
+        let kat_tex = Rc::new(Texture::from_file("assets/images/kat.png", renderer)?);
+        let big_don_tex = Rc::new(Texture::from_file("assets/images/big_don.png", renderer)?);
+        let big_kat_tex = Rc::new(Texture::from_file("assets/images/big_kat.png", renderer)?);
 
         let state = Box::new(SongSelect::new(
             bg_sprite,

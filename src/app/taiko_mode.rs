@@ -10,13 +10,14 @@ use lyon::{
     lyon_tessellation::{BuffersBuilder, FillOptions, StrokeOptions},
     path::Path,
 };
+use wgpu_text::glyph_brush::SectionBuilder;
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
 use crate::{
     render::{
         self,
         primitives::{Primitive, VertexBuilder},
-        texture::{Sprite, Texture},
+        texture::{Sprite, Texture}, text::Text,
     },
     track::{NoteType, Song},
 };
@@ -47,10 +48,11 @@ struct UI {
     note_field: Primitive,
     note_line: Primitive,
     left_panel: Primitive,
+    title: Text,
 }
 
 impl UI {
-    fn new(device: &wgpu::Device) -> anyhow::Result<Self> {
+    fn new(device: &wgpu::Device, song_name: &str) -> anyhow::Result<Self> {
         let note_field = Primitive::filled_shape(device, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(
@@ -127,10 +129,21 @@ impl UI {
             Ok(())
         })?;
 
+        let title = Text {
+            section: SectionBuilder::default()
+                .with_screen_position((100.0, 50.0))
+                .with_owned_text(vec![
+                    wgpu_text::glyph_brush::OwnedText::new(song_name.to_string())
+                        .with_color([1.0, 1.0, 1.0, 1.0])
+                        .with_scale(60.0)
+                ]),
+        };
+
         Ok(Self {
             note_field,
             note_line,
             left_panel,
+            title,
         })
     }
 }
@@ -190,7 +203,7 @@ impl TaikoMode {
 
         let notes = sprites.len();
 
-        let ui = UI::new(&renderer.device).unwrap();
+        let ui = UI::new(&renderer.device, &song.title).unwrap();
 
         Self {
             song,
@@ -286,7 +299,7 @@ impl GameState for TaikoMode {
         ctx.render(&self.ui.note_field);
         ctx.render(&self.ui.note_line);
 
-        for (sprite, note_index) in draw_sprites {
+        for (sprite, note_index) in draw_sprites.rev() {
             let note = &notes[note_index];
 
             let (x, y) = sprite.dimensions();
@@ -298,12 +311,13 @@ impl GameState for TaikoMode {
                     NOTE_Y - y_offset,
                     note.time,
                 ],
-                ctx.renderer,
+                ctx.queue,
             );
             ctx.render(sprite)
         }
 
         ctx.render(&self.ui.left_panel);
+        ctx.render(&self.ui.title);
     }
 
     fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {

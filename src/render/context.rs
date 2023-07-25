@@ -1,8 +1,9 @@
-use super::Renderer;
-
 pub struct RenderContext<'a> {
     pub render_pass: wgpu::RenderPass<'a>,
-    pub renderer: &'a Renderer,
+    pub device: &'a wgpu::Device,
+    pub queue: &'a wgpu::Queue,
+    pub pipeline_cache: &'a Vec<(&'static str, wgpu::RenderPipeline)>,
+    pub text_brush: Option<&'a mut wgpu_text::TextBrush>,
 }
 
 pub trait Renderable {
@@ -10,14 +11,18 @@ pub trait Renderable {
 }
 
 impl<'a> RenderContext<'a> {
-    pub fn new(render_pass: wgpu::RenderPass<'a>, renderer: &'a Renderer) -> Self {
-        Self {
-            render_pass,
-            renderer,
-        }
-    }
-
     pub fn render<R: Renderable>(&mut self, target: &'a R) {
         target.render(self);
+    }
+
+    pub fn pipeline(&self, name: &str) -> Option<&'a wgpu::RenderPipeline> {
+        self.pipeline_cache.iter()
+            .find_map(|(n, pipeline)| {
+                if name == *n {
+                    Some(pipeline)
+                } else {
+                    None
+                }
+            })
     }
 }

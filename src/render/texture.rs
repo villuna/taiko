@@ -194,29 +194,13 @@ impl Sprite {
         self.texture.dimensions
     }
 
-    fn render<'a>(
-        &'a self,
-        renderer: &'a render::Renderer,
-        render_pass: &mut wgpu::RenderPass<'a>,
-    ) {
-        render_pass.set_pipeline(renderer.texture_pipeline());
-        render_pass.set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(
-            self.texture.index_buffer.slice(..),
-            wgpu::IndexFormat::Uint16,
-        );
-        render_pass.set_bind_group(1, &self.texture.bind_group, &[]);
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        render_pass.draw_indexed(0..6 as _, 0, 0..1);
-    }
-
     pub fn position(&self) -> [f32; 3] {
         self.instance.position
     }
 
-    pub fn set_position(&mut self, position: [f32; 3], renderer: &render::Renderer) {
+    pub fn set_position(&mut self, position: [f32; 3], queue: &wgpu::Queue) {
         self.instance.position = position;
-        renderer.queue.write_buffer(
+        queue.write_buffer(
             &self.instance_buffer,
             0,
             bytemuck::cast_slice(&[self.instance]),
@@ -226,6 +210,14 @@ impl Sprite {
 
 impl Renderable for Sprite {
     fn render<'a>(&'a self, ctx: &mut render::context::RenderContext<'a>) {
-        self.render(ctx.renderer, &mut ctx.render_pass);
+        ctx.render_pass.set_pipeline(ctx.pipeline("texture").expect("texture render pipeline does not exist!"));
+        ctx.render_pass.set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
+        ctx.render_pass.set_index_buffer(
+            self.texture.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        ctx.render_pass.set_bind_group(1, &self.texture.bind_group, &[]);
+        ctx.render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        ctx.render_pass.draw_indexed(0..6 as _, 0, 0..1);
     }
 }

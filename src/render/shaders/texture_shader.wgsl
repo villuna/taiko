@@ -54,7 +54,7 @@ var texture_sampler: sampler;
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let sample = textureSample(texture, texture_sampler, in.tex_coord);
 
-    if sample.a <= 0.1 {
+    if sample.a <= 0.01 {
         discard;
     }
 

@@ -1,11 +1,13 @@
 use std::time::Instant;
 
+use ab_glyph::FontArc;
 use anyhow::anyhow;
 use egui_wgpu::renderer::ScreenDescriptor;
 use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
 };
+use wgpu_text::BrushBuilder;
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
@@ -21,6 +23,7 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 pub mod context;
 pub mod primitives;
 pub mod texture;
+pub mod text;
 
 pub use context::RenderContext;
 
@@ -47,10 +50,10 @@ pub struct Renderer {
     depth_view: wgpu::TextureView,
     screen_uniform: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
-    primitive_pipeline: wgpu::RenderPipeline,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    texture_pipeline: wgpu::RenderPipeline,
+    pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
 
+    text_brush: wgpu_text::TextBrush,
     egui_handler: Egui,
 }
 
@@ -414,6 +417,20 @@ impl Renderer {
 
         let depth_view = create_depth_texture(&device, &size);
         let egui_handler = Egui::new(&device, &config, window.scale_factor());
+         
+        let text_brush = BrushBuilder::using_font(FontArc::try_from_vec(std::fs::read("assets/fonts/MochiyPopOne-Regular.ttf")?)?)
+            .with_depth_stencil(Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }))
+            .with_multisample(wgpu::MultisampleState {
+                count: SAMPLE_COUNT,
+                ..Default::default()
+            })
+            .build(&device, config.width, config.height, format);
 
         Ok(Self {
             size,
@@ -424,12 +441,14 @@ impl Renderer {
             window,
             msaa_view,
             depth_view,
-            primitive_pipeline,
             screen_uniform,
             screen_bind_group,
             texture_bind_group_layout,
-            texture_pipeline,
-
+            pipeline_cache: vec![
+                ("texture", texture_pipeline),
+                ("primitive", primitive_pipeline),
+            ],
+            text_brush,
             egui_handler,
         })
     }
@@ -485,13 +504,21 @@ impl Renderer {
             }),
         });
 
-        let mut ctx = RenderContext::new(render_pass, self);
+        let mut ctx = RenderContext {
+            render_pass, 
+            device: &self.device,
+            queue: &self.queue,
+            pipeline_cache: &self.pipeline_cache,
+            text_brush: Some(&mut self.text_brush),
+        };
 
         ctx.render_pass
             .set_bind_group(0, &self.screen_bind_group, &[]);
 
         // Rendering goes here...
         app.render(&mut ctx);
+        
+        ctx.text_brush.take().unwrap().draw(&mut ctx.render_pass);
 
         // Last step will be to render the debug gui
         self.egui_handler
@@ -499,7 +526,7 @@ impl Renderer {
 
         drop(ctx);
 
-        self.queue.submit(std::iter::once(encoder.finish()));
+        self.queue.submit([encoder.finish()]);
         texture.present();
 
         Ok(())
@@ -568,13 +595,5 @@ impl Renderer {
                 },
             ],
         })
-    }
-
-    pub fn texture_pipeline(&self) -> &wgpu::RenderPipeline {
-        &self.texture_pipeline
-    }
-
-    pub fn primitive_pipeline(&self) -> &wgpu::RenderPipeline {
-        &self.primitive_pipeline
     }
 }
