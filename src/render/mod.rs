@@ -406,6 +406,20 @@ impl Renderer {
             "texture pipeline",
             &texture_pipeline_layout,
             wgpu::TextureFormat::Bgra8UnormSrgb,
+            false,
+            &[
+                TextureVertex::vertex_layout(),
+                SpriteInstance::vertex_layout(),
+            ],
+            &texture_shader,
+            SAMPLE_COUNT,
+        );
+
+        let texture_pipeline_depth = create_render_pipeline(
+            &device,
+            "texture pipeline with depth",
+            &texture_pipeline_layout,
+            wgpu::TextureFormat::Bgra8UnormSrgb,
             true,
             &[
                 TextureVertex::vertex_layout(),
@@ -448,6 +462,7 @@ impl Renderer {
             texture_bind_group_layout,
             pipeline_cache: vec![
                 ("texture", texture_pipeline),
+                ("texture_depth", texture_pipeline_depth),
                 ("primitive", primitive_pipeline),
             ],
             text_brush,

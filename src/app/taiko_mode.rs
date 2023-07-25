@@ -46,6 +46,7 @@ const KAT_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::A, VirtualKeyCode::Numpad5
 const OK_WINDOW: f32 = 0.1;
 
 struct UI {
+    bg_rect: Primitive,
     note_field: Primitive,
     note_line: Primitive,
     left_panel: Primitive,
@@ -54,6 +55,32 @@ struct UI {
 
 impl UI {
     fn new(device: &wgpu::Device, song_name: &str) -> anyhow::Result<Self> {
+        let bg_rect = Primitive::filled_shape(device, |tess, out| {
+            tess.tessellate_rectangle(
+                &Box2D::new(point(0.0, 0.0), point(1920.0, NOTE_Y)),
+                &FillOptions::DEFAULT,
+                &mut BuffersBuilder::new(
+                    out,
+                    VertexBuilder {
+                        colour: [0.0, 0.0, 0.0, 0.99],
+                    },
+                ),
+            )?;
+
+            tess.tessellate_rectangle(
+                &Box2D::new(point(0.0, NOTE_Y), point(1920.0, 1080.0)),
+                &FillOptions::DEFAULT,
+                &mut BuffersBuilder::new(
+                    out,
+                    VertexBuilder {
+                        colour: [0.0, 0.0, 0.0, 0.8],
+                    },
+                ),
+            )?;
+
+            Ok(())
+        })?;
+
         let note_field = Primitive::filled_shape(device, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(
@@ -142,6 +169,7 @@ impl UI {
         };
 
         Ok(Self {
+            bg_rect,
             note_field,
             note_line,
             left_panel,
@@ -163,6 +191,7 @@ pub struct TaikoMode {
     hits: Vec<bool>,
     last_hit: Option<NoteType>,
     ui: UI,
+    bg_sprite: Rc<Sprite>,
 }
 
 impl TaikoMode {
@@ -176,6 +205,7 @@ impl TaikoMode {
         big_don_tex: &Rc<Texture>,
         big_kat_tex: &Rc<Texture>,
         renderer: &render::Renderer,
+        bg_sprite: &Rc<Sprite>,
     ) -> Self {
         let mut song_handle = manager.play(song_data).unwrap();
         song_handle.pause(Default::default()).unwrap();
@@ -187,17 +217,29 @@ impl TaikoMode {
             .notes
             .iter()
             .map(|note| match note.note_type {
-                NoteType::Don => Some(Sprite::new(Rc::clone(don_tex), [0.0, 0.0, 0.0], renderer)),
-                NoteType::Kat => Some(Sprite::new(Rc::clone(kat_tex), [0.0, 0.0, 0.0], renderer)),
+                NoteType::Don => Some(Sprite::new(
+                    Rc::clone(don_tex),
+                    [0.0, 0.0, 0.0],
+                    renderer,
+                    true,
+                )),
+                NoteType::Kat => Some(Sprite::new(
+                    Rc::clone(kat_tex),
+                    [0.0, 0.0, 0.0],
+                    renderer,
+                    true,
+                )),
                 NoteType::BigDon => Some(Sprite::new(
                     Rc::clone(big_don_tex),
                     [0.0, 0.0, 0.0],
                     renderer,
+                    true,
                 )),
                 NoteType::BigKat => Some(Sprite::new(
                     Rc::clone(big_kat_tex),
                     [0.0, 0.0, 0.0],
                     renderer,
+                    true,
                 )),
                 _ => None,
             })
@@ -220,6 +262,7 @@ impl TaikoMode {
             hits: vec![false; notes],
             last_hit: None,
             ui,
+            bg_sprite: Rc::clone(bg_sprite),
         }
     }
 
@@ -298,6 +341,8 @@ impl GameState for TaikoMode {
                 }
             });
 
+        ctx.render(self.bg_sprite.as_ref());
+        ctx.render(&self.ui.bg_rect);
         ctx.render(&self.ui.note_field);
         ctx.render(&self.ui.note_line);
 

@@ -168,10 +168,16 @@ pub struct Sprite {
     texture: Rc<Texture>,
     instance: SpriteInstance,
     instance_buffer: wgpu::Buffer,
+    use_depth: bool,
 }
 
 impl Sprite {
-    pub fn new(texture: Rc<Texture>, position: [f32; 3], renderer: &render::Renderer) -> Self {
+    pub fn new(
+        texture: Rc<Texture>,
+        position: [f32; 3],
+        renderer: &render::Renderer,
+        use_depth: bool,
+    ) -> Self {
         let instance = SpriteInstance { position };
 
         let instance_buffer =
@@ -187,6 +193,7 @@ impl Sprite {
             texture,
             instance,
             instance_buffer,
+            use_depth,
         }
     }
 
@@ -211,8 +218,12 @@ impl Sprite {
 impl Renderable for Sprite {
     fn render<'a>(&'a self, ctx: &mut render::context::RenderContext<'a>) {
         ctx.render_pass.set_pipeline(
-            ctx.pipeline("texture")
-                .expect("texture render pipeline does not exist!"),
+            ctx.pipeline(if self.use_depth {
+                "texture_depth"
+            } else {
+                "texture"
+            })
+            .expect("texture render pipeline does not exist!"),
         );
         ctx.render_pass
             .set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));

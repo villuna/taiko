@@ -45,7 +45,7 @@ pub struct SongSelect {
     selected: Option<usize>,
     difficulty: usize,
     song_handle: Option<SongHandle>,
-    bg_sprite: Sprite,
+    bg_sprite: Rc<Sprite>,
     go_to_credits: bool,
     exit: bool,
 
@@ -113,7 +113,7 @@ impl SongSelect {
 
         Ok(SongSelect {
             test_tracks,
-            bg_sprite,
+            bg_sprite: Rc::new(bg_sprite),
             selected: None,
             difficulty: 0,
             song_handle: None,
@@ -184,6 +184,7 @@ impl GameState for SongSelect {
                 &self.big_don_tex,
                 &self.big_kat_tex,
                 renderer,
+                &self.bg_sprite,
             )))
         } else if self.exit {
             super::StateTransition::Exit
@@ -192,7 +193,7 @@ impl GameState for SongSelect {
         }
     }
     fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
-        ctx.render(&self.bg_sprite)
+        ctx.render(self.bg_sprite.as_ref())
     }
 
     fn debug_ui(&mut self, ctx: egui::Context, audio: &mut AudioManager) {

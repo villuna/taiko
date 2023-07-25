@@ -104,7 +104,7 @@ impl App {
         let bg_filename = "assets/images/song_select_bg.jpg";
         let bg_texture = Rc::new(Texture::from_file(bg_filename, renderer)?);
 
-        let bg_sprite = Sprite::new(Rc::clone(&bg_texture), [0.0, 0.0, 0.0], renderer);
+        let bg_sprite = Sprite::new(Rc::clone(&bg_texture), [0.0, 0.0, 0.0], renderer, false);
 
         let don_tex = Rc::new(Texture::from_file("assets/images/don.png", renderer)?);
         let kat_tex = Rc::new(Texture::from_file("assets/images/kat.png", renderer)?);
