@@ -125,8 +125,10 @@ impl Primitive {
 
 impl Renderable for Primitive {
     fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
-        ctx.render_pass
-            .set_pipeline(ctx.pipeline("primitive").expect("primitive render pipeline doesn't exist!"));
+        ctx.render_pass.set_pipeline(
+            ctx.pipeline("primitive")
+                .expect("primitive render pipeline doesn't exist!"),
+        );
         ctx.render_pass.set_vertex_buffer(0, self.vertex.slice(..));
         ctx.render_pass
             .set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);

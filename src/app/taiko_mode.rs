@@ -10,14 +10,15 @@ use lyon::{
     lyon_tessellation::{BuffersBuilder, FillOptions, StrokeOptions},
     path::Path,
 };
-use wgpu_text::glyph_brush::SectionBuilder;
+use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder};
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
 use crate::{
     render::{
         self,
         primitives::{Primitive, VertexBuilder},
-        texture::{Sprite, Texture}, text::Text,
+        text::Text,
+        texture::{Sprite, Texture},
     },
     track::{NoteType, Song},
 };
@@ -122,7 +123,7 @@ impl UI {
                     out,
                     VertexBuilder {
                         colour: [0.0, 0.0, 0.0, 1.0],
-                    }
+                    },
                 ),
             )?;
 
@@ -131,12 +132,13 @@ impl UI {
 
         let title = Text {
             section: SectionBuilder::default()
-                .with_screen_position((100.0, 50.0))
-                .with_owned_text(vec![
-                    wgpu_text::glyph_brush::OwnedText::new(song_name.to_string())
-                        .with_color([1.0, 1.0, 1.0, 1.0])
-                        .with_scale(60.0)
-                ]),
+                .with_screen_position((1820.0, 40.0))
+                .with_layout(Layout::default().h_align(HorizontalAlign::Right))
+                .with_owned_text(vec![wgpu_text::glyph_brush::OwnedText::new(
+                    song_name.to_string(),
+                )
+                .with_color([1.0, 1.0, 1.0, 1.0])
+                .with_scale(60.0)]),
         };
 
         Ok(Self {

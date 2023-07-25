@@ -7,7 +7,7 @@ use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
 };
-use wgpu_text::BrushBuilder;
+use wgpu_text::{glyph_brush::Section, BrushBuilder};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
@@ -22,8 +22,8 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub mod context;
 pub mod primitives;
-pub mod texture;
 pub mod text;
+pub mod texture;
 
 pub use context::RenderContext;
 
@@ -417,20 +417,22 @@ impl Renderer {
 
         let depth_view = create_depth_texture(&device, &size);
         let egui_handler = Egui::new(&device, &config, window.scale_factor());
-         
-        let text_brush = BrushBuilder::using_font(FontArc::try_from_vec(std::fs::read("assets/fonts/MochiyPopOne-Regular.ttf")?)?)
-            .with_depth_stencil(Some(wgpu::DepthStencilState {
-                format: DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: Default::default(),
-                bias: Default::default(),
-            }))
-            .with_multisample(wgpu::MultisampleState {
-                count: SAMPLE_COUNT,
-                ..Default::default()
-            })
-            .build(&device, config.width, config.height, format);
+
+        let text_brush = BrushBuilder::using_font(FontArc::try_from_vec(std::fs::read(
+            "assets/fonts/MochiyPopOne-Regular.ttf",
+        )?)?)
+        .with_depth_stencil(Some(wgpu::DepthStencilState {
+            format: DEPTH_FORMAT,
+            depth_write_enabled: false,
+            depth_compare: wgpu::CompareFunction::Always,
+            stencil: Default::default(),
+            bias: Default::default(),
+        }))
+        .with_multisample(wgpu::MultisampleState {
+            count: SAMPLE_COUNT,
+            ..Default::default()
+        })
+        .build(&device, config.width, config.height, format);
 
         Ok(Self {
             size,
@@ -504,8 +506,12 @@ impl Renderer {
             }),
         });
 
+        self.text_brush
+            .queue(&self.device, &self.queue, Vec::<Section>::new())
+            .unwrap();
+
         let mut ctx = RenderContext {
-            render_pass, 
+            render_pass,
             device: &self.device,
             queue: &self.queue,
             pipeline_cache: &self.pipeline_cache,
@@ -517,7 +523,7 @@ impl Renderer {
 
         // Rendering goes here...
         app.render(&mut ctx);
-        
+
         ctx.text_brush.take().unwrap().draw(&mut ctx.render_pass);
 
         // Last step will be to render the debug gui

@@ -210,14 +210,20 @@ impl Sprite {
 
 impl Renderable for Sprite {
     fn render<'a>(&'a self, ctx: &mut render::context::RenderContext<'a>) {
-        ctx.render_pass.set_pipeline(ctx.pipeline("texture").expect("texture render pipeline does not exist!"));
-        ctx.render_pass.set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
+        ctx.render_pass.set_pipeline(
+            ctx.pipeline("texture")
+                .expect("texture render pipeline does not exist!"),
+        );
+        ctx.render_pass
+            .set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
         ctx.render_pass.set_index_buffer(
             self.texture.index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,
         );
-        ctx.render_pass.set_bind_group(1, &self.texture.bind_group, &[]);
-        ctx.render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        ctx.render_pass
+            .set_bind_group(1, &self.texture.bind_group, &[]);
+        ctx.render_pass
+            .set_vertex_buffer(1, self.instance_buffer.slice(..));
         ctx.render_pass.draw_indexed(0..6 as _, 0, 0..1);
     }
 }
