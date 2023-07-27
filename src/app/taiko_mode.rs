@@ -10,14 +10,13 @@ use lyon::{
     lyon_tessellation::{BuffersBuilder, FillOptions, StrokeOptions},
     path::Path,
 };
-use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder};
+use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, OwnedSection};
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
 use crate::{
     render::{
         self,
-        primitives::{Primitive, VertexBuilder},
-        text::Text,
+        primitives::{Primitive, SolidColour, LinearGradient},
         texture::{Sprite, Texture},
     },
     track::{NoteType, Song},
@@ -50,20 +49,23 @@ struct UI {
     note_field: Primitive,
     note_line: Primitive,
     left_panel: Primitive,
-    title: Text,
+    title: OwnedSection,
 }
 
 impl UI {
     fn new(device: &wgpu::Device, song_name: &str) -> anyhow::Result<Self> {
         let bg_rect = Primitive::filled_shape(device, |tess, out| {
             tess.tessellate_rectangle(
-                &Box2D::new(point(0.0, 0.0), point(1920.0, NOTE_Y)),
+                &Box2D::new(point(0.0, 0.0), point(1920.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0)),
                 &FillOptions::DEFAULT,
                 &mut BuffersBuilder::new(
                     out,
-                    VertexBuilder {
-                        colour: [0.0, 0.0, 0.0, 0.99],
-                    },
+                    LinearGradient::new(
+                        [0.0, 0.0, 0.0, 0.9],
+                        [0.0, 0.0, 0.0, 1.0],
+                        [0.0, 0.0],
+                        [0.0, 1.0],
+                    ).unwrap(),
                 ),
             )?;
 
@@ -72,9 +74,7 @@ impl UI {
                 &FillOptions::DEFAULT,
                 &mut BuffersBuilder::new(
                     out,
-                    VertexBuilder {
-                        colour: [0.0, 0.0, 0.0, 0.8],
-                    },
+                    SolidColour::new([0.0, 0.0, 0.0, 0.8])
                 ),
             )?;
 
@@ -90,9 +90,7 @@ impl UI {
                 &FillOptions::DEFAULT,
                 &mut BuffersBuilder::new(
                     out,
-                    VertexBuilder {
-                        colour: [0.01, 0.01, 0.01, 1.0],
-                    },
+                    SolidColour::new([0.01, 0.01, 0.01, 1.0])
                 ),
             )?;
 
@@ -108,9 +106,7 @@ impl UI {
             let options = StrokeOptions::DEFAULT.with_line_width(4.0);
             let mut builder = BuffersBuilder::new(
                 out,
-                VertexBuilder {
-                    colour: [0.05, 0.05, 0.05, 1.0],
-                },
+                SolidColour::new([0.05, 0.05, 0.05, 1.0])
             );
 
             // A line that shows exactly where notes should be hit
@@ -134,9 +130,7 @@ impl UI {
                 &FillOptions::DEFAULT,
                 &mut BuffersBuilder::new(
                     out,
-                    VertexBuilder {
-                        colour: [0.8, 0.07, 0.03, 1.0],
-                    },
+                    SolidColour::new([0.8, 0.07, 0.03, 1.0])
                 ),
             )?;
 
@@ -148,25 +142,21 @@ impl UI {
                 &FillOptions::DEFAULT,
                 &mut BuffersBuilder::new(
                     out,
-                    VertexBuilder {
-                        colour: [0.0, 0.0, 0.0, 1.0],
-                    },
+                    SolidColour::new([0.0, 0.0, 0.0, 1.0])
                 ),
             )?;
 
             Ok(())
         })?;
 
-        let title = Text {
-            section: SectionBuilder::default()
-                .with_screen_position((1820.0, 40.0))
-                .with_layout(Layout::default().h_align(HorizontalAlign::Right))
-                .with_owned_text(vec![wgpu_text::glyph_brush::OwnedText::new(
-                    song_name.to_string(),
-                )
-                .with_color([1.0, 1.0, 1.0, 1.0])
-                .with_scale(60.0)]),
-        };
+        let title = SectionBuilder::default()
+            .with_screen_position((1820.0, 40.0))
+            .with_layout(Layout::default().h_align(HorizontalAlign::Right))
+            .with_owned_text(vec![wgpu_text::glyph_brush::OwnedText::new(
+                song_name.to_string(),
+            )
+            .with_color([1.0, 1.0, 1.0, 1.0])
+            .with_scale(80.0)]);
 
         Ok(Self {
             bg_rect,

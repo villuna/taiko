@@ -18,11 +18,21 @@ pub struct PrimitiveVertex {
     pub colour: [f32; 4],
 }
 
-pub struct VertexBuilder {
+/// A vertex builder that sets every vertex to a single colour.
+///
+/// "Solid" in this case doesn't mean "not transparent", it just means that there is no gradient. I
+/// can't think of a better name. Sorry.
+pub struct SolidColour {
     pub colour: [f32; 4],
 }
 
-impl FillVertexConstructor<PrimitiveVertex> for VertexBuilder {
+impl SolidColour {
+    pub fn new(colour: [f32; 4]) -> Self {
+        Self { colour }
+    }
+}
+
+impl FillVertexConstructor<PrimitiveVertex> for SolidColour {
     fn new_vertex(&mut self, vertex: FillVertex) -> PrimitiveVertex {
         PrimitiveVertex {
             position: [vertex.position().x, vertex.position().y],
@@ -31,12 +41,93 @@ impl FillVertexConstructor<PrimitiveVertex> for VertexBuilder {
     }
 }
 
-impl StrokeVertexConstructor<PrimitiveVertex> for VertexBuilder {
+impl StrokeVertexConstructor<PrimitiveVertex> for SolidColour {
     fn new_vertex(&mut self, vertex: StrokeVertex) -> PrimitiveVertex {
         PrimitiveVertex {
             position: [vertex.position().x, vertex.position().y],
             colour: self.colour,
         }
+    }
+}
+
+/// A vertex builder that colours vertices according to a linear gradient.
+///
+/// You should ideally make sure that all vertices constructed by this are within the gradient,
+/// because due to the limitations of this approach, we cannot construct for instance, a gradient
+/// that only spans a small portion of a rectangle.
+pub struct LinearGradient {
+    pub colour1: [f32; 4],
+    pub colour2: [f32; 4],
+    from: [f32; 2],
+    d: f32,
+    th: f32,
+}
+
+impl LinearGradient {
+    /// Construct a new linear gradient vertex builder.
+    ///
+    /// `from` will be coloured in the first colour, and `to` in the second colour. The angle between
+    /// the two points will define the gradient. Thus, these points cannot be the same, and this
+    /// function returns None if they are.
+    pub fn new(colour1: [f32; 4], colour2: [f32; 4], from: [f32; 2], to: [f32; 2]) -> Option<Self> {
+        if from == to {
+            None
+        } else {
+            let th = (to[1] - from[1]).atan2(to[0] - from[0]);
+            let d = 1.0 / ((to[0] - from[0]).powi(2) + (to[1] - from[1]).powi(2)).sqrt();
+
+            dbg!(d);
+            dbg!(th);
+
+            Some(Self {
+                colour1,
+                colour2,
+                from,
+                d,
+                th,
+            })
+        }
+    }
+}
+
+fn lerp_colour(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
+    let t = t.clamp(0.0, 1.0);
+
+    [
+        a[0] * (1.0 - t) + b[0] * t,
+        a[1] * (1.0 - t) + b[1] * t,
+        a[2] * (1.0 - t) + b[2] * t,
+        a[3] * (1.0 - t) + b[3] * t,
+    ]
+}
+
+impl FillVertexConstructor<PrimitiveVertex> for LinearGradient {
+    fn new_vertex(&mut self, vertex: FillVertex) -> PrimitiveVertex {
+        let position = [vertex.position().x, vertex.position().y];
+
+        let t = self.d
+            * ((position[0] - self.from[0]) * (-self.th).cos()
+                - (position[1] - self.from[1]) * (-self.th).sin());
+
+        let colour = lerp_colour(self.colour1, self.colour2, t);
+
+        println!("position: {position:?}, colour: {colour:?}");
+
+        PrimitiveVertex { position, colour }
+    }
+}
+
+impl StrokeVertexConstructor<PrimitiveVertex> for LinearGradient {
+    fn new_vertex(&mut self, vertex: StrokeVertex) -> PrimitiveVertex {
+        let position = [vertex.position().x, vertex.position().y];
+
+        let t = self.d
+            * ((position[0] - self.from[0]) * (-self.th).cos()
+                - (position[1] - self.from[1]) * (-self.th).sin());
+
+        let colour = lerp_colour(self.colour1, self.colour2, t);
+
+        PrimitiveVertex { position, colour }
     }
 }
 
@@ -60,6 +151,7 @@ pub struct Primitive {
 }
 
 impl Primitive {
+    /// Constructs a Primitive out of filled shapes.
     pub fn filled_shape<F>(device: &wgpu::Device, mut build_shapes: F) -> anyhow::Result<Self>
     where
         F: FnMut(
@@ -91,6 +183,7 @@ impl Primitive {
         })
     }
 
+    /// Constructs a Primitive out of the outlines of shapes.
     pub fn stroke_shape<F>(device: &wgpu::Device, mut build_shapes: F) -> anyhow::Result<Self>
     where
         F: FnMut(

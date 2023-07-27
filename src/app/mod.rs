@@ -96,6 +96,7 @@ pub struct App {
     fps_timer: f32,
     frames_counted: u32,
     fps: f32,
+    show_fps_counter: bool,
 }
 
 impl App {
@@ -126,6 +127,7 @@ impl App {
             fps_timer: 0.0,
             frames_counted: 0,
             fps: 0.0,
+            show_fps_counter: false,
         })
     }
 
@@ -168,15 +170,17 @@ impl App {
             .unwrap()
             .debug_ui(ctx.clone(), &mut self.audio_manager);
 
-        egui::Area::new("fps counter")
-            .fixed_pos(egui::pos2(1800.0, 0.0))
-            .show(&ctx, |ui| {
-                ui.label(
-                    egui::RichText::new(format!("fps: {:.2}", self.fps))
-                        .color(egui::Color32::from_rgb(255, 0, 255))
-                        .size(20.0),
-                );
-            });
+        if self.show_fps_counter {
+            egui::Area::new("fps counter")
+                .fixed_pos(egui::pos2(1800.0, 0.0))
+                .show(&ctx, |ui| {
+                    ui.label(
+                        egui::RichText::new(format!("fps: {:.2}", self.fps))
+                            .color(egui::Color32::from_rgb(255, 0, 255))
+                            .size(20.0),
+                    );
+                });
+        }
     }
 
     pub fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
@@ -198,7 +202,13 @@ impl App {
             ..
         } = event
         {
-            self.keyboard.handle_input(input)
+            let res = self.keyboard.handle_input(input);
+
+            if self.keyboard.is_just_pressed(VirtualKeyCode::F1) {
+                self.show_fps_counter = !self.show_fps_counter;
+            }
+
+            res
         }
     }
 }
