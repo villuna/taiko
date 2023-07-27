@@ -2,8 +2,7 @@
 (todo: get a more interesting name)
 A Taiko no tatsujin clone/simulator. I'm contractually obliged to mention it's written in rust.
 
-This is still under construction. My goals for this project are to create a taiko-style rhythm game that can read and play songs using the tja format. It can't
-play anything yet.
+This is still under construction. My goals for this project are to create a taiko-style rhythm game that can read and play songs using the tja format. It can... kinda do that now! But there is much work to be done before I am comfortable calling it a "working game".
 
 # Instructions
 As there is no release yet, this can only be build with cargo, so install [rust](https://www.rust-lang.org/) and run `cargo run --release` to run the current release version.
@@ -23,7 +22,7 @@ taiko/
 ## Goals
 Current goals
 - [x] Parse tja files (ideally, in a way that can efficiently load many songs)
-- [ ] Create a working prototype that can play basic taiko mode songs
+- [x] Create a working prototype that can play basic taiko mode songs
 - [ ] Handle input: keyboard/tatacon/general input configuration settings
 - [ ] Handle multiplayer
 
