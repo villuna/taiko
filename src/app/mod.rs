@@ -28,13 +28,17 @@ pub enum StateTransition {
     Exit,
 }
 
+pub struct Context<'a> {
+    pub delta: f32,
+    pub audio: &'a mut AudioManager,
+    pub renderer: &'a render::Renderer,
+    pub keyboard: &'a KeyboardState,
+}
+
 pub trait GameState {
-    // TODO: Make a context struct instead of passing in the raw audio manager
     fn update(
         &mut self,
-        _delta: f32,
-        _audio: &mut AudioManager,
-        _renderer: &render::Renderer,
+        _ctx: &mut Context,
     ) -> StateTransition {
         StateTransition::Continue
     }
@@ -146,11 +150,18 @@ impl App {
             self.frames_counted = 0;
         }
 
+        let mut ctx = Context {
+            delta,
+            audio: &mut self.audio_manager,
+            renderer,
+            keyboard: &self.keyboard,
+        };
+
         match self
             .state
             .last_mut()
             .unwrap()
-            .update(delta, &mut self.audio_manager, renderer)
+            .update(&mut ctx)
         {
             StateTransition::Push(state) => self.state.push(state),
             StateTransition::Pop => {

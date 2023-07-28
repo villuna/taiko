@@ -285,9 +285,7 @@ impl TaikoMode {
 impl GameState for TaikoMode {
     fn update(
         &mut self,
-        _delta: f32,
-        _audio: &mut AudioManager,
-        _renderer: &crate::render::Renderer,
+        _ctx: &mut super::Context,
     ) -> StateTransition {
         if !self.paused {
             let current = self.current_time();

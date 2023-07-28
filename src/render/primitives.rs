@@ -76,9 +76,6 @@ impl LinearGradient {
             let th = (to[1] - from[1]).atan2(to[0] - from[0]);
             let d = 1.0 / ((to[0] - from[0]).powi(2) + (to[1] - from[1]).powi(2)).sqrt();
 
-            dbg!(d);
-            dbg!(th);
-
             Some(Self {
                 colour1,
                 colour2,
@@ -110,8 +107,6 @@ impl FillVertexConstructor<PrimitiveVertex> for LinearGradient {
                 - (position[1] - self.from[1]) * (-self.th).sin());
 
         let colour = lerp_colour(self.colour1, self.colour2, t);
-
-        println!("position: {position:?}, colour: {colour:?}");
 
         PrimitiveVertex { position, colour }
     }

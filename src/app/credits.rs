@@ -1,8 +1,6 @@
 use egui::RichText;
 use kira::manager::AudioManager;
 
-use crate::render;
-
 use super::GameState;
 
 pub struct CreditsScreen {
@@ -18,9 +16,7 @@ impl CreditsScreen {
 impl GameState for CreditsScreen {
     fn update(
         &mut self,
-        _delta: f32,
-        _audio: &mut AudioManager,
-        _renderer: &render::Renderer,
+        _ctx: &mut super::Context,
     ) -> super::StateTransition {
         if self.exit {
             super::StateTransition::Pop

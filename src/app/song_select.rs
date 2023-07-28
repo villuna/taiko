@@ -150,9 +150,7 @@ impl SongSelect {
 impl GameState for SongSelect {
     fn update(
         &mut self,
-        _delta: f32,
-        audio: &mut AudioManager,
-        renderer: &render::Renderer,
+        ctx: &mut super::Context,
     ) -> super::StateTransition {
         if self.go_to_credits {
             if let Some(handle) = self.song_handle.as_mut() {
@@ -178,12 +176,12 @@ impl GameState for SongSelect {
                 Rc::clone(&self.test_tracks[song_id]),
                 difficulty,
                 sound_data,
-                audio,
+                ctx.audio,
                 &self.don_tex,
                 &self.kat_tex,
                 &self.big_don_tex,
                 &self.big_kat_tex,
-                renderer,
+                ctx.renderer,
                 &self.bg_sprite,
             )))
         } else if self.exit {
