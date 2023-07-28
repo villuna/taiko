@@ -45,7 +45,7 @@ pub trait GameState {
 
     fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
 
-    fn render<'a>(&'a mut self, _ctx: &mut render::RenderContext<'a>) {}
+    fn render<'a, 'b: 'a>(&'a mut self, _ctx: &mut render::RenderContext<'a, 'b>) {}
 
     fn handle_event(&mut self, _event: &WindowEvent<'_>, _keyboard: &KeyboardState) {}
 }
@@ -107,14 +107,14 @@ impl App {
     pub fn new(renderer: &render::Renderer) -> anyhow::Result<Self> {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
         let bg_filename = "assets/images/song_select_bg.jpg";
-        let bg_texture = Rc::new(Texture::from_file(bg_filename, renderer)?);
+        let bg_texture = Rc::new(Texture::from_file(bg_filename, &renderer.device, &renderer.queue)?);
 
         let bg_sprite = Sprite::new(Rc::clone(&bg_texture), [0.0, 0.0, 0.0], renderer, false);
 
-        let don_tex = Rc::new(Texture::from_file("assets/images/don.png", renderer)?);
-        let kat_tex = Rc::new(Texture::from_file("assets/images/kat.png", renderer)?);
-        let big_don_tex = Rc::new(Texture::from_file("assets/images/big_don.png", renderer)?);
-        let big_kat_tex = Rc::new(Texture::from_file("assets/images/big_kat.png", renderer)?);
+        let don_tex = Rc::new(Texture::from_file("assets/images/don.png", &renderer.device, &renderer.queue)?);
+        let kat_tex = Rc::new(Texture::from_file("assets/images/kat.png", &renderer.device, &renderer.queue)?);
+        let big_don_tex = Rc::new(Texture::from_file("assets/images/big_don.png", &renderer.device, &renderer.queue)?);
+        let big_kat_tex = Rc::new(Texture::from_file("assets/images/big_kat.png", &renderer.device, &renderer.queue)?);
 
         let state = Box::new(SongSelect::new(
             bg_sprite,
@@ -194,7 +194,7 @@ impl App {
         }
     }
 
-    pub fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
+    pub fn render<'a, 'b: 'a>(&'a mut self, ctx: &mut render::RenderContext<'a, 'b>) {
         self.state.last_mut().unwrap().render(ctx)
     }
 

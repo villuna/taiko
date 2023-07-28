@@ -2,10 +2,12 @@
 
 use crate::render;
 use image::GenericImageView;
-use std::{path::Path, rc::Rc};
-use wgpu::{util::DeviceExt, vertex_attr_array};
+use std::{path::Path, rc::Rc, sync::OnceLock};
+use wgpu::{util::{DeviceExt, BufferInitDescriptor}, vertex_attr_array};
 
 use super::context::Renderable;
+
+static TEXTURE_BIND_GROUP_LAYOUT: OnceLock<wgpu::BindGroupLayout> = OnceLock::new();
 
 /// A vertex of a sprite drawn to the screen
 ///
@@ -77,14 +79,116 @@ impl SpriteInstance {
 }
 
 pub struct Texture {
-    bind_group: wgpu::BindGroup,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    dimensions: (u32, u32),
+    pub bind_group: wgpu::BindGroup,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+    pub view: wgpu::TextureView,
+    pub dimensions: (u32, u32),
 }
 
 impl Texture {
-    pub fn from_file<P: AsRef<Path>>(path: P, renderer: &render::Renderer) -> anyhow::Result<Self> {
+    pub fn bind_group_layout(device: &wgpu::Device) -> &wgpu::BindGroupLayout {
+        TEXTURE_BIND_GROUP_LAYOUT.get_or_init(|| {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("texture bind group layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            })
+        })
+    }
+
+    pub fn create_texture_bind_group(
+        device: &wgpu::Device,
+        label: Option<&str>,
+        view: &wgpu::TextureView,
+        sampler: &wgpu::Sampler,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label,
+            layout: Self::bind_group_layout(device),
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+        })
+    }
+
+    pub fn empty(device: &wgpu::Device, label: Option<&str>, format: wgpu::TextureFormat, size: (u32, u32)) -> anyhow::Result<Self> {
+        let view = device.create_texture(&wgpu::TextureDescriptor {
+            label,
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let view = view.create_view(&Default::default());
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let bind_group = Self::create_texture_bind_group(
+            device,
+            label,
+            &view,
+            &sampler,
+        );
+
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label,
+            contents: bytemuck::cast_slice(&texture_vertices(size.0, size.1)),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label,
+            contents: bytemuck::cast_slice(&TEXTURE_INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        Ok(Self {
+            bind_group,
+            vertex_buffer,
+            index_buffer,
+            view,
+            dimensions: size,
+        })
+    }
+
+    pub fn from_file<P: AsRef<Path>>(path: P, device: &wgpu::Device, queue: &wgpu::Queue) -> anyhow::Result<Self> {
         let name = path.as_ref().to_str().unwrap_or_default().to_string();
         let image = image::load_from_memory(&std::fs::read(path)?)?;
 
@@ -97,7 +201,7 @@ impl Texture {
             depth_or_array_layers: 1,
         };
 
-        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&name),
             size,
             mip_level_count: 1,
@@ -108,7 +212,7 @@ impl Texture {
             view_formats: &[],
         });
 
-        renderer.queue.write_texture(
+        queue.write_texture(
             wgpu::ImageCopyTexture {
                 texture: &texture,
                 mip_level: 0,
@@ -126,29 +230,28 @@ impl Texture {
 
         let view = texture.create_view(&Default::default());
 
-        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
 
-        let bind_group = renderer.create_texture_bind_group(
+        let bind_group = Self::create_texture_bind_group(
+            device,
             Some(&format!("{} bind group", name)),
             &view,
             &sampler,
         );
 
-        let vertex_buffer = renderer
-            .device
+        let vertex_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("{} vertex buffer", name)),
                 contents: bytemuck::cast_slice(&texture_vertices(dimensions.0, dimensions.1)),
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
-        let index_buffer = renderer
-            .device
+        let index_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("{} index buffer", name)),
                 contents: bytemuck::cast_slice(TEXTURE_INDICES),
@@ -159,6 +262,7 @@ impl Texture {
             bind_group,
             vertex_buffer,
             index_buffer,
+            view,
             dimensions,
         })
     }
@@ -216,7 +320,7 @@ impl Sprite {
 }
 
 impl Renderable for Sprite {
-    fn render<'a>(&'a self, ctx: &mut render::context::RenderContext<'a>) {
+    fn render<'a, 'b: 'a>(&'a self, ctx: &mut render::context::RenderContext<'a, 'b>) {
         ctx.render_pass.set_pipeline(
             ctx.pipeline(if self.use_depth {
                 "texture_depth"

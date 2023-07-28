@@ -48,9 +48,9 @@ pub struct Renderer {
     config: wgpu::SurfaceConfiguration,
     msaa_view: Option<wgpu::TextureView>,
     depth_view: wgpu::TextureView,
+    outline_texture: texture::Texture,
     screen_uniform: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
-    texture_bind_group_layout: wgpu::BindGroupLayout,
     pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
 
     text_brush: wgpu_text::TextBrush,
@@ -131,6 +131,7 @@ fn create_render_pipeline(
     label: &str,
     layout: &wgpu::PipelineLayout,
     colour_format: wgpu::TextureFormat,
+    depth_format: Option<wgpu::TextureFormat>,
     use_depth: bool,
     vertex_layouts: &[wgpu::VertexBufferLayout],
     shader: &wgpu::ShaderModule,
@@ -162,8 +163,8 @@ fn create_render_pipeline(
             unclipped_depth: false,
             conservative: false,
         },
-        depth_stencil: Some(wgpu::DepthStencilState {
-            format: DEPTH_FORMAT,
+        depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
+            format,
             depth_write_enabled: use_depth,
             depth_compare: if use_depth {
                 wgpu::CompareFunction::Less
@@ -362,34 +363,12 @@ impl Renderer {
             "primitive pipeline",
             &primitive_pipeline_layout,
             config.format,
+            Some(DEPTH_FORMAT),
             false,
             &[PrimitiveVertex::desc()],
             &primitive_shader,
             SAMPLE_COUNT,
         );
-
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("texture bind group layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-            });
 
         let texture_shader =
             device.create_shader_module(include_wgsl!("shaders/texture_shader.wgsl"));
@@ -397,7 +376,7 @@ impl Renderer {
         let texture_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("texture pipeline layout"),
-                bind_group_layouts: &[&screen_bind_group_layout, &texture_bind_group_layout],
+                bind_group_layouts: &[&screen_bind_group_layout, texture::Texture::bind_group_layout(&device)],
                 push_constant_ranges: &[],
             });
 
@@ -406,6 +385,7 @@ impl Renderer {
             "texture pipeline",
             &texture_pipeline_layout,
             wgpu::TextureFormat::Bgra8UnormSrgb,
+            Some(DEPTH_FORMAT),
             false,
             &[
                 TextureVertex::vertex_layout(),
@@ -420,6 +400,7 @@ impl Renderer {
             "texture pipeline with depth",
             &texture_pipeline_layout,
             wgpu::TextureFormat::Bgra8UnormSrgb,
+            Some(DEPTH_FORMAT),
             true,
             &[
                 TextureVertex::vertex_layout(),
@@ -435,18 +416,45 @@ impl Renderer {
         let text_brush = BrushBuilder::using_font(FontArc::try_from_vec(std::fs::read(
             "assets/fonts/MochiyPopOne-Regular.ttf",
         )?)?)
-        .with_depth_stencil(Some(wgpu::DepthStencilState {
-            format: DEPTH_FORMAT,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
-            stencil: Default::default(),
-            bias: Default::default(),
-        }))
-        .with_multisample(wgpu::MultisampleState {
-            count: SAMPLE_COUNT,
-            ..Default::default()
-        })
+        //.with_depth_stencil(Some(wgpu::DepthStencilState {
+        //    format: DEPTH_FORMAT,
+        //    depth_write_enabled: false,
+        //    depth_compare: wgpu::CompareFunction::Always,
+        //    stencil: Default::default(),
+        //    bias: Default::default(),
+        //}))
+        //.with_multisample(wgpu::MultisampleState {
+        //    count: SAMPLE_COUNT,
+        //    ..Default::default()
+        //})
         .build(&device, config.width, config.height, format);
+
+        let outline_texture = texture::Texture::empty(
+            &device,
+            Some("outline texture"),
+            format,
+            (config.width, config.height),
+        )?;
+
+        let outline_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("outline pipeline layout"),
+            bind_group_layouts: &[&screen_bind_group_layout, texture::Texture::bind_group_layout(&device)],
+            push_constant_ranges: &[],
+        });
+
+        let outline_shader = device.create_shader_module(include_wgsl!("shaders/outline_shader.wgsl"));
+
+        let outline_pipeline = create_render_pipeline(
+            &device,
+            "outline pipeline",
+            &outline_pipeline_layout,
+            format,
+            None,
+            false,
+            &[texture::TextureVertex::vertex_layout()],
+            &outline_shader,
+            SAMPLE_COUNT,
+        );
 
         Ok(Self {
             size,
@@ -457,13 +465,13 @@ impl Renderer {
             window,
             msaa_view,
             depth_view,
+            outline_texture,
             screen_uniform,
             screen_bind_group,
-            texture_bind_group_layout,
             pipeline_cache: vec![
                 ("texture", texture_pipeline),
                 ("texture_depth", texture_pipeline_depth),
-                ("primitive", primitive_pipeline),
+                ("primitive", primitive_pipeline), ("outline", outline_pipeline),
             ],
             text_brush,
             egui_handler,
@@ -539,13 +547,56 @@ impl Renderer {
         // Rendering goes here...
         app.render(&mut ctx);
 
-        ctx.text_brush.take().unwrap().draw(&mut ctx.render_pass);
+        // That's all done, so take out the text brush to use in the outline render pass
+        let brush = ctx.text_brush.take().unwrap();
 
-        // Last step will be to render the debug gui
         self.egui_handler
             .render(&mut ctx.render_pass, paint_jobs, &screen_descriptor);
 
         drop(ctx);
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Text render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &self.outline_texture.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        });
+
+        brush.draw(&mut render_pass);
+
+        drop(render_pass);
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Outline render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: if SAMPLE_COUNT == 1 {
+                    &view
+                } else {
+                    self.msaa_view.as_ref().unwrap()
+                },
+                resolve_target: if SAMPLE_COUNT == 1 { None } else { Some(&view) },
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        });
+
+        render_pass.set_pipeline(self.pipeline("outline").unwrap());
+        render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
+        render_pass.set_bind_group(1, &self.outline_texture.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.outline_texture.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.outline_texture.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..6, 0, 0..1);
+
+        drop(render_pass);
 
         self.queue.submit([encoder.finish()]);
         texture.present();
@@ -596,25 +647,15 @@ impl Renderer {
         &self.size
     }
 
-    pub fn create_texture_bind_group(
-        &self,
-        label: Option<&str>,
-        view: &wgpu::TextureView,
-        sampler: &wgpu::Sampler,
-    ) -> wgpu::BindGroup {
-        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label,
-            layout: &self.texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(sampler),
-                },
-            ],
-        })
+    pub fn pipeline(&self, name: &str) -> Option<&wgpu::RenderPipeline> {
+        self.pipeline_cache.iter().find_map(
+            |(n, pipeline)| {
+                if name == *n {
+                    Some(pipeline)
+                } else {
+                    None
+                }
+            },
+        )
     }
 }

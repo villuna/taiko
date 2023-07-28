@@ -61,7 +61,7 @@ impl UI {
                 &mut BuffersBuilder::new(
                     out,
                     LinearGradient::new(
-                        [0.0, 0.0, 0.0, 0.9],
+                        [0.05, 0.05, 0.05, 0.9],
                         [0.0, 0.0, 0.0, 1.0],
                         [0.0, 0.0],
                         [0.0, 1.0],
@@ -304,7 +304,7 @@ impl GameState for TaikoMode {
         }
     }
 
-    fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
+    fn render<'a, 'b: 'a>(&'a mut self, ctx: &mut render::RenderContext<'a, 'b>) {
         let current = self.current_time();
         let notes = &self.song.difficulties[self.difficulty]
             .as_ref()

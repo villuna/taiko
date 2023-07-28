@@ -212,7 +212,7 @@ impl Primitive {
 }
 
 impl Renderable for Primitive {
-    fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
+    fn render<'a, 'b: 'a>(&'a self, ctx: &mut super::RenderContext<'a, 'b>) {
         ctx.render_pass.set_pipeline(
             ctx.pipeline("primitive")
                 .expect("primitive render pipeline doesn't exist!"),

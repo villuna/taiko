@@ -3,7 +3,7 @@ use wgpu_text::glyph_brush::OwnedSection;
 use super::context::Renderable;
 
 impl Renderable for OwnedSection {
-    fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
+    fn render<'a, 'b: 'a>(&'a self, ctx: &mut super::RenderContext<'a, 'b>) {
         ctx.text_brush
             .as_mut()
             .unwrap()
