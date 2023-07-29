@@ -13,26 +13,23 @@ use std::collections::HashMap;
 
 const DEFAULT_BPM: f32 = 120.0;
 
-/// The type of a note.
+/// The type of a note (e.g., Don, Ka, Balloon etc)
 ///
-/// This includes a special note, which defines the end
-/// of a drum roll. All drum rolls should be terminated with this note
-/// (with the exception of the [SpecialRoll][NoteType::SpecialRoll], which can be terminated
-/// with another [SpecialRoll][NoteType::SpecialRoll]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, num_derive::FromPrimitive)]
+/// Drumroll variants also contain a float value indicating how long the drumroll continues for.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum NoteType {
-    Don = 1,
+    Don,
     Kat,
     BigDon,
     BigKat,
-    Roll,
-    BigRoll,
-    BalloonRoll,
-    RollEnd,
-    SpecialRoll,
+    Roll(f32),
+    BigRoll(f32),
+    BalloonRoll(f32),
+    SpecialRoll(f32),
     CoopDon,
-    CoopKa,
+    CoopKat,
 }
+
 /// A note, as it will be stored during the actual game.
 ///
 /// A note has a type, the time (from the song start) that it has

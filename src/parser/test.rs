@@ -88,7 +88,7 @@ fn test_track_command() {
 
 #[test]
 fn test_notes() {
-    use NoteType::*;
+    use TJANoteType::*;
 
     assert_eq!(
         notes("10201120,\n"),
@@ -110,7 +110,7 @@ fn test_notes() {
 
 #[test]
 fn test_note_track() {
-    use NoteType::*;
+    use TJANoteType::*;
     let track = "#START
 1100,
 1100,
@@ -139,7 +139,7 @@ fn test_note_track() {
 #[test]
 pub fn test_tja_file_item_list() {
     use NoteTrackEntry::*;
-    use NoteType::*;
+    use TJANoteType::*;
     use TJAFileItem::*;
 
     let track = "TITLE: POP TEAM EPIC

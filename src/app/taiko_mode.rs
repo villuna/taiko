@@ -200,6 +200,8 @@ impl TaikoMode {
         let mut song_handle = manager.play(song_data).unwrap();
         song_handle.pause(Default::default()).unwrap();
 
+        println!("{:#?}", song.difficulties[difficulty].as_ref().unwrap().track.notes);
+
         let sprites = song.difficulties[difficulty]
             .as_ref()
             .unwrap()

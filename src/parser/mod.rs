@@ -38,10 +38,31 @@ enum TJAFileItem<'a> {
     NoteTrack(Vec<NoteTrackEntry<'a>>),
 }
 
+/// The type of a note.
+///
+/// This includes a special note, which defines the end
+/// of a drum roll. All drum rolls should be terminated with this note
+/// (with the exception of the [SpecialRoll][NoteType::SpecialRoll], which can be terminated
+/// with another [SpecialRoll][NoteType::SpecialRoll]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, num_derive::FromPrimitive)]
+pub enum TJANoteType {
+    Don = 1,
+    Kat,
+    BigDon,
+    BigKat,
+    Roll,
+    BigRoll,
+    BalloonRoll,
+    RollEnd,
+    SpecialRoll,
+    CoopDon,
+    CoopKat,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum NoteTrackEntry<'a> {
     Command(TrackCommand<'a>),
-    Notes(Vec<Option<NoteType>>),
+    Notes(Vec<Option<TJANoteType>>),
     EndMeasure,
 }
 
@@ -76,6 +97,8 @@ pub enum TJAParseError<I> {
     TrackCommandError,
     UnexpectedEndCommand,
     InvalidNote(char),
+    RollEndWithoutRoll,
+    RollNotEnded,
     NoteTrackNotEnded,
     MultipleTracksSameDifficulty(usize),
     InvalidMetadata(I, I),
@@ -122,6 +145,10 @@ impl<I: std::fmt::Display> std::fmt::Display for TJAParseError<I> {
             TJAParseError::UnexpectedEndCommand => "unexpected #END command".to_string(),
             TJAParseError::InvalidNote(c) => format!("invalid note: {c}"),
             TJAParseError::NoteTrackNotEnded => "note track not ended".to_string(),
+            TJAParseError::RollEndWithoutRoll => {
+                "roll end note (8) placed without preceding drumroll".to_string()
+            }
+            TJAParseError::RollNotEnded => "drumroll not ended".to_string(),
             TJAParseError::MultipleTracksSameDifficulty(diff) => {
                 let diff_str = match diff {
                     0 => "easy",
@@ -149,10 +176,6 @@ impl<I: std::fmt::Display + std::fmt::Debug> std::error::Error for TJAParseError
 // This exists so we can return an owned version of the errors when we need to (for example, after
 // preprocessing the input into a string owned by the function, then returning a result that
 // references that string).
-//
-// It is obviously not ideal to have to map every variant manually like this. It would be better to
-// do this with a macro but I'm
-// not very good at rust macros.
 impl From<TJAParseError<&str>> for TJAParseError<String> {
     fn from(value: TJAParseError<&str>) -> Self {
         match value {
@@ -171,6 +194,8 @@ impl From<TJAParseError<&str>> for TJAParseError<String> {
             TJAParseError::MultipleTracksSameDifficulty(diff) => {
                 TJAParseError::MultipleTracksSameDifficulty(diff)
             }
+            TJAParseError::RollEndWithoutRoll => TJAParseError::RollEndWithoutRoll,
+            TJAParseError::RollNotEnded => TJAParseError::RollNotEnded,
         }
     }
 }
@@ -366,7 +391,7 @@ fn track_command_raw(i: &str) -> IResult<&str, (&str, Option<&str>), TJAParseErr
     ))(i)
 }
 
-fn note(i: &str) -> IResult<&str, Option<NoteType>, TJAParseError<&str>> {
+fn note(i: &str) -> IResult<&str, Option<TJANoteType>, TJAParseError<&str>> {
     satisfy(|c| c.is_ascii_digit() || ['A', 'B'].contains(&c))
         .map(|c| {
             if c == '0' {
@@ -380,7 +405,7 @@ fn note(i: &str) -> IResult<&str, Option<NoteType>, TJAParseError<&str>> {
         .parse(i)
 }
 
-fn notes(i: &str) -> IResult<&str, Vec<Option<NoteType>>, TJAParseError<&str>> {
+fn notes(i: &str) -> IResult<&str, Vec<Option<TJANoteType>>, TJAParseError<&str>> {
     many0(note)(i)
 }
 
@@ -570,6 +595,8 @@ fn construct_difficulty<'a>(
     let mut barlines = vec![time];
     let mut barline_on = true;
 
+    let mut notes = Vec::new();
+
     while let Some(item) = items_iter.next() {
         match item {
             NoteTrackEntry::Command(command) => match command {
@@ -593,29 +620,31 @@ fn construct_difficulty<'a>(
                 TrackCommand::BarlineOn => barline_on = true,
                 _ => {}
             },
-            NoteTrackEntry::Notes(notes) => {
-                let num_notes = notes.len();
+            NoteTrackEntry::Notes(new_notes) => {
+                let num_notes = new_notes.len();
 
                 // The notes that are to be added to the track.
                 // Each note is evenly spaced (including the Nones, which represent
                 // no notes). Thus, we can multiply the milliseconds per note by each note's
                 // index in the vector and add this to the current time to find when the note should
                 // be hit.
-                let new_notes = notes.iter().enumerate().filter_map(|(i, note)| {
-                    note.map(|note_type| {
-                        if matches!(note_type, NoteType::BalloonRoll | NoteType::SpecialRoll) {
-                            balloon_count += 1;
-                        };
+                let new_notes = new_notes
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, note)| {
+                        note.map(|note_type| {
+                            if matches!(
+                                note_type,
+                                TJANoteType::BalloonRoll | TJANoteType::SpecialRoll
+                            ) {
+                                balloon_count += 1;
+                            };
 
-                        Note {
-                            note_type,
-                            time: time + seconds_per_note * i as f32,
-                            scroll_speed,
-                        }
-                    })
-                });
+                            (note_type, time + seconds_per_note * i as f32, scroll_speed)
+                        })
+                    });
 
-                track.notes.extend(new_notes);
+                notes.extend(new_notes);
                 // Update the current time. We didn't have to do this for each note
                 // because they're evenly spaced.
                 let elapsed_time = num_notes as f32 * seconds_per_note;
@@ -646,6 +675,62 @@ fn construct_difficulty<'a>(
             }
         }
     }
+
+    let mut track_notes = Vec::with_capacity(notes.len());
+    let mut notes = notes.into_iter().peekable();
+
+    while let Some((note_type, time, scroll_speed)) = notes.next() {
+        use TJANoteType::*;
+
+        // If the next note is a drum roll, look ahead to find where it ends
+        let roll_time =
+            if matches!(note_type, Roll | BigRoll | BalloonRoll | SpecialRoll) {
+                // Annoyingly, special rolls can be ended by other special rolls.
+                // So we have to do some extra logic.
+                let next_time = if note_type == SpecialRoll
+                    && notes.peek().ok_or(TJAParseError::RollNotEnded)?.0
+                        == SpecialRoll
+                {
+                    notes.peek().ok_or(TJAParseError::RollNotEnded)?.1
+                } else {
+                    let (next_type, next_time, _) =
+                        notes.next().ok_or(TJAParseError::RollNotEnded)?;
+
+                    if next_type != RollEnd {
+                        return Err(TJAParseError::RollNotEnded);
+                    }
+
+                    next_time
+                };
+
+                Some(next_time - time)
+            } else {
+                None
+            };
+
+        let note_type = match note_type {
+            Don => NoteType::Don,
+            Kat => NoteType::Kat,
+            BigDon => NoteType::BigDon,
+            BigKat => NoteType::BigKat,
+            Roll => NoteType::Roll(roll_time.unwrap()),
+            BigRoll => NoteType::BigRoll(roll_time.unwrap()),
+            BalloonRoll => NoteType::BalloonRoll(roll_time.unwrap()),
+            SpecialRoll => NoteType::SpecialRoll(roll_time.unwrap()),
+            CoopDon => NoteType::CoopDon,
+            CoopKat => NoteType::CoopKat,
+            RollEnd => return Err(TJAParseError::RollEndWithoutRoll),
+        };
+
+        track_notes.push(Note {
+            note_type,
+            time,
+            scroll_speed,
+        });
+    }
+
+    track.notes = track_notes;
+    track.notes.shrink_to_fit();
 
     // If the number of balloons in the course is nonzero, we have to store
     // how many hits it takes to complete each one. This is the BALLOON metadata
