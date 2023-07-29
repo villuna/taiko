@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use ab_glyph::FontArc;
 use anyhow::anyhow;
 use egui_wgpu::renderer::ScreenDescriptor;
@@ -24,6 +22,7 @@ pub mod context;
 pub mod primitives;
 pub mod text;
 pub mod texture;
+mod egui;
 
 pub use context::RenderContext;
 
@@ -31,12 +30,6 @@ pub use context::RenderContext;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct ScreenUniform {
     matrix: [[f32; 4]; 4],
-}
-
-struct Egui {
-    platform: egui_winit_platform::Platform,
-    renderer: egui_wgpu::Renderer,
-    start_time: Instant,
 }
 
 pub struct Renderer {
@@ -54,7 +47,7 @@ pub struct Renderer {
     pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
 
     text_brush: wgpu_text::TextBrush,
-    egui_handler: Egui,
+    egui_handler: egui::Egui,
 }
 
 // A matrix that turns pixel coordinates into wgpu screen coordinates.
@@ -180,84 +173,6 @@ fn create_render_pipeline(
         },
         multiview: None,
     })
-}
-
-impl Egui {
-    /// Creates a new egui handler.
-    fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, scale_factor: f64) -> Self {
-        let platform =
-            egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
-                physical_width: config.width,
-                physical_height: config.height,
-                scale_factor,
-                ..Default::default()
-            });
-
-        let renderer =
-            egui_wgpu::Renderer::new(device, config.format, Some(DEPTH_FORMAT), SAMPLE_COUNT);
-
-        Self {
-            platform,
-            renderer,
-            start_time: Instant::now(),
-        }
-    }
-
-    /// Passes a winit event to egui for processing.
-    ///
-    /// Returns true if the event is "captured", which means it should not be handled by anything
-    /// else (for example, clicking on an egui element should not also click behind it).
-    fn handle_event<T>(&mut self, event: &winit::event::Event<'_, T>) -> bool {
-        self.platform.handle_event(event);
-        self.platform.captures_event(event)
-    }
-
-    fn begin_render(&mut self) {
-        self.platform
-            .update_time(self.start_time.elapsed().as_secs_f64());
-        self.platform.begin_frame();
-    }
-
-    fn context(&self) -> egui::Context {
-        self.platform.context()
-    }
-
-    fn end_render(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        encoder: &mut wgpu::CommandEncoder,
-        screen_descriptor: &ScreenDescriptor,
-        window: &Window,
-    ) -> Vec<egui::ClippedPrimitive> {
-        let full_output = self.platform.end_frame(Some(window));
-        let paint_jobs = self.platform.context().tessellate(full_output.shapes);
-        let textures_delta = full_output.textures_delta;
-
-        for texture in textures_delta.free.iter() {
-            self.renderer.free_texture(texture);
-        }
-
-        for (id, image_delta) in textures_delta.set {
-            self.renderer
-                .update_texture(device, queue, id, &image_delta);
-        }
-
-        self.renderer
-            .update_buffers(device, queue, encoder, &paint_jobs, screen_descriptor);
-
-        paint_jobs
-    }
-
-    fn render<'a>(
-        &'a self,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        paint_jobs: Vec<egui::ClippedPrimitive>,
-        screen_descriptor: &ScreenDescriptor,
-    ) {
-        self.renderer
-            .render(render_pass, &paint_jobs, screen_descriptor);
-    }
 }
 
 impl Renderer {
@@ -411,7 +326,7 @@ impl Renderer {
         );
 
         let depth_view = create_depth_texture(&device, &size);
-        let egui_handler = Egui::new(&device, &config, window.scale_factor());
+        let egui_handler = egui::Egui::new(&device, &config, window.scale_factor());
 
         let text_brush = BrushBuilder::using_font(FontArc::try_from_vec(std::fs::read(
             "assets/fonts/MochiyPopOne-Regular.ttf",
