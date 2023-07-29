@@ -104,21 +104,21 @@ fn create_depth_texture(device: &wgpu::Device, size: &PhysicalSize<u32>) -> wgpu
 // Creates a texture to be used as a target for multisampling.
 fn create_msaa_texture(
     device: &wgpu::Device,
-    size: &PhysicalSize<u32>,
-    config: &wgpu::SurfaceConfiguration,
+    size: (u32, u32),
+    format: wgpu::TextureFormat,
     samples: u32,
 ) -> wgpu::TextureView {
     device
         .create_texture(&wgpu::TextureDescriptor {
             label: Some("msaa texture"),
             size: wgpu::Extent3d {
-                width: size.width,
-                height: size.height,
+                width: size.0,
+                height: size.1,
                 depth_or_array_layers: 1,
             },
             sample_count: samples,
             dimension: wgpu::TextureDimension::D2,
-            format: config.format,
+            format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             mip_level_count: 1,
             view_formats: &[],
@@ -305,7 +305,7 @@ impl Renderer {
             format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: surface_capabilities.alpha_modes[0],
             view_formats: vec![],
         };
@@ -313,7 +313,7 @@ impl Renderer {
         surface.configure(&device, &config);
 
         let msaa_view = if SAMPLE_COUNT > 1 {
-            Some(create_msaa_texture(&device, &size, &config, SAMPLE_COUNT))
+            Some(create_msaa_texture(&device, (size.width, size.height), config.format, SAMPLE_COUNT))
         } else {
             None
         };
@@ -416,17 +416,6 @@ impl Renderer {
         let text_brush = BrushBuilder::using_font(FontArc::try_from_vec(std::fs::read(
             "assets/fonts/MochiyPopOne-Regular.ttf",
         )?)?)
-        //.with_depth_stencil(Some(wgpu::DepthStencilState {
-        //    format: DEPTH_FORMAT,
-        //    depth_write_enabled: false,
-        //    depth_compare: wgpu::CompareFunction::Always,
-        //    stencil: Default::default(),
-        //    bias: Default::default(),
-        //}))
-        //.with_multisample(wgpu::MultisampleState {
-        //    count: SAMPLE_COUNT,
-        //    ..Default::default()
-        //})
         .build(&device, config.width, config.height, format);
 
         let outline_texture = texture::Texture::empty(
@@ -471,7 +460,8 @@ impl Renderer {
             pipeline_cache: vec![
                 ("texture", texture_pipeline),
                 ("texture_depth", texture_pipeline_depth),
-                ("primitive", primitive_pipeline), ("outline", outline_pipeline),
+                ("primitive", primitive_pipeline), 
+                ("outline", outline_pipeline),
             ],
             text_brush,
             egui_handler,
@@ -611,12 +601,19 @@ impl Renderer {
             self.config.height = size.height;
             self.surface.configure(&self.device, &self.config);
 
-            // Need to create a new msaa target texture
+            // Need to create a new msaa target texture and outline texture
+            self.outline_texture = texture::Texture::empty(
+                &self.device,
+                Some("outline texture"),
+                self.config.format,
+                (self.config.width, self.config.height),
+            ).unwrap();
+
             if SAMPLE_COUNT > 1 {
                 self.msaa_view = Some(create_msaa_texture(
                     &self.device,
-                    &size,
-                    &self.config,
+                    (size.width, size.height),
+                    self.config.format,
                     SAMPLE_COUNT,
                 ));
             }

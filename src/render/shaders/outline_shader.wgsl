@@ -43,20 +43,24 @@ var texture_sampler: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let thickness = 4.0;
+    // (modified) wgsl version of this shader https://godotshaders.com/shader/2d-outline-stroke/
+    let thickness = 5.0;
     let size = thickness / vec2<f32>(f32(textureDimensions(texture).x), f32(textureDimensions(texture).y));
     let line_colour = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
-    // wgsl version of this shader https://godotshaders.com/shader/2d-outline-stroke/
-    var outline = textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(-size.x, 0.0)).a;
-    outline += textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(size.x, 0.0)).a;
-    outline += textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(0.0, -size.y)).a;
-    outline += textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(0.0, size.y)).a;
-    outline += textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(size.x, size.y)).a;
-    outline += textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(-size.x, size.y)).a;
-    outline += textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(size.x, -size.y)).a;
-    outline += textureSample(texture, texture_sampler, in.tex_coord + vec2<f32>(-size.x, -size.y)).a;
-    outline = min(outline, 1.0);
+    let sample_points = 16;
+
+    var outline = 0.0;
+    let angle_interval = 6.283 / f32(sample_points);
+
+    for (var i = 0; i < sample_points; i++) {
+        let angle = f32(i) * angle_interval;
+        
+        let offset = size * vec2<f32>(cos(angle), sin(angle));
+        outline += textureSample(texture, texture_sampler, in.tex_coord + offset).a;
+    }
+
+    outline = min(2.0 * outline, 1.0);
 
     let sample = textureSample(texture, texture_sampler, in.tex_coord);
 
