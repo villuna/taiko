@@ -115,6 +115,8 @@ impl App {
         let kat_tex = Rc::new(Texture::from_file("assets/images/kat.png", &renderer.device, &renderer.queue)?);
         let big_don_tex = Rc::new(Texture::from_file("assets/images/big_don.png", &renderer.device, &renderer.queue)?);
         let big_kat_tex = Rc::new(Texture::from_file("assets/images/big_kat.png", &renderer.device, &renderer.queue)?);
+        let roll_tex = Rc::new(Texture::from_file("assets/images/drumroll_start.png", &renderer.device, &renderer.queue)?);
+        let big_roll_tex = Rc::new(Texture::from_file("assets/images/big_drumroll_start.png", &renderer.device, &renderer.queue)?);
 
         let state = Box::new(SongSelect::new(
             bg_sprite,
@@ -122,6 +124,8 @@ impl App {
             kat_tex,
             big_don_tex,
             big_kat_tex,
+            roll_tex,
+            big_roll_tex,
         )?);
 
         Ok(App {

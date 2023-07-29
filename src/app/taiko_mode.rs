@@ -194,13 +194,13 @@ impl TaikoMode {
         kat_tex: &Rc<Texture>,
         big_don_tex: &Rc<Texture>,
         big_kat_tex: &Rc<Texture>,
+        roll_start_tex: &Rc<Texture>,
+        big_roll_start_tex: &Rc<Texture>,
         renderer: &render::Renderer,
         bg_sprite: &Rc<Sprite>,
     ) -> Self {
         let mut song_handle = manager.play(song_data).unwrap();
         song_handle.pause(Default::default()).unwrap();
-
-        println!("{:#?}", song.difficulties[difficulty].as_ref().unwrap().track.notes);
 
         let sprites = song.difficulties[difficulty]
             .as_ref()
@@ -229,6 +229,18 @@ impl TaikoMode {
                 )),
                 NoteType::BigKat => Some(Sprite::new(
                     Rc::clone(big_kat_tex),
+                    [0.0, 0.0, 0.0],
+                    renderer,
+                    true,
+                )),
+                NoteType::Roll(_) => Some(Sprite::new(
+                    Rc::clone(roll_start_tex),
+                    [0.0, 0.0, 0.0],
+                    renderer,
+                    true,
+                )),
+                NoteType::BigRoll(_) => Some(Sprite::new(
+                    Rc::clone(big_roll_start_tex),
                     [0.0, 0.0, 0.0],
                     renderer,
                     true,

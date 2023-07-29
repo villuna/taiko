@@ -53,6 +53,8 @@ pub struct SongSelect {
     kat_tex: Rc<Texture>,
     big_don_tex: Rc<Texture>,
     big_kat_tex: Rc<Texture>,
+    roll_tex: Rc<Texture>,
+    big_roll_tex: Rc<Texture>,
 
     go_to_song: Option<(usize, usize)>,
 }
@@ -108,6 +110,8 @@ impl SongSelect {
         kat_tex: Rc<Texture>,
         big_don_tex: Rc<Texture>,
         big_kat_tex: Rc<Texture>,
+        roll_tex: Rc<Texture>,
+        big_roll_tex: Rc<Texture>,
     ) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
 
@@ -124,6 +128,8 @@ impl SongSelect {
             kat_tex,
             big_don_tex,
             big_kat_tex,
+            roll_tex,
+            big_roll_tex,
         })
     }
 
@@ -181,6 +187,8 @@ impl GameState for SongSelect {
                 &self.kat_tex,
                 &self.big_don_tex,
                 &self.big_kat_tex,
+                &self.roll_tex,
+                &self.big_roll_tex,
                 ctx.renderer,
                 &self.bg_sprite,
             )))
