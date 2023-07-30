@@ -299,7 +299,7 @@ impl Renderer {
             &device,
             "texture pipeline",
             &texture_pipeline_layout,
-            wgpu::TextureFormat::Bgra8UnormSrgb,
+            format,
             Some(DEPTH_FORMAT),
             false,
             &[
@@ -314,7 +314,7 @@ impl Renderer {
             &device,
             "texture pipeline with depth",
             &texture_pipeline_layout,
-            wgpu::TextureFormat::Bgra8UnormSrgb,
+            format,
             Some(DEPTH_FORMAT),
             true,
             &[
@@ -452,7 +452,6 @@ impl Renderer {
         // Rendering goes here...
         app.render(&mut ctx);
 
-        // That's all done, so take out the text brush to use in the outline render pass
         let brush = ctx.text_brush.take().unwrap();
 
         self.egui_handler
@@ -477,6 +476,10 @@ impl Renderer {
 
         drop(render_pass);
 
+        // TODO:
+        // I've figured out that this shader is pretty costly. I need to replace it with something
+        // else, for instance pre-rendering the text with the outline and storing it as a texture,
+        // instead of having to do all this repeated work every frame.
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Outline render pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
