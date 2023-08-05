@@ -357,7 +357,7 @@ impl Renderer {
             false,
             &[texture::TextureVertex::vertex_layout()],
             &outline_shader,
-            SAMPLE_COUNT,
+            1,
         );
 
         Ok(Self {
@@ -443,7 +443,6 @@ impl Renderer {
             device: &self.device,
             queue: &self.queue,
             pipeline_cache: &self.pipeline_cache,
-            text_brush: Some(&mut self.text_brush),
         };
 
         ctx.render_pass
@@ -452,59 +451,10 @@ impl Renderer {
         // Rendering goes here...
         app.render(&mut ctx);
 
-        let brush = ctx.text_brush.take().unwrap();
-
         self.egui_handler
             .render(&mut ctx.render_pass, paint_jobs, &screen_descriptor);
 
         drop(ctx);
-
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Text render pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.outline_texture.view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        });
-
-        brush.draw(&mut render_pass);
-
-        drop(render_pass);
-
-        // TODO:
-        // I've figured out that this shader is pretty costly. I need to replace it with something
-        // else, for instance pre-rendering the text with the outline and storing it as a texture,
-        // instead of having to do all this repeated work every frame.
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Outline render pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: if SAMPLE_COUNT == 1 {
-                    &view
-                } else {
-                    self.msaa_view.as_ref().unwrap()
-                },
-                resolve_target: if SAMPLE_COUNT == 1 { None } else { Some(&view) },
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        });
-
-        render_pass.set_pipeline(self.pipeline("outline").unwrap());
-        render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
-        render_pass.set_bind_group(1, &self.outline_texture.bind_group, &[]);
-        render_pass.set_vertex_buffer(0, self.outline_texture.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(self.outline_texture.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..6, 0, 0..1);
-
-        drop(render_pass);
 
         self.queue.submit([encoder.finish()]);
         texture.present();

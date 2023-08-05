@@ -198,7 +198,7 @@ impl GameState for SongSelect {
             super::StateTransition::Continue
         }
     }
-    fn render<'a, 'b: 'a>(&'a mut self, ctx: &mut render::RenderContext<'a, 'b>) {
+    fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
         ctx.render(self.bg_sprite.as_ref())
     }
 

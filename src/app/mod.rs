@@ -31,7 +31,7 @@ pub enum StateTransition {
 pub struct Context<'a> {
     pub delta: f32,
     pub audio: &'a mut AudioManager,
-    pub renderer: &'a render::Renderer,
+    pub renderer: &'a mut render::Renderer,
     pub keyboard: &'a KeyboardState,
 }
 
@@ -45,7 +45,7 @@ pub trait GameState {
 
     fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
 
-    fn render<'a, 'b: 'a>(&'a mut self, _ctx: &mut render::RenderContext<'a, 'b>) {}
+    fn render<'a>(&'a mut self, _ctx: &mut render::RenderContext<'a>) {}
 
     fn handle_event(&mut self, _event: &WindowEvent<'_>, _keyboard: &KeyboardState) {}
 }
@@ -142,7 +142,7 @@ impl App {
     pub fn update(
         &mut self,
         delta: f32,
-        renderer: &render::Renderer,
+        renderer: &mut render::Renderer,
         control_flow: &mut ControlFlow,
     ) {
         self.fps_timer += delta;
@@ -198,7 +198,7 @@ impl App {
         }
     }
 
-    pub fn render<'a, 'b: 'a>(&'a mut self, ctx: &mut render::RenderContext<'a, 'b>) {
+    pub fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
         self.state.last_mut().unwrap().render(ctx)
     }
 

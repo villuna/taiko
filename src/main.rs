@@ -60,7 +60,7 @@ async fn main() {
                 }
 
                 Event::RedrawRequested(window_id) if window_id == renderer.window().id() => {
-                    app.update(delta, &renderer, control_flow);
+                    app.update(delta, &mut renderer, control_flow);
                     match renderer.render(&mut app) {
                         Ok(_) => {}
 

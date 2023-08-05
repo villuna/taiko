@@ -60,7 +60,7 @@ impl TextureVertex {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug)]
 pub struct SpriteInstance {
     pub position: [f32; 3],
 }
@@ -78,6 +78,7 @@ impl SpriteInstance {
     }
 }
 
+#[derive(Debug)]
 pub struct Texture {
     pub bind_group: wgpu::BindGroup,
     pub vertex_buffer: wgpu::Buffer,
@@ -268,6 +269,7 @@ impl Texture {
     }
 }
 
+#[derive(Debug)]
 pub struct Sprite {
     texture: Rc<Texture>,
     instance: SpriteInstance,
@@ -320,7 +322,7 @@ impl Sprite {
 }
 
 impl Renderable for Sprite {
-    fn render<'a, 'b: 'a>(&'a self, ctx: &mut render::context::RenderContext<'a, 'b>) {
+    fn render<'a>(&'a self, ctx: &mut render::context::RenderContext<'a>) {
         ctx.render_pass.set_pipeline(
             ctx.pipeline(if self.use_depth {
                 "texture_depth"

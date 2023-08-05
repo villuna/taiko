@@ -10,7 +10,7 @@ use lyon::{
     lyon_tessellation::{BuffersBuilder, FillOptions, StrokeOptions},
     path::Path,
 };
-use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, OwnedSection};
+use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder};
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
 use crate::{
@@ -18,6 +18,7 @@ use crate::{
         self,
         primitives::{Primitive, SolidColour, LinearGradient},
         texture::{Sprite, Texture},
+        text::Text,
     },
     track::{NoteType, Song},
 };
@@ -49,12 +50,12 @@ struct UI {
     note_field: Primitive,
     note_line: Primitive,
     left_panel: Primitive,
-    title: OwnedSection,
+    title: Text,
 }
 
 impl UI {
-    fn new(device: &wgpu::Device, song_name: &str) -> anyhow::Result<Self> {
-        let bg_rect = Primitive::filled_shape(device, |tess, out| {
+    fn new(renderer: &mut render::Renderer, song_name: &str) -> anyhow::Result<Self> {
+        let bg_rect = Primitive::filled_shape(&renderer.device, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(point(0.0, 0.0), point(1920.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0)),
                 &FillOptions::DEFAULT,
@@ -81,7 +82,7 @@ impl UI {
             Ok(())
         })?;
 
-        let note_field = Primitive::filled_shape(device, |tess, out| {
+        let note_field = Primitive::filled_shape(&renderer.device, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(
                     point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
@@ -97,7 +98,7 @@ impl UI {
             Ok(())
         })?;
 
-        let note_line = Primitive::stroke_shape(device, |tess, out| {
+        let note_line = Primitive::stroke_shape(&renderer.device, |tess, out| {
             let mut path = Path::builder();
             path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
             path.line_to(point(NOTE_HIT_X, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0));
@@ -121,7 +122,7 @@ impl UI {
             Ok(())
         })?;
 
-        let left_panel = Primitive::filled_shape(device, |tess, out| {
+        let left_panel = Primitive::filled_shape(&renderer.device, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(
                     point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
@@ -152,11 +153,13 @@ impl UI {
         let title = SectionBuilder::default()
             .with_screen_position((1820.0, 40.0))
             .with_layout(Layout::default().h_align(HorizontalAlign::Right))
-            .with_owned_text(vec![wgpu_text::glyph_brush::OwnedText::new(
-                song_name.to_string(),
+            .with_text(vec![wgpu_text::glyph_brush::Text::new(
+                song_name,
             )
             .with_color([1.0, 1.0, 1.0, 1.0])
             .with_scale(80.0)]);
+
+        let title = Text::new_outlined(renderer, &title).unwrap();
 
         Ok(Self {
             bg_rect,
@@ -196,7 +199,7 @@ impl TaikoMode {
         big_kat_tex: &Rc<Texture>,
         roll_start_tex: &Rc<Texture>,
         big_roll_start_tex: &Rc<Texture>,
-        renderer: &render::Renderer,
+        renderer: &mut render::Renderer,
         bg_sprite: &Rc<Sprite>,
     ) -> Self {
         let mut song_handle = manager.play(song_data).unwrap();
@@ -251,7 +254,7 @@ impl TaikoMode {
 
         let notes = sprites.len();
 
-        let ui = UI::new(&renderer.device, &song.title).unwrap();
+        let ui = UI::new(renderer, &song.title).unwrap();
 
         Self {
             song,
@@ -318,7 +321,7 @@ impl GameState for TaikoMode {
         }
     }
 
-    fn render<'a, 'b: 'a>(&'a mut self, ctx: &mut render::RenderContext<'a, 'b>) {
+    fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
         let current = self.current_time();
         let notes = &self.song.difficulties[self.difficulty]
             .as_ref()

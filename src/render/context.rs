@@ -1,23 +1,21 @@
 /// A handle to a [wgpu::RenderPass] and all the related resources needed to render things in the
 /// render pass.
 #[non_exhaustive]
-pub struct RenderContext<'a, 'b> {
+pub struct RenderContext<'a> {
     pub render_pass: wgpu::RenderPass<'a>,
     pub device: &'a wgpu::Device,
     pub queue: &'a wgpu::Queue,
     pub pipeline_cache: &'a Vec<(&'static str, wgpu::RenderPipeline)>,
-    pub text_brush: Option<&'b mut wgpu_text::TextBrush>,
 }
 
 /// A trait that allows objects to render themselves to the screen in any given render pass. If a
 /// type implements Renderable, then it is able to be rendered by the [RenderContext]'s render
 /// function.
 pub trait Renderable {
-    fn render<'a, 'b: 'a>(&'a self, ctx: &mut RenderContext<'a, 'b>);
+    fn render<'a>(&'a self, ctx: &mut RenderContext<'a>);
 }
 
-impl<'a, 'b> RenderContext<'a, 'b>
-where 'b: 'a {
+impl<'a> RenderContext<'a> {
     /// Renders the target object in the current render pass using its [Renderable] implementation.
     pub fn render<R: Renderable>(&mut self, target: &'a R) {
         target.render(self);
