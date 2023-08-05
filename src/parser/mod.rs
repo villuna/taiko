@@ -577,6 +577,7 @@ fn construct_difficulty<'a>(
     let mut bpm = get_parsed_metadata::<f32>(metadata, "BPM", Some(DEFAULT_BPM))?;
     let offset = get_parsed_metadata::<f32>(metadata, "OFFSET", Some(0.0))?;
     let init_scroll_speed = get_parsed_metadata::<f32>(metadata, "HEADSCROLL", Some(1.0))?;
+    let mut unscaled_scroll = init_scroll_speed;
     let mut scroll_speed = init_scroll_speed * bpm / DEFAULT_BPM;
     let mut balloon_count = 0;
 
@@ -604,6 +605,7 @@ fn construct_difficulty<'a>(
                     bpm = *new_bpm;
                     seconds_per_measure = 60.0 * signature * 4.0 / bpm;
                     seconds_per_note = seconds_per_measure / notes_in_measure as f32;
+                    scroll_speed = unscaled_scroll * bpm / DEFAULT_BPM;
                 }
                 TrackCommand::Measure(num, den) => {
                     signature = *num as f32 / *den as f32;
@@ -612,7 +614,8 @@ fn construct_difficulty<'a>(
                 }
                 TrackCommand::Delay(t) => time += *t,
                 TrackCommand::Scroll(s) => {
-                    scroll_speed = init_scroll_speed * (*s) * bpm / DEFAULT_BPM
+                    scroll_speed = (*s) * bpm / DEFAULT_BPM;
+                    unscaled_scroll = *s; 
                 }
                 TrackCommand::GogoStart => {}
                 TrackCommand::GogoEnd => {}
