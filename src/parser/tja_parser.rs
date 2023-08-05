@@ -48,17 +48,3 @@ pub fn parse_tja_file(input: &str) -> Result<(), (TJAParseError, usize)> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_parse_file() {
-        parse_tja_file(include_str!(
-            "../../songs/Mata Saitama 2000/Mata Saitama 2000.tja"
-        ))
-        .unwrap();
-        assert!(false);
-    }
-}
