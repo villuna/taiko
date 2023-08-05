@@ -153,11 +153,11 @@ impl UI {
         let title = SectionBuilder::default()
             .with_screen_position((1820.0, 40.0))
             .with_layout(Layout::default().h_align(HorizontalAlign::Right))
-            .with_text(vec![wgpu_text::glyph_brush::Text::new(
-                song_name,
-            )
-            .with_color([1.0, 1.0, 1.0, 1.0])
-            .with_scale(80.0)]);
+            .with_text(vec![
+                wgpu_text::glyph_brush::Text::new(song_name)
+                .with_color([1.0, 1.0, 1.0, 1.0])
+                .with_scale(80.0)
+            ]);
 
         let title = Text::new_outlined(renderer, &title).unwrap();
 

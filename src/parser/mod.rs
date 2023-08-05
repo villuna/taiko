@@ -734,8 +734,6 @@ fn construct_difficulty<'a>(
 
     // If the number of balloons in the course is nonzero, we have to store
     // how many hits it takes to complete each one. This is the BALLOON metadata
-    //
-    // Isn't balloon such a weird word
     let balloons = metadata.get("BALLOON");
     if balloon_count != 0 {
         let mut balloons_list = match balloons {
@@ -751,14 +749,19 @@ fn construct_difficulty<'a>(
 
         // Also ensure that the number of balloons in the metadata matches
         // the number of balloon notes.
-        if balloons_list.len() != balloon_count {
-            // If the balloon list given is empty, use the default value (5) for all hits
-            if balloons_list.is_empty() {
-                balloons_list = vec![5; balloon_count];
-            } else {
-                return Err(TJAParseError::InvalidMetadata("BALLOON", balloons.unwrap()));
-                // Unwrapping balloons here is fine bc we've already checked it is not None.
-            }
+        // The way this works is a little strange. If the balloon list is empty "BALLOON:", then 
+        // every balloon gets a default value of 5. However, if the balloon list is non-empty 
+        // *but* shorter than the number of balloons in the song, every balloon after the end of 
+        // the list gets a default value of 10.
+        //
+        // Exactly how this happened is beyond me, but it has to work this way for compatibility
+        // reasons.
+        if balloons_list.is_empty() {
+            balloons_list = vec![5; balloon_count];
+        } else if balloons_list.len() > balloon_count {
+            balloons_list.truncate(balloon_count);
+        } else if balloons_list.len() < balloon_count {
+            balloons_list.extend(vec![10; balloon_count - balloons_list.len()]);
         }
 
         track.balloons = balloons_list;
@@ -791,7 +794,7 @@ pub fn parse_tja_file(input: &str) -> Result<Song, TJAParseError<String>> {
 
     // Now get the rest of the metadata needed for the song.
     let title = get_metadata_owned(&metadata, "TITLE", None)?;
-    let subtitle = metadata.get("SUBTITLE").map(|s| s.to_string());
+    let subtitle = get_metadata_owned(&metadata, "SUBTITLE", None).ok();
     let audio_filename = get_metadata_owned(&metadata, "WAVE", None)?;
     let demostart = get_parsed_metadata::<f32>(&metadata, "DEMOSTART", Some(0.0))?;
     let offset = get_parsed_metadata::<f32>(&metadata, "OFFSET", Some(0.0))?;
