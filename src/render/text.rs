@@ -12,13 +12,8 @@ pub struct Text {
 impl Text {
     pub fn new(renderer: &mut Renderer, section: &Section) -> anyhow::Result<Text> {
         let texture = Self::create_texture(renderer, section, false)?;
-        
-        let sprite = texture::Sprite::new(
-            Rc::new(texture),
-            [0.0; 3],
-            renderer,
-            false,
-        );
+
+        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], renderer, false);
 
         Ok(Self { sprite })
     }
@@ -26,17 +21,16 @@ impl Text {
     pub fn new_outlined(renderer: &mut Renderer, section: &Section) -> anyhow::Result<Text> {
         let texture = Self::create_texture(renderer, section, true)?;
 
-        let sprite = texture::Sprite::new(
-            Rc::new(texture),
-            [0.0; 3],
-            renderer,
-            false,
-        );
+        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], renderer, false);
 
         Ok(Self { sprite })
     }
 
-    fn create_texture(renderer: &mut Renderer, section: &Section, outline: bool) -> anyhow::Result<texture::Texture> {
+    fn create_texture(
+        renderer: &mut Renderer,
+        section: &Section,
+        outline: bool,
+    ) -> anyhow::Result<texture::Texture> {
         let mut texture = texture::Texture::empty(
             &renderer.device,
             Some("text texture"),
@@ -105,7 +99,7 @@ impl Text {
         }
 
         renderer.queue.submit([encoder.finish()]);
- 
+
         Ok(texture)
     }
 }

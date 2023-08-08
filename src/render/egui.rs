@@ -11,7 +11,11 @@ pub struct Egui {
 
 impl Egui {
     /// Creates a new egui handler.
-    pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, scale_factor: f64) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        scale_factor: f64,
+    ) -> Self {
         let platform =
             egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
                 physical_width: config.width,
@@ -20,8 +24,12 @@ impl Egui {
                 ..Default::default()
             });
 
-        let renderer =
-            egui_wgpu::Renderer::new(device, config.format, Some(super::DEPTH_FORMAT), super::SAMPLE_COUNT);
+        let renderer = egui_wgpu::Renderer::new(
+            device,
+            config.format,
+            Some(super::DEPTH_FORMAT),
+            super::SAMPLE_COUNT,
+        );
 
         Self {
             platform,

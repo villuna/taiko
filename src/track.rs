@@ -24,8 +24,8 @@ pub enum NoteType {
     BigKat,
     Roll(f32),
     BigRoll(f32),
-    BalloonRoll(f32),
-    SpecialRoll(f32),
+    BalloonRoll(f32, u16),
+    SpecialRoll(f32, u16),
     CoopDon,
     CoopKat,
 }
@@ -94,6 +94,5 @@ pub struct Difficulty {
 #[derive(Default, Debug, Clone)]
 pub struct NoteTrack {
     pub notes: Vec<Note>,
-    pub balloons: Vec<u16>,
     pub barlines: Vec<f32>,
 }

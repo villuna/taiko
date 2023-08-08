@@ -14,10 +14,7 @@ impl CreditsScreen {
 }
 
 impl GameState for CreditsScreen {
-    fn update(
-        &mut self,
-        _ctx: &mut super::Context,
-    ) -> super::StateTransition {
+    fn update(&mut self, _ctx: &mut super::Context) -> super::StateTransition {
         if self.exit {
             super::StateTransition::Pop
         } else {

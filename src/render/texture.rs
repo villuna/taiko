@@ -3,7 +3,10 @@
 use crate::render;
 use image::GenericImageView;
 use std::{path::Path, rc::Rc, sync::OnceLock};
-use wgpu::{util::{DeviceExt, BufferInitDescriptor}, vertex_attr_array};
+use wgpu::{
+    util::{BufferInitDescriptor, DeviceExt},
+    vertex_attr_array,
+};
 
 use super::context::Renderable;
 
@@ -136,7 +139,12 @@ impl Texture {
         })
     }
 
-    pub fn empty(device: &wgpu::Device, label: Option<&str>, format: wgpu::TextureFormat, size: (u32, u32)) -> anyhow::Result<Self> {
+    pub fn empty(
+        device: &wgpu::Device,
+        label: Option<&str>,
+        format: wgpu::TextureFormat,
+        size: (u32, u32),
+    ) -> anyhow::Result<Self> {
         let view = device.create_texture(&wgpu::TextureDescriptor {
             label,
             size: wgpu::Extent3d {
@@ -161,12 +169,7 @@ impl Texture {
             ..Default::default()
         });
 
-        let bind_group = Self::create_texture_bind_group(
-            device,
-            label,
-            &view,
-            &sampler,
-        );
+        let bind_group = Self::create_texture_bind_group(device, label, &view, &sampler);
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label,
@@ -189,7 +192,11 @@ impl Texture {
         })
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P, device: &wgpu::Device, queue: &wgpu::Queue) -> anyhow::Result<Self> {
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> anyhow::Result<Self> {
         let name = path.as_ref().to_str().unwrap_or_default().to_string();
         let image = image::load_from_memory(&std::fs::read(path)?)?;
 
@@ -245,19 +252,17 @@ impl Texture {
             &sampler,
         );
 
-        let vertex_buffer = device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(&format!("{} vertex buffer", name)),
-                contents: bytemuck::cast_slice(&texture_vertices(dimensions.0, dimensions.1)),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("{} vertex buffer", name)),
+            contents: bytemuck::cast_slice(&texture_vertices(dimensions.0, dimensions.1)),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        let index_buffer = device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(&format!("{} index buffer", name)),
-                contents: bytemuck::cast_slice(TEXTURE_INDICES),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("{} index buffer", name)),
+            contents: bytemuck::cast_slice(TEXTURE_INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
 
         Ok(Self {
             bind_group,
