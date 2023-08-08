@@ -7,7 +7,7 @@ use nom::{
     character::complete::satisfy,
     combinator::{eof, map_res, opt, recognize},
     error::{FromExternalError, ParseError},
-    multi::{many0, many0_count, separated_list0},
+    multi::{many0_count, many1, separated_list0},
     sequence::{pair, preceded, separated_pair, terminated},
     Finish, IResult, Parser,
 };
@@ -306,25 +306,39 @@ fn note(i: &str) -> IResult<&str, Option<TJANoteType>, TJAParseErrorKind> {
 }
 
 fn notes(input: &str) -> IResult<&str, CourseItem, TJAParseErrorKind> {
-    let (mut input, notes) = many0(note)(input)?;
+    // We don't want to match nothing, so if the bar does not have an ending comma it has to have
+    // at least a note in it.
+    let end_tag = tag::<_, _, nom::error::Error<_>>(",");
 
-    let end_measure = match tag::<_, _, nom::error::Error<_>>(",")(input) {
-        Ok((i, _)) => {
-            input = i;
-            true
-        }
+    if let Ok((input, _)) = end_tag(input) {
+        Ok((
+            input,
+            CourseItem::Notes {
+                notes: vec![],
+                end_measure: true,
+            },
+        ))
+    } else {
+        let (mut input, notes) = many1(note)(input)?;
 
-        Err(_) => false,
-    };
+        let end_measure = match end_tag(input) {
+            Ok((i, _)) => {
+                input = i;
+                true
+            }
 
-    Ok((input, CourseItem::Notes { notes, end_measure }))
+            Err(_) => false,
+        };
+
+        Ok((input, CourseItem::Notes { notes, end_measure }))
+    }
 }
 
 fn course_item(input: &str) -> IResult<&str, CourseItem, TJAParseErrorKind> {
     alt((
         end_command.map(|_| CourseItem::EndCommand),
-        course_command.map(|c| CourseItem::Command(c)),
         notes,
+        course_command.map(|c| CourseItem::Command(c)),
     ))(input)
 }
 
@@ -641,9 +655,11 @@ fn construct_difficulty(
             })?;
 
             let next_time = if matches!(note_type, SpecialRoll(_)) {
-                if matches!(next.0, SpecialRoll(_)) {
+                let next_type = next.0;
+
+                if matches!(next_type, SpecialRoll(_)) {
                     next.1
-                } else if next.0 == RollEnd {
+                } else if next_type == RollEnd {
                     let time = next.1;
                     let _ = next; // So that notes isn't borrowed and we can call the next line
                     notes.next();
@@ -845,6 +861,13 @@ mod test {
                 notes: vec![Some(Don), Some(Kat), None, Some(Don)],
                 end_measure: true,
             })
+        );
+    }
+    #[test]
+    fn test_course_item() {
+        assert_eq!(
+            course_item("#MEASURE 4/4"),
+            Ok(("", CourseItem::Command(CourseCommand::Measure(4, 4))))
         );
     }
 }
