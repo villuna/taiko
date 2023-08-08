@@ -16,9 +16,9 @@ use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 use crate::{
     render::{
         self,
-        primitives::{Primitive, SolidColour, LinearGradient},
-        texture::{Sprite, Texture},
+        primitives::{LinearGradient, Primitive, SolidColour},
         text::Text,
+        texture::{Sprite, Texture},
     },
     track::{NoteType, Song},
 };
@@ -57,7 +57,10 @@ impl UI {
     fn new(renderer: &mut render::Renderer, song_name: &str) -> anyhow::Result<Self> {
         let bg_rect = Primitive::filled_shape(&renderer.device, |tess, out| {
             tess.tessellate_rectangle(
-                &Box2D::new(point(0.0, 0.0), point(1920.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0)),
+                &Box2D::new(
+                    point(0.0, 0.0),
+                    point(1920.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                ),
                 &FillOptions::DEFAULT,
                 &mut BuffersBuilder::new(
                     out,
@@ -66,17 +69,15 @@ impl UI {
                         [0.0, 0.0, 0.0, 1.0],
                         [0.0, 0.0],
                         [0.0, 1.0],
-                    ).unwrap(),
+                    )
+                    .unwrap(),
                 ),
             )?;
 
             tess.tessellate_rectangle(
                 &Box2D::new(point(0.0, NOTE_Y), point(1920.0, 1080.0)),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(
-                    out,
-                    SolidColour::new([0.0, 0.0, 0.0, 0.8])
-                ),
+                &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 0.8])),
             )?;
 
             Ok(())
@@ -89,10 +90,7 @@ impl UI {
                     point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
                 ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(
-                    out,
-                    SolidColour::new([0.01, 0.01, 0.01, 1.0])
-                ),
+                &mut BuffersBuilder::new(out, SolidColour::new([0.01, 0.01, 0.01, 1.0])),
             )?;
 
             Ok(())
@@ -105,10 +103,7 @@ impl UI {
             path.end(false);
 
             let options = StrokeOptions::DEFAULT.with_line_width(4.0);
-            let mut builder = BuffersBuilder::new(
-                out,
-                SolidColour::new([0.05, 0.05, 0.05, 1.0])
-            );
+            let mut builder = BuffersBuilder::new(out, SolidColour::new([0.05, 0.05, 0.05, 1.0]));
 
             // A line that shows exactly where notes should be hit
             tess.tessellate_path(&path.build(), &options, &mut builder)?;
@@ -129,10 +124,7 @@ impl UI {
                     point(NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
                 ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(
-                    out,
-                    SolidColour::new([0.8, 0.07, 0.03, 1.0])
-                ),
+                &mut BuffersBuilder::new(out, SolidColour::new([0.8, 0.07, 0.03, 1.0])),
             )?;
 
             tess.tessellate_rectangle(
@@ -141,10 +133,7 @@ impl UI {
                     point(NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
                 ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(
-                    out,
-                    SolidColour::new([0.0, 0.0, 0.0, 1.0])
-                ),
+                &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 1.0])),
             )?;
 
             Ok(())
@@ -153,11 +142,9 @@ impl UI {
         let title = SectionBuilder::default()
             .with_screen_position((1820.0, 40.0))
             .with_layout(Layout::default().h_align(HorizontalAlign::Right))
-            .with_text(vec![
-                wgpu_text::glyph_brush::Text::new(song_name)
+            .with_text(vec![wgpu_text::glyph_brush::Text::new(song_name)
                 .with_color([1.0, 1.0, 1.0, 1.0])
-                .with_scale(80.0)
-            ]);
+                .with_scale(80.0)]);
 
         let title = Text::new_outlined(renderer, &title).unwrap();
 
@@ -300,10 +287,7 @@ impl TaikoMode {
 }
 
 impl GameState for TaikoMode {
-    fn update(
-        &mut self,
-        _ctx: &mut super::Context,
-    ) -> StateTransition {
+    fn update(&mut self, _ctx: &mut super::Context) -> StateTransition {
         if !self.paused {
             let current = self.current_time();
 

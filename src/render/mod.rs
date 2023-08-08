@@ -19,10 +19,10 @@ const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub mod context;
+mod egui;
 pub mod primitives;
 pub mod text;
 pub mod texture;
-mod egui;
 
 pub use context::RenderContext;
 
@@ -228,7 +228,12 @@ impl Renderer {
         surface.configure(&device, &config);
 
         let msaa_view = if SAMPLE_COUNT > 1 {
-            Some(create_msaa_texture(&device, (size.width, size.height), config.format, SAMPLE_COUNT))
+            Some(create_msaa_texture(
+                &device,
+                (size.width, size.height),
+                config.format,
+                SAMPLE_COUNT,
+            ))
         } else {
             None
         };
@@ -291,7 +296,10 @@ impl Renderer {
         let texture_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("texture pipeline layout"),
-                bind_group_layouts: &[&screen_bind_group_layout, texture::Texture::bind_group_layout(&device)],
+                bind_group_layouts: &[
+                    &screen_bind_group_layout,
+                    texture::Texture::bind_group_layout(&device),
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -340,13 +348,18 @@ impl Renderer {
             (config.width, config.height),
         )?;
 
-        let outline_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("outline pipeline layout"),
-            bind_group_layouts: &[&screen_bind_group_layout, texture::Texture::bind_group_layout(&device)],
-            push_constant_ranges: &[],
-        });
+        let outline_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("outline pipeline layout"),
+                bind_group_layouts: &[
+                    &screen_bind_group_layout,
+                    texture::Texture::bind_group_layout(&device),
+                ],
+                push_constant_ranges: &[],
+            });
 
-        let outline_shader = device.create_shader_module(include_wgsl!("shaders/outline_shader.wgsl"));
+        let outline_shader =
+            device.create_shader_module(include_wgsl!("shaders/outline_shader.wgsl"));
 
         let outline_pipeline = create_render_pipeline(
             &device,
@@ -375,7 +388,7 @@ impl Renderer {
             pipeline_cache: vec![
                 ("texture", texture_pipeline),
                 ("texture_depth", texture_pipeline_depth),
-                ("primitive", primitive_pipeline), 
+                ("primitive", primitive_pipeline),
                 ("outline", outline_pipeline),
             ],
             text_brush,
@@ -475,7 +488,8 @@ impl Renderer {
                 Some("outline texture"),
                 self.config.format,
                 (self.config.width, self.config.height),
-            ).unwrap();
+            )
+            .unwrap();
 
             if SAMPLE_COUNT > 1 {
                 self.msaa_view = Some(create_msaa_texture(

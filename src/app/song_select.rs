@@ -154,10 +154,7 @@ impl SongSelect {
 }
 
 impl GameState for SongSelect {
-    fn update(
-        &mut self,
-        ctx: &mut super::Context,
-    ) -> super::StateTransition {
+    fn update(&mut self, ctx: &mut super::Context) -> super::StateTransition {
         if self.go_to_credits {
             if let Some(handle) = self.song_handle.as_mut() {
                 handle.stop(*OUT_TWEEN).unwrap();

@@ -25,7 +25,7 @@ pub enum NoteType {
     Roll(f32),
     BigRoll(f32),
     BalloonRoll(f32, u16),
-    SpecialRoll(f32),
+    SpecialRoll(f32, u16),
     CoopDon,
     CoopKat,
 }
