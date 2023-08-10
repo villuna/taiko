@@ -23,6 +23,7 @@ mod egui;
 pub mod primitives;
 pub mod text;
 pub mod texture;
+pub mod note;
 
 pub use context::RenderContext;
 
@@ -160,7 +161,7 @@ fn create_render_pipeline(
             format,
             depth_write_enabled: use_depth,
             depth_compare: if use_depth {
-                wgpu::CompareFunction::Less
+                wgpu::CompareFunction::LessEqual
             } else {
                 wgpu::CompareFunction::Always
             },
@@ -285,7 +286,19 @@ impl Renderer {
             config.format,
             Some(DEPTH_FORMAT),
             false,
-            &[PrimitiveVertex::desc()],
+            &[PrimitiveVertex::vertex_layout(), SpriteInstance::vertex_layout()],
+            &primitive_shader,
+            SAMPLE_COUNT,
+        );
+
+        let primitive_pipeline_depth = create_render_pipeline(
+            &device,
+            "primitive pipeline",
+            &primitive_pipeline_layout,
+            config.format,
+            Some(DEPTH_FORMAT),
+            true,
+            &[PrimitiveVertex::vertex_layout(), SpriteInstance::vertex_layout()],
             &primitive_shader,
             SAMPLE_COUNT,
         );
@@ -389,6 +402,7 @@ impl Renderer {
                 ("texture", texture_pipeline),
                 ("texture_depth", texture_pipeline_depth),
                 ("primitive", primitive_pipeline),
+                ("primitive_depth", primitive_pipeline_depth),
                 ("outline", outline_pipeline),
             ],
             text_brush,

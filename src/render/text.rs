@@ -13,7 +13,7 @@ impl Text {
     pub fn new(renderer: &mut Renderer, section: &Section) -> anyhow::Result<Text> {
         let texture = Self::create_texture(renderer, section, false)?;
 
-        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], renderer, false);
+        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], &renderer.device, false);
 
         Ok(Self { sprite })
     }
@@ -21,7 +21,7 @@ impl Text {
     pub fn new_outlined(renderer: &mut Renderer, section: &Section) -> anyhow::Result<Text> {
         let texture = Self::create_texture(renderer, section, true)?;
 
-        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], renderer, false);
+        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], &renderer.device, false);
 
         Ok(Self { sprite })
     }

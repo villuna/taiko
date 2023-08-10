@@ -18,12 +18,12 @@ use crate::{
         self,
         primitives::{LinearGradient, Primitive, SolidColour},
         text::Text,
-        texture::{Sprite, Texture},
+        texture::Sprite, note::VisualNote,
     },
     track::{NoteType, Song},
 };
 
-use super::{GameState, StateTransition};
+use super::{GameState, StateTransition, TextureCache};
 
 // This is a hard-coded value, big enough to make sure that at default scroll speed every note is
 // drawn for this long. It will be scaled depending on scroll speed, so every note will be drawn
@@ -55,7 +55,7 @@ struct UI {
 
 impl UI {
     fn new(renderer: &mut render::Renderer, song_name: &str) -> anyhow::Result<Self> {
-        let bg_rect = Primitive::filled_shape(&renderer.device, |tess, out| {
+        let bg_rect = Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(
                     point(0.0, 0.0),
@@ -83,27 +83,27 @@ impl UI {
             Ok(())
         })?;
 
-        let note_field = Primitive::filled_shape(&renderer.device, |tess, out| {
+        let note_field = Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(
                     point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
                     point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
                 ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new([0.01, 0.01, 0.01, 1.0])),
+                &mut BuffersBuilder::new(out, SolidColour::new([0.12, 0.12, 0.12, 1.0])),
             )?;
 
             Ok(())
         })?;
 
-        let note_line = Primitive::stroke_shape(&renderer.device, |tess, out| {
+        let note_line = Primitive::stroke_shape(&renderer.device, [0.0; 3], false, |tess, out| {
             let mut path = Path::builder();
             path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
             path.line_to(point(NOTE_HIT_X, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0));
             path.end(false);
 
             let options = StrokeOptions::DEFAULT.with_line_width(4.0);
-            let mut builder = BuffersBuilder::new(out, SolidColour::new([0.05, 0.05, 0.05, 1.0]));
+            let mut builder = BuffersBuilder::new(out, SolidColour::new([0.26, 0.26, 0.26, 1.0]));
 
             // A line that shows exactly where notes should be hit
             tess.tessellate_path(&path.build(), &options, &mut builder)?;
@@ -117,14 +117,14 @@ impl UI {
             Ok(())
         })?;
 
-        let left_panel = Primitive::filled_shape(&renderer.device, |tess, out| {
+        let left_panel = Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
             tess.tessellate_rectangle(
                 &Box2D::new(
                     point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
                     point(NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
                 ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new([0.8, 0.07, 0.03, 1.0])),
+                &mut BuffersBuilder::new(out, SolidColour::new([0.9, 0.3, 0.2, 1.0])),
             )?;
 
             tess.tessellate_rectangle(
@@ -164,7 +164,7 @@ pub struct TaikoMode {
     start_time: Option<Instant>,
     song_handle: StaticSoundHandle,
     exit: bool,
-    sprites: Vec<Option<Sprite>>,
+    visual_notes: Vec<Option<VisualNote>>,
     elapsed: f32,
     paused: bool,
     started: bool,
@@ -180,66 +180,26 @@ impl TaikoMode {
         difficulty: usize,
         song_data: StaticSoundData,
         manager: &mut AudioManager,
-        don_tex: &Rc<Texture>,
-        kat_tex: &Rc<Texture>,
-        big_don_tex: &Rc<Texture>,
-        big_kat_tex: &Rc<Texture>,
-        roll_start_tex: &Rc<Texture>,
-        big_roll_start_tex: &Rc<Texture>,
+        textures: &mut TextureCache, 
         renderer: &mut render::Renderer,
         bg_sprite: &Rc<Sprite>,
     ) -> Self {
         let mut song_handle = manager.play(song_data).unwrap();
         song_handle.pause(Default::default()).unwrap();
 
-        let sprites = song.difficulties[difficulty]
+        let device = &renderer.device;
+        let queue = &renderer.queue;
+
+        let visual_notes = song.difficulties[difficulty]
             .as_ref()
             .unwrap()
             .track
             .notes
             .iter()
-            .map(|note| match note.note_type {
-                NoteType::Don => Some(Sprite::new(
-                    Rc::clone(don_tex),
-                    [0.0, 0.0, 0.0],
-                    renderer,
-                    true,
-                )),
-                NoteType::Kat => Some(Sprite::new(
-                    Rc::clone(kat_tex),
-                    [0.0, 0.0, 0.0],
-                    renderer,
-                    true,
-                )),
-                NoteType::BigDon => Some(Sprite::new(
-                    Rc::clone(big_don_tex),
-                    [0.0, 0.0, 0.0],
-                    renderer,
-                    true,
-                )),
-                NoteType::BigKat => Some(Sprite::new(
-                    Rc::clone(big_kat_tex),
-                    [0.0, 0.0, 0.0],
-                    renderer,
-                    true,
-                )),
-                NoteType::Roll(_) => Some(Sprite::new(
-                    Rc::clone(roll_start_tex),
-                    [0.0, 0.0, 0.0],
-                    renderer,
-                    true,
-                )),
-                NoteType::BigRoll(_) => Some(Sprite::new(
-                    Rc::clone(big_roll_start_tex),
-                    [0.0, 0.0, 0.0],
-                    renderer,
-                    true,
-                )),
-                _ => None,
-            })
+            .map(|note| VisualNote::new(device, queue, &note.note_type, VELOCITY * note.scroll_speed, textures))
             .collect::<Vec<_>>();
 
-        let notes = sprites.len();
+        let notes = visual_notes.len();
 
         let ui = UI::new(renderer, &song.title).unwrap();
 
@@ -249,7 +209,7 @@ impl TaikoMode {
             start_time: Some(Instant::now()),
             song_handle,
             exit: false,
-            sprites,
+            visual_notes,
             elapsed: 0.0,
             paused: false,
             started: false,
@@ -313,8 +273,8 @@ impl GameState for TaikoMode {
             .track
             .notes;
 
-        let draw_sprites = self
-            .sprites
+        let draw_notes = self
+            .visual_notes
             .iter_mut()
             .enumerate()
             .filter_map(|(i, sprite)| {
@@ -335,21 +295,18 @@ impl GameState for TaikoMode {
         ctx.render(&self.ui.note_field);
         ctx.render(&self.ui.note_line);
 
-        for (sprite, note_index) in draw_sprites.rev() {
+        for (v_note, note_index) in draw_notes.rev() {
             let note = &notes[note_index];
-
-            let (x, y) = sprite.dimensions();
-            let (x_offset, y_offset) = (x as f32 / 2.0, y as f32 / 2.0);
-
-            sprite.set_position(
+            v_note.set_position(
                 [
-                    NOTE_HIT_X + VELOCITY * (note.time - current) * note.scroll_speed - x_offset,
-                    NOTE_Y - y_offset,
+                    NOTE_HIT_X + VELOCITY * (note.time - current) * note.scroll_speed,
+                    NOTE_Y,
                     note.time,
                 ],
                 ctx.queue,
             );
-            ctx.render(sprite)
+
+            ctx.render(v_note)
         }
 
         ctx.render(&self.ui.left_panel);

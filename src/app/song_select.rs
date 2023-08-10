@@ -5,7 +5,7 @@ use crate::{
     parser::parse_tja_file,
     render::{
         self,
-        texture::{Sprite, Texture},
+        texture::Sprite,
     },
     track::Song,
 };
@@ -21,7 +21,7 @@ use kira::{
 };
 use lazy_static::lazy_static;
 
-use super::{taiko_mode::TaikoMode, GameState};
+use super::{taiko_mode::TaikoMode, GameState, TextureCache};
 
 type SongHandle = StreamingSoundHandle<FromFileError>;
 
@@ -41,21 +41,13 @@ lazy_static! {
 const SONGS_DIR: &str = "songs";
 
 pub struct SongSelect {
-    test_tracks: Vec<Rc<Song>>,
+    songs: Vec<Rc<Song>>,
     selected: Option<usize>,
     difficulty: usize,
     song_handle: Option<SongHandle>,
     bg_sprite: Rc<Sprite>,
     go_to_credits: bool,
     exit: bool,
-
-    don_tex: Rc<Texture>,
-    kat_tex: Rc<Texture>,
-    big_don_tex: Rc<Texture>,
-    big_kat_tex: Rc<Texture>,
-    roll_tex: Rc<Texture>,
-    big_roll_tex: Rc<Texture>,
-
     go_to_song: Option<(usize, usize)>,
 }
 
@@ -104,19 +96,17 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 }
 
 impl SongSelect {
-    pub fn new(
-        bg_sprite: Sprite,
-        don_tex: Rc<Texture>,
-        kat_tex: Rc<Texture>,
-        big_don_tex: Rc<Texture>,
-        big_kat_tex: Rc<Texture>,
-        roll_tex: Rc<Texture>,
-        big_roll_tex: Rc<Texture>,
-    ) -> anyhow::Result<Self> {
+    pub fn new(textures: &mut TextureCache, device: &wgpu::Device, queue: &wgpu::Queue) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
+        let bg_sprite = Sprite::new(
+            textures.get(device, queue, "song_select_bg.jpg")?,
+            [0.0; 3],
+            device,
+            false
+        );
 
         Ok(SongSelect {
-            test_tracks,
+            songs: test_tracks,
             bg_sprite: Rc::new(bg_sprite),
             selected: None,
             difficulty: 0,
@@ -124,12 +114,6 @@ impl SongSelect {
             go_to_credits: false,
             exit: false,
             go_to_song: None,
-            don_tex,
-            kat_tex,
-            big_don_tex,
-            big_kat_tex,
-            roll_tex,
-            big_roll_tex,
         })
     }
 
@@ -138,7 +122,7 @@ impl SongSelect {
         audio: &mut AudioManager,
         selected: usize,
     ) -> anyhow::Result<StreamingSoundHandle<FromFileError>> {
-        let selected = &self.test_tracks[selected];
+        let selected = &self.songs[selected];
 
         let settings = StreamingSoundSettings::default()
             .start_position(selected.demostart as _)
@@ -164,7 +148,7 @@ impl GameState for SongSelect {
             super::StateTransition::Push(Box::new(CreditsScreen::new()))
         } else if let Some((song_id, difficulty)) = self.go_to_song {
             let sound_data = StaticSoundData::from_file(
-                &self.test_tracks[song_id].audio_filename,
+                &self.songs[song_id].audio_filename,
                 StaticSoundSettings::default(),
             )
             .unwrap();
@@ -176,16 +160,11 @@ impl GameState for SongSelect {
             }
 
             super::StateTransition::Push(Box::new(TaikoMode::new(
-                Rc::clone(&self.test_tracks[song_id]),
+                Rc::clone(&self.songs[song_id]),
                 difficulty,
                 sound_data,
                 ctx.audio,
-                &self.don_tex,
-                &self.kat_tex,
-                &self.big_don_tex,
-                &self.big_kat_tex,
-                &self.roll_tex,
-                &self.big_roll_tex,
+                ctx.textures,
                 ctx.renderer,
                 &self.bg_sprite,
             )))
@@ -221,7 +200,7 @@ impl GameState for SongSelect {
                     .selected_text(
                         RichText::new(
                             self.selected
-                                .map(|id| self.test_tracks[id].title.as_str())
+                                .map(|id| self.songs[id].title.as_str())
                                 .unwrap_or("None"),
                         )
                         .size(20.0),
@@ -233,7 +212,7 @@ impl GameState for SongSelect {
                             RichText::new("none").size(15.0),
                         );
 
-                        for (id, song) in self.test_tracks.iter().enumerate() {
+                        for (id, song) in self.songs.iter().enumerate() {
                             ui.selectable_value(
                                 &mut self.selected,
                                 Some(id),
@@ -270,7 +249,7 @@ impl GameState for SongSelect {
                 const DIFFICULTY_NAMES: [&str; 5] = ["Easy", "Normal", "Hard", "Oni", "Ura"];
 
                 egui::TopBottomPanel::top("difficulty select panel").show_inside(ui, |ui| {
-                    for (i, difficulty) in self.test_tracks[song_index]
+                    for (i, difficulty) in self.songs[song_index]
                         .difficulties
                         .iter()
                         .enumerate()

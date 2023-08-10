@@ -9,13 +9,61 @@ use wgpu::{
     vertex_attr_array,
 };
 
-use super::context::Renderable;
+use super::{context::Renderable, SpriteInstance};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct PrimitiveVertex {
-    pub position: [f32; 2],
+    pub position: [f32; 3],
     pub colour: [f32; 4],
+}
+
+impl PrimitiveVertex {
+    const ATTRS: &[wgpu::VertexAttribute] = &vertex_attr_array![0 => Float32x3, 1 => Float32x4];
+
+    pub fn vertex_layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<PrimitiveVertex>() as _,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: Self::ATTRS,
+        }
+    }
+}
+
+/// A vetex builder that wraps around another builder and sets each vertex's z value to the one it
+/// contains.
+///
+/// Should not be used directly. Instead just call one of the Primitive 'depth' constructor
+/// functions.
+pub struct WithDepth<T> {
+    inner: T,
+    z: f32,
+}
+
+impl<T> WithDepth<T> {
+    pub fn new(inner: T, z: f32) -> Self {
+        Self { inner, z }
+    }
+}
+
+impl<T> FillVertexConstructor<PrimitiveVertex> for WithDepth<T> 
+where T: FillVertexConstructor<PrimitiveVertex> 
+{
+    fn new_vertex(&mut self, vertex: FillVertex) -> PrimitiveVertex {
+        let mut v = self.inner.new_vertex(vertex);
+        v.position[2] = self.z;
+        v
+    }
+}
+
+impl<T> StrokeVertexConstructor<PrimitiveVertex> for WithDepth<T> 
+where T: StrokeVertexConstructor<PrimitiveVertex> 
+{
+    fn new_vertex(&mut self, vertex: StrokeVertex) -> PrimitiveVertex {
+        let mut v = self.inner.new_vertex(vertex);
+        v.position[2] = self.z;
+        v
+    }
 }
 
 /// A vertex builder that sets every vertex to a single colour.
@@ -35,7 +83,7 @@ impl SolidColour {
 impl FillVertexConstructor<PrimitiveVertex> for SolidColour {
     fn new_vertex(&mut self, vertex: FillVertex) -> PrimitiveVertex {
         PrimitiveVertex {
-            position: [vertex.position().x, vertex.position().y],
+            position: [vertex.position().x, vertex.position().y, 0.0],
             colour: self.colour,
         }
     }
@@ -44,7 +92,7 @@ impl FillVertexConstructor<PrimitiveVertex> for SolidColour {
 impl StrokeVertexConstructor<PrimitiveVertex> for SolidColour {
     fn new_vertex(&mut self, vertex: StrokeVertex) -> PrimitiveVertex {
         PrimitiveVertex {
-            position: [vertex.position().x, vertex.position().y],
+            position: [vertex.position().x, vertex.position().y, 0.0],
             colour: self.colour,
         }
     }
@@ -100,7 +148,7 @@ fn lerp_colour(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
 
 impl FillVertexConstructor<PrimitiveVertex> for LinearGradient {
     fn new_vertex(&mut self, vertex: FillVertex) -> PrimitiveVertex {
-        let position = [vertex.position().x, vertex.position().y];
+        let position = [vertex.position().x, vertex.position().y, 0.0];
 
         let t = self.d
             * ((position[0] - self.from[0]) * (-self.th).cos()
@@ -114,7 +162,7 @@ impl FillVertexConstructor<PrimitiveVertex> for LinearGradient {
 
 impl StrokeVertexConstructor<PrimitiveVertex> for LinearGradient {
     fn new_vertex(&mut self, vertex: StrokeVertex) -> PrimitiveVertex {
-        let position = [vertex.position().x, vertex.position().y];
+        let position = [vertex.position().x, vertex.position().y, 0.0];
 
         let t = self.d
             * ((position[0] - self.from[0]) * (-self.th).cos()
@@ -126,28 +174,18 @@ impl StrokeVertexConstructor<PrimitiveVertex> for LinearGradient {
     }
 }
 
-impl PrimitiveVertex {
-    const ATTRS: &[wgpu::VertexAttribute] = &vertex_attr_array![0 => Float32x2, 1 => Float32x4];
-
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<PrimitiveVertex>() as _,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: Self::ATTRS,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct Primitive {
     vertex: wgpu::Buffer,
     index: wgpu::Buffer,
+    instance: wgpu::Buffer,
     indices: u32,
+    has_depth: bool,
 }
 
 impl Primitive {
     /// Constructs a Primitive out of filled shapes.
-    pub fn filled_shape<F>(device: &wgpu::Device, mut build_shapes: F) -> anyhow::Result<Self>
+    pub fn filled_shape<F>(device: &wgpu::Device, position: [f32; 3], has_depth: bool, mut build_shapes: F) -> anyhow::Result<Self>
     where
         F: FnMut(
             &mut FillTessellator,
@@ -171,15 +209,23 @@ impl Primitive {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let instance = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("primitive instance buffer"),
+            contents: bytemuck::cast_slice(&[SpriteInstance { position }]),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+
         Ok(Primitive {
             vertex,
             index,
+            instance,
             indices: output.indices.len() as _,
+            has_depth,
         })
     }
 
     /// Constructs a Primitive out of the outlines of shapes.
-    pub fn stroke_shape<F>(device: &wgpu::Device, mut build_shapes: F) -> anyhow::Result<Self>
+    pub fn stroke_shape<F>(device: &wgpu::Device, position: [f32; 3], has_depth: bool, mut build_shapes: F) -> anyhow::Result<Self>
     where
         F: FnMut(
             &mut StrokeTessellator,
@@ -203,21 +249,40 @@ impl Primitive {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let instance = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("primitive instance buffer"),
+            contents: bytemuck::cast_slice(&[SpriteInstance { position }]),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+
         Ok(Primitive {
             vertex,
             index,
+            instance,
             indices: output.indices.len() as _,
+            has_depth,
         })
+    }
+
+    pub fn set_position(&self, position: [f32; 3], queue: &wgpu::Queue) {
+        queue.write_buffer(&self.instance, 0, bytemuck::cast_slice(&[SpriteInstance { position }]));
     }
 }
 
 impl Renderable for Primitive {
     fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
+        let pipeline = if self.has_depth {
+            "primitive_depth"
+        } else {
+            "primitive"
+        };
+
         ctx.render_pass.set_pipeline(
-            ctx.pipeline("primitive")
-                .expect("primitive render pipeline doesn't exist!"),
+            ctx.pipeline(pipeline)
+                .expect(&format!("{pipeline} render pipeline doesn't exist!")),
         );
         ctx.render_pass.set_vertex_buffer(0, self.vertex.slice(..));
+        ctx.render_pass.set_vertex_buffer(1, self.instance.slice(..));
         ctx.render_pass
             .set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
         ctx.render_pass.draw_indexed(0..self.indices, 0, 0..1);

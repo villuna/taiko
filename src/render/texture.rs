@@ -277,7 +277,6 @@ impl Texture {
 #[derive(Debug)]
 pub struct Sprite {
     texture: Rc<Texture>,
-    instance: SpriteInstance,
     instance_buffer: wgpu::Buffer,
     use_depth: bool,
 }
@@ -286,14 +285,13 @@ impl Sprite {
     pub fn new(
         texture: Rc<Texture>,
         position: [f32; 3],
-        renderer: &render::Renderer,
+        device: &wgpu::Device,
         use_depth: bool,
     ) -> Self {
         let instance = SpriteInstance { position };
 
         let instance_buffer =
-            renderer
-                .device
+            device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None, //TODO probably give this a name aye
                     contents: bytemuck::cast_slice(&[instance]),
@@ -302,7 +300,6 @@ impl Sprite {
 
         Sprite {
             texture,
-            instance,
             instance_buffer,
             use_depth,
         }
@@ -312,16 +309,11 @@ impl Sprite {
         self.texture.dimensions
     }
 
-    pub fn position(&self) -> [f32; 3] {
-        self.instance.position
-    }
-
     pub fn set_position(&mut self, position: [f32; 3], queue: &wgpu::Queue) {
-        self.instance.position = position;
         queue.write_buffer(
             &self.instance_buffer,
             0,
-            bytemuck::cast_slice(&[self.instance]),
+            bytemuck::cast_slice(&[SpriteInstance { position }]),
         )
     }
 }

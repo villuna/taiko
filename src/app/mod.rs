@@ -15,10 +15,11 @@ use winit::{
 
 use crate::render::{
     self,
-    texture::{Sprite, Texture},
+    texture::Texture,
 };
 
 const FPS_POLL_TIME: f32 = 0.5;
+const SPRITES_PATH: &str = "assets/images";
 
 pub enum StateTransition {
     Continue,
@@ -33,6 +34,7 @@ pub struct Context<'a> {
     pub audio: &'a mut AudioManager,
     pub renderer: &'a mut render::Renderer,
     pub keyboard: &'a KeyboardState,
+    pub textures: &'a mut TextureCache,
 }
 
 pub trait GameState {
@@ -89,10 +91,29 @@ impl KeyboardState {
     }
 }
 
+#[derive(Default)]
+pub struct TextureCache {
+    cache: HashMap<&'static str, Rc<Texture>>,
+}
+
+impl TextureCache {
+    pub fn get(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, filename: &'static str) -> anyhow::Result<Rc<Texture>> {
+        match self.cache.get(&filename) {
+            Some(tex) => Ok(Rc::clone(tex)),
+            None => {
+                let tex = Rc::new(Texture::from_file(format!("{SPRITES_PATH}/{filename}"), device, queue)?);
+                self.cache.insert(filename, Rc::clone(&tex));
+                Ok(tex)
+            }
+        }
+    }
+}
+
 pub struct App {
     audio_manager: AudioManager,
     state: Vec<Box<dyn GameState>>,
     keyboard: KeyboardState,
+    textures: TextureCache,
 
     fps_timer: f32,
     frames_counted: u32,
@@ -103,60 +124,19 @@ pub struct App {
 impl App {
     pub fn new(renderer: &render::Renderer) -> anyhow::Result<Self> {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
-        let bg_filename = "assets/images/song_select_bg.jpg";
-        let bg_texture = Rc::new(Texture::from_file(
-            bg_filename,
-            &renderer.device,
-            &renderer.queue,
-        )?);
-
-        let bg_sprite = Sprite::new(Rc::clone(&bg_texture), [0.0, 0.0, 0.0], renderer, false);
-
-        let don_tex = Rc::new(Texture::from_file(
-            "assets/images/don.png",
-            &renderer.device,
-            &renderer.queue,
-        )?);
-        let kat_tex = Rc::new(Texture::from_file(
-            "assets/images/kat.png",
-            &renderer.device,
-            &renderer.queue,
-        )?);
-        let big_don_tex = Rc::new(Texture::from_file(
-            "assets/images/big_don.png",
-            &renderer.device,
-            &renderer.queue,
-        )?);
-        let big_kat_tex = Rc::new(Texture::from_file(
-            "assets/images/big_kat.png",
-            &renderer.device,
-            &renderer.queue,
-        )?);
-        let roll_tex = Rc::new(Texture::from_file(
-            "assets/images/drumroll_start.png",
-            &renderer.device,
-            &renderer.queue,
-        )?);
-        let big_roll_tex = Rc::new(Texture::from_file(
-            "assets/images/big_drumroll_start.png",
-            &renderer.device,
-            &renderer.queue,
-        )?);
-
-        let state = Box::new(SongSelect::new(
-            bg_sprite,
-            don_tex,
-            kat_tex,
-            big_don_tex,
-            big_kat_tex,
-            roll_tex,
-            big_roll_tex,
-        )?);
+        let mut textures = TextureCache::default();
+        // Let's load some important textures first
+        for tex in ["don.png", "kat.png", "big_don.png", "big_kat.png", "drumroll_start.png", "big_drumroll_start.png"] {
+            textures.get(&renderer.device, &renderer.queue, tex).unwrap();
+        }
+        
+        let state = Box::new(SongSelect::new(&mut textures, &renderer.device, &renderer.queue)?);
 
         Ok(App {
             audio_manager,
             state: vec![state],
             keyboard: KeyboardState(HashMap::new()),
+            textures,
             fps_timer: 0.0,
             frames_counted: 0,
             fps: 0.0,
@@ -184,6 +164,7 @@ impl App {
             audio: &mut self.audio_manager,
             renderer,
             keyboard: &self.keyboard,
+            textures: &mut self.textures,
         };
 
         match self.state.last_mut().unwrap().update(&mut ctx) {
