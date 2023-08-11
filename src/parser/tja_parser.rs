@@ -280,7 +280,7 @@ fn course_command(input: &str) -> IResult<&str, CourseCommand, TJAParseErrorKind
         ),
     )(input)?;
 
-    let command = CourseCommand::inner_from_name_arg(key, value).map_err(|e| nom::Err::Error(e))?;
+    let command = CourseCommand::inner_from_name_arg(key, value).map_err(nom::Err::Error)?;
 
     Ok((input, command))
 }
@@ -338,7 +338,7 @@ fn course_item(input: &str) -> IResult<&str, CourseItem, TJAParseErrorKind> {
     alt((
         end_command.map(|_| CourseItem::EndCommand),
         notes,
-        course_command.map(|c| CourseItem::Command(c)),
+        course_command.map(CourseItem::Command),
     ))(input)
 }
 
@@ -442,14 +442,11 @@ fn notes_in_next_measure<'a, I: Iterator<Item = CourseItem<'a>>>(iter: &mut Look
     for i in 0.. {
         let Some(item) = iter.lookahead(i) else { break; };
 
-        match item {
-            CourseItem::Notes { notes, end_measure } => {
-                num_notes += notes.len();
-                if *end_measure {
-                    break;
-                }
+        if let CourseItem::Notes { notes, end_measure } = item {
+            num_notes += notes.len();
+            if *end_measure {
+                break;
             }
-            _ => {}
         }
     }
 

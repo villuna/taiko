@@ -295,7 +295,7 @@ impl Renderable for Primitive {
 
         ctx.render_pass.set_pipeline(
             ctx.pipeline(pipeline)
-                .expect(&format!("{pipeline} render pipeline doesn't exist!")),
+                .unwrap_or_else(|| panic!("{pipeline} render pipeline doesn't exist!")),
         );
         ctx.render_pass.set_vertex_buffer(0, self.vertex.slice(..));
         ctx.render_pass

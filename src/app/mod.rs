@@ -237,13 +237,11 @@ impl App {
             ..
         } = event
         {
-            let res = self.keyboard.handle_input(input);
+            self.keyboard.handle_input(input);
 
             if self.keyboard.is_just_pressed(VirtualKeyCode::F1) {
                 self.show_fps_counter = !self.show_fps_counter;
             }
-
-            res
         }
     }
 }

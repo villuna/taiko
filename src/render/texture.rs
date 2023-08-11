@@ -47,7 +47,7 @@ fn texture_vertices(width: u32, height: u32) -> [TextureVertex; 4] {
     ]
 }
 
-const TEXTURE_INDICES: &[u16] = &[0, 1, 2, 1, 3, 2];
+const TEXTURE_INDICES: [u16; 6] = [0, 1, 2, 1, 3, 2];
 
 impl TextureVertex {
     const ATTRS: &[wgpu::VertexAttribute] = &vertex_attr_array![0 => Float32x2, 1 => Float32x2];
@@ -260,7 +260,7 @@ impl Texture {
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("{} index buffer", name)),
-            contents: bytemuck::cast_slice(TEXTURE_INDICES),
+            contents: bytemuck::cast_slice(&TEXTURE_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
 
