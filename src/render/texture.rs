@@ -290,13 +290,11 @@ impl Sprite {
     ) -> Self {
         let instance = SpriteInstance { position };
 
-        let instance_buffer =
-            device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: None, //TODO probably give this a name aye
-                    contents: bytemuck::cast_slice(&[instance]),
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                });
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None, //TODO probably give this a name aye
+            contents: bytemuck::cast_slice(&[instance]),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
 
         Sprite {
             texture,

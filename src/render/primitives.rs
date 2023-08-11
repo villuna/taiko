@@ -46,8 +46,9 @@ impl<T> WithDepth<T> {
     }
 }
 
-impl<T> FillVertexConstructor<PrimitiveVertex> for WithDepth<T> 
-where T: FillVertexConstructor<PrimitiveVertex> 
+impl<T> FillVertexConstructor<PrimitiveVertex> for WithDepth<T>
+where
+    T: FillVertexConstructor<PrimitiveVertex>,
 {
     fn new_vertex(&mut self, vertex: FillVertex) -> PrimitiveVertex {
         let mut v = self.inner.new_vertex(vertex);
@@ -56,8 +57,9 @@ where T: FillVertexConstructor<PrimitiveVertex>
     }
 }
 
-impl<T> StrokeVertexConstructor<PrimitiveVertex> for WithDepth<T> 
-where T: StrokeVertexConstructor<PrimitiveVertex> 
+impl<T> StrokeVertexConstructor<PrimitiveVertex> for WithDepth<T>
+where
+    T: StrokeVertexConstructor<PrimitiveVertex>,
 {
     fn new_vertex(&mut self, vertex: StrokeVertex) -> PrimitiveVertex {
         let mut v = self.inner.new_vertex(vertex);
@@ -185,7 +187,12 @@ pub struct Primitive {
 
 impl Primitive {
     /// Constructs a Primitive out of filled shapes.
-    pub fn filled_shape<F>(device: &wgpu::Device, position: [f32; 3], has_depth: bool, mut build_shapes: F) -> anyhow::Result<Self>
+    pub fn filled_shape<F>(
+        device: &wgpu::Device,
+        position: [f32; 3],
+        has_depth: bool,
+        mut build_shapes: F,
+    ) -> anyhow::Result<Self>
     where
         F: FnMut(
             &mut FillTessellator,
@@ -225,7 +232,12 @@ impl Primitive {
     }
 
     /// Constructs a Primitive out of the outlines of shapes.
-    pub fn stroke_shape<F>(device: &wgpu::Device, position: [f32; 3], has_depth: bool, mut build_shapes: F) -> anyhow::Result<Self>
+    pub fn stroke_shape<F>(
+        device: &wgpu::Device,
+        position: [f32; 3],
+        has_depth: bool,
+        mut build_shapes: F,
+    ) -> anyhow::Result<Self>
     where
         F: FnMut(
             &mut StrokeTessellator,
@@ -265,7 +277,11 @@ impl Primitive {
     }
 
     pub fn set_position(&self, position: [f32; 3], queue: &wgpu::Queue) {
-        queue.write_buffer(&self.instance, 0, bytemuck::cast_slice(&[SpriteInstance { position }]));
+        queue.write_buffer(
+            &self.instance,
+            0,
+            bytemuck::cast_slice(&[SpriteInstance { position }]),
+        );
     }
 }
 
@@ -282,7 +298,8 @@ impl Renderable for Primitive {
                 .expect(&format!("{pipeline} render pipeline doesn't exist!")),
         );
         ctx.render_pass.set_vertex_buffer(0, self.vertex.slice(..));
-        ctx.render_pass.set_vertex_buffer(1, self.instance.slice(..));
+        ctx.render_pass
+            .set_vertex_buffer(1, self.instance.slice(..));
         ctx.render_pass
             .set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
         ctx.render_pass.draw_indexed(0..self.indices, 0, 0..1);

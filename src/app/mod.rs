@@ -13,10 +13,7 @@ use winit::{
     event_loop::ControlFlow,
 };
 
-use crate::render::{
-    self,
-    texture::Texture,
-};
+use crate::render::{self, texture::Texture};
 
 const FPS_POLL_TIME: f32 = 0.5;
 const SPRITES_PATH: &str = "assets/images";
@@ -97,11 +94,20 @@ pub struct TextureCache {
 }
 
 impl TextureCache {
-    pub fn get(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, filename: &'static str) -> anyhow::Result<Rc<Texture>> {
+    pub fn get(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        filename: &'static str,
+    ) -> anyhow::Result<Rc<Texture>> {
         match self.cache.get(&filename) {
             Some(tex) => Ok(Rc::clone(tex)),
             None => {
-                let tex = Rc::new(Texture::from_file(format!("{SPRITES_PATH}/{filename}"), device, queue)?);
+                let tex = Rc::new(Texture::from_file(
+                    format!("{SPRITES_PATH}/{filename}"),
+                    device,
+                    queue,
+                )?);
                 self.cache.insert(filename, Rc::clone(&tex));
                 Ok(tex)
             }
@@ -126,11 +132,24 @@ impl App {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
         let mut textures = TextureCache::default();
         // Let's load some important textures first
-        for tex in ["don.png", "kat.png", "big_don.png", "big_kat.png", "drumroll_start.png", "big_drumroll_start.png"] {
-            textures.get(&renderer.device, &renderer.queue, tex).unwrap();
+        for tex in [
+            "don.png",
+            "kat.png",
+            "big_don.png",
+            "big_kat.png",
+            "drumroll_start.png",
+            "big_drumroll_start.png",
+        ] {
+            textures
+                .get(&renderer.device, &renderer.queue, tex)
+                .unwrap();
         }
-        
-        let state = Box::new(SongSelect::new(&mut textures, &renderer.device, &renderer.queue)?);
+
+        let state = Box::new(SongSelect::new(
+            &mut textures,
+            &renderer.device,
+            &renderer.queue,
+        )?);
 
         Ok(App {
             audio_manager,

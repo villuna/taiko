@@ -16,9 +16,10 @@ use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 use crate::{
     render::{
         self,
+        note::VisualNote,
         primitives::{LinearGradient, Primitive, SolidColour},
         text::Text,
-        texture::Sprite, note::VisualNote,
+        texture::Sprite,
     },
     track::{NoteType, Song},
 };
@@ -88,18 +89,19 @@ impl UI {
             Ok(())
         })?;
 
-        let note_field = Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
-            tess.tessellate_rectangle(
-                &Box2D::new(
-                    point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                    point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                ),
-                &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new(NOTE_FIELD_COLOUR)),
-            )?;
+        let note_field =
+            Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
+                tess.tessellate_rectangle(
+                    &Box2D::new(
+                        point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                        point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                    ),
+                    &FillOptions::DEFAULT,
+                    &mut BuffersBuilder::new(out, SolidColour::new(NOTE_FIELD_COLOUR)),
+                )?;
 
-            Ok(())
-        })?;
+                Ok(())
+            })?;
 
         let note_line = Primitive::stroke_shape(&renderer.device, [0.0; 3], false, |tess, out| {
             let mut path = Path::builder();
@@ -122,27 +124,28 @@ impl UI {
             Ok(())
         })?;
 
-        let left_panel = Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
-            tess.tessellate_rectangle(
-                &Box2D::new(
-                    point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                    point(NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                ),
-                &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new(LEFT_PANEL_COLOUR)),
-            )?;
+        let left_panel =
+            Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
+                tess.tessellate_rectangle(
+                    &Box2D::new(
+                        point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                        point(NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                    ),
+                    &FillOptions::DEFAULT,
+                    &mut BuffersBuilder::new(out, SolidColour::new(LEFT_PANEL_COLOUR)),
+                )?;
 
-            tess.tessellate_rectangle(
-                &Box2D::new(
-                    point(NOTE_HIT_X - 203.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                    point(NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                ),
-                &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 1.0])),
-            )?;
+                tess.tessellate_rectangle(
+                    &Box2D::new(
+                        point(NOTE_HIT_X - 203.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                        point(NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                    ),
+                    &FillOptions::DEFAULT,
+                    &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 1.0])),
+                )?;
 
-            Ok(())
-        })?;
+                Ok(())
+            })?;
 
         let title = SectionBuilder::default()
             .with_screen_position((1820.0, 40.0))
@@ -185,7 +188,7 @@ impl TaikoMode {
         difficulty: usize,
         song_data: StaticSoundData,
         manager: &mut AudioManager,
-        textures: &mut TextureCache, 
+        textures: &mut TextureCache,
         renderer: &mut render::Renderer,
         bg_sprite: &Rc<Sprite>,
     ) -> Self {
@@ -201,7 +204,15 @@ impl TaikoMode {
             .track
             .notes
             .iter()
-            .map(|note| VisualNote::new(device, queue, &note.note_type, VELOCITY * note.scroll_speed, textures))
+            .map(|note| {
+                VisualNote::new(
+                    device,
+                    queue,
+                    &note.note_type,
+                    VELOCITY * note.scroll_speed,
+                    textures,
+                )
+            })
             .collect::<Vec<_>>();
 
         let notes = visual_notes.len();

@@ -3,10 +3,7 @@ use std::{io, path::Path, rc::Rc};
 use crate::{
     app::credits::CreditsScreen,
     parser::parse_tja_file,
-    render::{
-        self,
-        texture::Sprite,
-    },
+    render::{self, texture::Sprite},
     track::Song,
 };
 use egui::RichText;
@@ -96,13 +93,17 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 }
 
 impl SongSelect {
-    pub fn new(textures: &mut TextureCache, device: &wgpu::Device, queue: &wgpu::Queue) -> anyhow::Result<Self> {
+    pub fn new(
+        textures: &mut TextureCache,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
         let bg_sprite = Sprite::new(
             textures.get(device, queue, "song_select_bg.jpg")?,
             [0.0; 3],
             device,
-            false
+            false,
         );
 
         Ok(SongSelect {

@@ -20,10 +20,10 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub mod context;
 mod egui;
+pub mod note;
 pub mod primitives;
 pub mod text;
 pub mod texture;
-pub mod note;
 
 pub use context::RenderContext;
 
@@ -286,7 +286,10 @@ impl Renderer {
             config.format,
             Some(DEPTH_FORMAT),
             false,
-            &[PrimitiveVertex::vertex_layout(), SpriteInstance::vertex_layout()],
+            &[
+                PrimitiveVertex::vertex_layout(),
+                SpriteInstance::vertex_layout(),
+            ],
             &primitive_shader,
             SAMPLE_COUNT,
         );
@@ -298,7 +301,10 @@ impl Renderer {
             config.format,
             Some(DEPTH_FORMAT),
             true,
-            &[PrimitiveVertex::vertex_layout(), SpriteInstance::vertex_layout()],
+            &[
+                PrimitiveVertex::vertex_layout(),
+                SpriteInstance::vertex_layout(),
+            ],
             &primitive_shader,
             SAMPLE_COUNT,
         );

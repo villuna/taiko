@@ -48,7 +48,10 @@ impl VisualNote {
 
                 // Inside
                 tess.tessellate_rectangle(
-                    &Box2D::new(point(height / 2.0 + OUTLINE_WIDTH, OUTLINE_WIDTH), point(length - OUTLINE_WIDTH, height - OUTLINE_WIDTH)),
+                    &Box2D::new(
+                        point(height / 2.0 + OUTLINE_WIDTH, OUTLINE_WIDTH),
+                        point(length - OUTLINE_WIDTH, height - OUTLINE_WIDTH),
+                    ),
                     &FillOptions::DEFAULT,
                     &mut BuffersBuilder::new(out, SolidColour::new(ROLL_COLOUR)),
                 )?;
