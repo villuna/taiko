@@ -29,6 +29,8 @@ impl VisualNote {
     ) -> Option<Self> {
         let mut get_texture = |filename| textures.get(device, queue, filename).unwrap();
         let create_roll_body = |length, height| {
+            const OUTLINE_WIDTH: f32 = 3.0;
+
             Primitive::filled_shape(device, [0.0; 3], true, |tess, out| {
                 // Outline
                 tess.tessellate_rectangle(
@@ -46,14 +48,14 @@ impl VisualNote {
 
                 // Inside
                 tess.tessellate_rectangle(
-                    &Box2D::new(point(height / 2.0 + 3.0, 3.0), point(length - 3.0, height - 3.0)),
+                    &Box2D::new(point(height / 2.0 + OUTLINE_WIDTH, OUTLINE_WIDTH), point(length - OUTLINE_WIDTH, height - OUTLINE_WIDTH)),
                     &FillOptions::DEFAULT,
                     &mut BuffersBuilder::new(out, SolidColour::new(ROLL_COLOUR)),
                 )?;
 
                 tess.tessellate_circle(
                     point(length, height / 2.0),
-                    height / 2.0 - 3.0,
+                    height / 2.0 - OUTLINE_WIDTH,
                     &FillOptions::DEFAULT,
                     &mut BuffersBuilder::new(out, SolidColour::new(ROLL_COLOUR)),
                 )?;

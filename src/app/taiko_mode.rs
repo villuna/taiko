@@ -37,6 +37,11 @@ const NOTE_HIT_X: f32 = 550.0;
 const NOTE_Y: f32 = 400.0;
 const NOTE_FIELD_HEIGHT: f32 = 250.0;
 
+// Colours
+const NOTE_FIELD_COLOUR: [f32; 4] = [0.12, 0.12, 0.12, 1.0];
+const LEFT_PANEL_COLOUR: [f32; 4] = [0.9, 0.3, 0.2, 1.0];
+const NOTE_LINE_COLOUR: [f32; 4] = [0.26, 0.26, 0.26, 1.0];
+
 // The base velocity is such that at 120 beats per minute, exactly one full measure is shown on the
 // screen. This will eventually have to be set based on the current resolution instead of this
 // hardcoded value.
@@ -65,7 +70,7 @@ impl UI {
                 &mut BuffersBuilder::new(
                     out,
                     LinearGradient::new(
-                        [0.05, 0.05, 0.05, 0.9],
+                        [0.15, 0.15, 0.15, 0.9],
                         [0.0, 0.0, 0.0, 1.0],
                         [0.0, 0.0],
                         [0.0, 1.0],
@@ -90,7 +95,7 @@ impl UI {
                     point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
                 ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new([0.12, 0.12, 0.12, 1.0])),
+                &mut BuffersBuilder::new(out, SolidColour::new(NOTE_FIELD_COLOUR)),
             )?;
 
             Ok(())
@@ -103,7 +108,7 @@ impl UI {
             path.end(false);
 
             let options = StrokeOptions::DEFAULT.with_line_width(4.0);
-            let mut builder = BuffersBuilder::new(out, SolidColour::new([0.26, 0.26, 0.26, 1.0]));
+            let mut builder = BuffersBuilder::new(out, SolidColour::new(NOTE_LINE_COLOUR));
 
             // A line that shows exactly where notes should be hit
             tess.tessellate_path(&path.build(), &options, &mut builder)?;
@@ -124,7 +129,7 @@ impl UI {
                     point(NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
                 ),
                 &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new([0.9, 0.3, 0.2, 1.0])),
+                &mut BuffersBuilder::new(out, SolidColour::new(LEFT_PANEL_COLOUR)),
             )?;
 
             tess.tessellate_rectangle(
