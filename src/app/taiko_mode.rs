@@ -1,4 +1,3 @@
-// TODO: Refactor this. Create a new temporary song struct to be used just by this module.
 use std::{rc::Rc, time::Instant};
 
 use kira::{
@@ -21,7 +20,7 @@ use crate::{
         text::Text,
         texture::Sprite,
     },
-    track::{NoteType, Song},
+    track::{NoteType, Song, NoteTrack},
 };
 
 use super::{GameState, StateTransition, TextureCache};
@@ -29,7 +28,11 @@ use super::{GameState, StateTransition, TextureCache};
 // This is a hard-coded value, big enough to make sure that at default scroll speed every note is
 // drawn for this long. It will be scaled depending on scroll speed, so every note will be drawn
 // for at least as long as it needs to. It's not very elegant but it works.
+//
+// TODO: No it does not work. For some reason notes that are reeeeeealy slow dissapear before
+// they're supposed to. See DONKAMA 2000's last note as an example.
 const DEFAULT_DRAW_TIME: f32 = 3.0;
+
 // The number of seconds to wait before starting the song
 const WAIT_SECONDS: f32 = 3.0;
 // The point on the screen where notes should be hit
@@ -47,9 +50,21 @@ const NOTE_LINE_COLOUR: [f32; 4] = [0.26, 0.26, 0.26, 1.0];
 // screen. This will eventually have to be set based on the current resolution instead of this
 // hardcoded value.
 const VELOCITY: f32 = (1920.0 - NOTE_HIT_X) / 2.0;
+
+// TODO put it in config
 const DON_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::S, VirtualKeyCode::Numpad4];
 const KAT_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::A, VirtualKeyCode::Numpad5];
-const OK_WINDOW: f32 = 0.1;
+
+// Must again give thanks to OpenTaiko as that's where I found these values.
+const EASY_NORMAL_TIMING: [f32; 3] = [0.042, 0.108, 0.125];
+const HARD_EXTREME_TIMING: [f32; 3] = [0.025, 0.075, 0.108];
+
+// Indices for the previous timings just to make code look nicer
+const GOOD: usize = 0;
+const OK: usize = 1;
+const BAD: usize = 2;
+
+const JUDGEMENT_TEXT_DISAPPEAR_TIME: f32 = 0.2;
 
 struct UI {
     bg_rect: Primitive,
@@ -166,41 +181,69 @@ impl UI {
     }
 }
 
+// Contains only the necessary info for the current song in a convenient place so we don't have to
+// go digging around through shared pointers to find the important info like notes
+struct CurrentSong {
+    title: String,
+    difficulty_level: usize,
+    track: NoteTrack,
+}
+
+impl CurrentSong {
+    fn from_song(song: &Song, difficulty: usize) -> Option<Self> {
+        Some(Self {
+            title: song.title.clone(),
+            difficulty_level: difficulty,
+            track: song.difficulties.get(difficulty)?
+                       .as_ref()?
+                       .track
+                       .clone()
+        })
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+enum HitState {
+    Bad,
+    Ok,
+    Good
+}
+
 pub struct TaikoMode {
-    song: Rc<Song>,
-    difficulty: usize,
+    song: CurrentSong,
+    audio_handle: StaticSoundHandle,
     start_time: Option<Instant>,
-    song_handle: StaticSoundHandle,
     exit: bool,
     visual_notes: Vec<Option<VisualNote>>,
     elapsed: f32,
     paused: bool,
     started: bool,
-    hits: Vec<bool>,
-    last_hit: Option<NoteType>,
+
+    hits: Vec<Option<HitState>>,
+    last_hit: Option<(HitState, f32)>,
     ui: UI,
     bg_sprite: Rc<Sprite>,
 }
 
 impl TaikoMode {
     pub fn new(
-        song: Rc<Song>,
+        song: &Song,
         difficulty: usize,
         song_data: StaticSoundData,
         manager: &mut AudioManager,
         textures: &mut TextureCache,
         renderer: &mut render::Renderer,
         bg_sprite: &Rc<Sprite>,
-    ) -> Self {
+    ) -> Option<Self> {
         let mut song_handle = manager.play(song_data).unwrap();
         song_handle.pause(Default::default()).unwrap();
 
         let device = &renderer.device;
         let queue = &renderer.queue;
 
-        let visual_notes = song.difficulties[difficulty]
-            .as_ref()
-            .unwrap()
+        let song = CurrentSong::from_song(song, difficulty)?;
+
+        let visual_notes = song
             .track
             .notes
             .iter()
@@ -219,21 +262,20 @@ impl TaikoMode {
 
         let ui = UI::new(renderer, &song.title).unwrap();
 
-        Self {
+        Some(Self {
             song,
-            difficulty,
             start_time: Some(Instant::now()),
-            song_handle,
+            audio_handle: song_handle,
             exit: false,
             visual_notes,
             elapsed: 0.0,
             paused: false,
             started: false,
-            hits: vec![false; notes],
+            hits: vec![None; notes],
             last_hit: None,
             ui,
             bg_sprite: Rc::clone(bg_sprite),
-        }
+        })
     }
 
     fn current_time(&self) -> f32 {
@@ -252,13 +294,13 @@ impl TaikoMode {
         self.elapsed = self.total_elapsed_time();
         self.start_time = None;
         self.paused = true;
-        self.song_handle.pause(Default::default()).unwrap();
+        self.audio_handle.pause(Default::default()).unwrap();
     }
 
     fn resume_song(&mut self) {
         self.start_time = Some(Instant::now());
         self.paused = false;
-        self.song_handle.resume(Default::default()).unwrap();
+        self.audio_handle.resume(Default::default()).unwrap();
     }
 }
 
@@ -268,13 +310,13 @@ impl GameState for TaikoMode {
             let current = self.current_time();
 
             if current >= 0.0 && !self.started {
-                self.song_handle.resume(Default::default()).unwrap();
+                self.audio_handle.resume(Default::default()).unwrap();
                 self.started = true;
             }
         }
 
         if self.exit {
-            self.song_handle.stop(Default::default()).unwrap();
+            self.audio_handle.stop(Default::default()).unwrap();
             StateTransition::Pop
         } else {
             StateTransition::Continue
@@ -283,9 +325,7 @@ impl GameState for TaikoMode {
 
     fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
         let current = self.current_time();
-        let notes = &self.song.difficulties[self.difficulty]
-            .as_ref()
-            .unwrap()
+        let notes = &self.song
             .track
             .notes;
 
@@ -298,7 +338,7 @@ impl GameState for TaikoMode {
 
                 if ((current - 1.0)..current + DEFAULT_DRAW_TIME / note.scroll_speed)
                     .contains(&(note.time))
-                    && !self.hits[i]
+                    && self.hits[i].is_none()
                 {
                     sprite.as_mut().map(|s| (s, i))
                 } else {
@@ -333,13 +373,18 @@ impl GameState for TaikoMode {
         egui::Window::new("taiko mode debug menu").show(&ctx, |ui| {
             let current = self.current_time();
             ui.label(format!("song time: {current}"));
-            ui.label(format!("last hit: {:?}", self.last_hit));
 
             if ui.button("Pause/Play").clicked() && current >= 0.0 {
-                match self.song_handle.state() {
+                match self.audio_handle.state() {
                     PlaybackState::Playing => self.pause_song(),
                     PlaybackState::Paused => self.resume_song(),
                     _ => {}
+                }
+            }
+
+            if let Some((result, time)) = self.last_hit {
+                if current - time <= JUDGEMENT_TEXT_DISAPPEAR_TIME {
+                    ui.label(format!("{result:?}"));
                 }
             }
 
@@ -358,46 +403,70 @@ impl GameState for TaikoMode {
                 let pressed = !keyboard.is_pressed(code) && input.state == ElementState::Pressed;
 
                 if pressed {
-                    // Don
                     let current = self.current_time();
+                    let timings = if self.song.difficulty_level <= 1 {
+                        EASY_NORMAL_TIMING
+                    } else {
+                        HARD_EXTREME_TIMING
+                    };
 
                     if DON_KEYS.contains(&code) {
-                        let next_don = self.song.difficulties[self.difficulty]
-                            .as_ref()
-                            .unwrap()
+                        let next_don = self.song
                             .track
                             .notes
                             .iter()
                             .enumerate()
                             .find(|(i, note)| {
-                                (note.time - current).abs() <= OK_WINDOW
+                                let note_time_difference = (note.time - current).abs();
+
+                                note_time_difference <= timings[BAD]
                                     && matches!(note.note_type, NoteType::Don | NoteType::BigDon)
-                                    && !self.hits[*i]
+                                    && self.hits[*i].is_none()
                             });
 
                         if let Some((i, note)) = next_don {
-                            self.hits[i] = true;
-                            self.last_hit = Some(note.note_type)
+                            let note_time_difference = (note.time - current).abs();
+
+                            let result = if note_time_difference <= timings[GOOD] {
+                                Some(HitState::Good)
+                            } else if note_time_difference <= timings[OK] {
+                                Some(HitState::Ok)
+                            } else {
+                                Some(HitState::Bad)
+                            };
+
+                            self.last_hit = result.map(|state| (state, current));
+                            self.hits[i] = result;
                         }
                     }
 
                     if KAT_KEYS.contains(&code) {
-                        let next_don = self.song.difficulties[self.difficulty]
-                            .as_ref()
-                            .unwrap()
+                        let next_don = self.song
                             .track
                             .notes
                             .iter()
                             .enumerate()
                             .find(|(i, note)| {
-                                (note.time - current).abs() <= OK_WINDOW
+                                let note_time_difference = (note.time - current).abs();
+
+                                note_time_difference <= timings[BAD]
                                     && matches!(note.note_type, NoteType::Kat | NoteType::BigKat)
-                                    && !self.hits[*i]
+                                    && self.hits[*i].is_none()
                             });
 
                         if let Some((i, note)) = next_don {
-                            self.hits[i] = true;
-                            self.last_hit = Some(note.note_type)
+                            let note_time_difference = (note.time - current).abs();
+
+                            let result = if note_time_difference <= timings[GOOD] {
+                                Some(HitState::Good)
+                            } else if note_time_difference <= timings[OK] {
+                                Some(HitState::Ok)
+                            } else {
+                                Some(HitState::Bad)
+                            };
+
+                            self.last_hit = result.map(|state| (state, current));
+                            self.hits[i] = result;
                         }
                     }
                 }

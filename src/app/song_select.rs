@@ -35,10 +35,11 @@ lazy_static! {
     };
 }
 
+// Potentially this could go in config but i'm not sure that's necessary
 const SONGS_DIR: &str = "songs";
 
 pub struct SongSelect {
-    songs: Vec<Rc<Song>>,
+    songs: Vec<Song>,
     selected: Option<usize>,
     difficulty: usize,
     song_handle: Option<SongHandle>,
@@ -48,7 +49,7 @@ pub struct SongSelect {
     go_to_song: Option<(usize, usize)>,
 }
 
-fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Rc<Song>>> {
+fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Song>> {
     let dir = std::fs::read_dir(path)?;
     let mut res = Vec::new();
 
@@ -57,7 +58,7 @@ fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Rc<Song>>> 
             let subdir_path = file.path();
 
             match read_song_dir(&subdir_path) {
-                Ok(song) => res.push(Rc::new(song)),
+                Ok(song) => res.push(song),
                 Err(e) => eprintln!(
                     "error encountered while trying to read song at directory {}: {e}",
                     subdir_path.to_string_lossy()
@@ -161,14 +162,14 @@ impl GameState for SongSelect {
             }
 
             super::StateTransition::Push(Box::new(TaikoMode::new(
-                Rc::clone(&self.songs[song_id]),
+                &self.songs[song_id],
                 difficulty,
                 sound_data,
                 ctx.audio,
                 ctx.textures,
                 ctx.renderer,
                 &self.bg_sprite,
-            )))
+            ).expect("error going to taiko mode: song was invalid")))
         } else if self.exit {
             super::StateTransition::Exit
         } else {
