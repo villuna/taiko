@@ -13,7 +13,7 @@ use winit::{
     event_loop::ControlFlow,
 };
 
-use crate::render::{self, texture::Texture};
+use crate::{render::{self, texture::Texture}, settings::Settings};
 
 const FPS_POLL_TIME: f32 = 0.5;
 const SPRITES_PATH: &str = "assets/images";
@@ -27,15 +27,15 @@ pub enum StateTransition {
 }
 
 pub struct Context<'a> {
-    pub delta: f32,
     pub audio: &'a mut AudioManager,
     pub renderer: &'a mut render::Renderer,
     pub keyboard: &'a KeyboardState,
     pub textures: &'a mut TextureCache,
+    pub settings: &'a mut Settings, 
 }
 
 pub trait GameState {
-    fn update(&mut self, _ctx: &mut Context) -> StateTransition {
+    fn update(&mut self, _ctx: &mut Context, _delta_time: f32) -> StateTransition {
         StateTransition::Continue
     }
 
@@ -43,7 +43,7 @@ pub trait GameState {
 
     fn render<'a>(&'a mut self, _ctx: &mut render::RenderContext<'a>) {}
 
-    fn handle_event(&mut self, _event: &WindowEvent<'_>, _keyboard: &KeyboardState) {}
+    fn handle_event(&mut self, _ctx: &mut Context, _event: &WindowEvent<'_>) {}
 }
 
 /// A struct that keeps track of the state of the keyboard at each frame.
@@ -120,6 +120,7 @@ pub struct App {
     state: Vec<Box<dyn GameState>>,
     keyboard: KeyboardState,
     textures: TextureCache,
+    settings: Settings,
 
     fps_timer: f32,
     frames_counted: u32,
@@ -128,7 +129,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(renderer: &render::Renderer) -> anyhow::Result<Self> {
+    pub fn new(renderer: &render::Renderer, settings: Settings) -> anyhow::Result<Self> {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
         let mut textures = TextureCache::default();
         // Let's load some important textures first
@@ -156,6 +157,8 @@ impl App {
             state: vec![state],
             keyboard: KeyboardState(HashMap::new()),
             textures,
+            settings,
+
             fps_timer: 0.0,
             frames_counted: 0,
             fps: 0.0,
@@ -179,14 +182,14 @@ impl App {
         }
 
         let mut ctx = Context {
-            delta,
             audio: &mut self.audio_manager,
             renderer,
             keyboard: &self.keyboard,
             textures: &mut self.textures,
+            settings: &mut self.settings,
         };
 
-        match self.state.last_mut().unwrap().update(&mut ctx) {
+        match self.state.last_mut().unwrap().update(&mut ctx, delta) {
             StateTransition::Push(state) => self.state.push(state),
             StateTransition::Pop => {
                 self.state
@@ -222,14 +225,22 @@ impl App {
         self.state.last_mut().unwrap().render(ctx)
     }
 
-    pub fn handle_event(&mut self, event: &WindowEvent<'_>) {
+    pub fn handle_event(&mut self, event: &WindowEvent<'_>, renderer: &mut render::Renderer) {
         // We make the current state handle input before the keyboard can update state,
         // so that the event is able to know what the state of the keyboard was before
         // the new input.
+        let mut ctx = Context {
+            audio: &mut self.audio_manager,
+            renderer,
+            keyboard: &self.keyboard,
+            textures: &mut self.textures,
+            settings: &mut self.settings,
+        };
+
         self.state
             .last_mut()
             .unwrap()
-            .handle_event(event, &self.keyboard);
+            .handle_event(&mut ctx, event);
 
         if let WindowEvent::KeyboardInput {
             input,

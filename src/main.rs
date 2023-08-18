@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use taiko::{app::App, render::Renderer};
+use taiko::{app::App, render::Renderer, settings};
 use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -24,14 +24,16 @@ async fn main() {
     let mut frame_time = Instant::now();
     let mut delta = 1.0 / 60.0;
 
+    let settings = settings::read_settings();
+
     let mut renderer = Renderer::new(window).await.unwrap();
-    let mut app = App::new(&renderer).unwrap();
+    let mut app = App::new(&renderer, settings).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         if !renderer.handle_event(&event) {
             match event {
                 Event::WindowEvent { window_id, event } if window_id == renderer.window().id() => {
-                    app.handle_event(&event);
+                    app.handle_event(&event, &mut renderer);
 
                     match event {
                         WindowEvent::CloseRequested

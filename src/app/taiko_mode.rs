@@ -10,7 +10,7 @@ use lyon::{
     path::Path,
 };
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder};
-use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
+use winit::event::{ElementState, WindowEvent};
 
 use crate::{
     render::{
@@ -51,10 +51,6 @@ const NOTE_LINE_COLOUR: [f32; 4] = [0.26, 0.26, 0.26, 1.0];
 // hardcoded value.
 const VELOCITY: f32 = (1920.0 - NOTE_HIT_X) / 2.0;
 
-// TODO put it in config
-const DON_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::S, VirtualKeyCode::Numpad4];
-const KAT_KEYS: &[VirtualKeyCode] = &[VirtualKeyCode::A, VirtualKeyCode::Numpad5];
-
 // Must again give thanks to OpenTaiko as that's where I found these values.
 const EASY_NORMAL_TIMING: [f32; 3] = [0.042, 0.108, 0.125];
 const HARD_EXTREME_TIMING: [f32; 3] = [0.025, 0.075, 0.108];
@@ -64,7 +60,7 @@ const GOOD: usize = 0;
 const OK: usize = 1;
 const BAD: usize = 2;
 
-const JUDGEMENT_TEXT_DISAPPEAR_TIME: f32 = 0.2;
+const JUDGEMENT_TEXT_DISAPPEAR_TIME: f32 = 0.5;
 
 struct UI {
     bg_rect: Primitive,
@@ -305,7 +301,7 @@ impl TaikoMode {
 }
 
 impl GameState for TaikoMode {
-    fn update(&mut self, _ctx: &mut super::Context) -> StateTransition {
+    fn update(&mut self, _ctx: &mut super::Context, _dt: f32) -> StateTransition {
         if !self.paused {
             let current = self.current_time();
 
@@ -392,7 +388,7 @@ impl GameState for TaikoMode {
         });
     }
 
-    fn handle_event(&mut self, event: &WindowEvent<'_>, keyboard: &super::KeyboardState) {
+    fn handle_event(&mut self, ctx: &mut super::Context, event: &WindowEvent<'_>) {
         if let &WindowEvent::KeyboardInput {
             input,
             is_synthetic: false,
@@ -400,7 +396,7 @@ impl GameState for TaikoMode {
         } = event
         {
             if let Some(code) = input.virtual_keycode {
-                let pressed = !keyboard.is_pressed(code) && input.state == ElementState::Pressed;
+                let pressed = !ctx.keyboard.is_pressed(code) && input.state == ElementState::Pressed;
 
                 if pressed {
                     let current = self.current_time();
@@ -410,14 +406,18 @@ impl GameState for TaikoMode {
                         HARD_EXTREME_TIMING
                     };
 
-                    if DON_KEYS.contains(&code) {
+                    let offset = ctx.settings.game.global_note_offset / 1000.0;
+                    let don_keys = [ctx.settings.game.key_mappings.left_don, ctx.settings.game.key_mappings.right_don];
+                    let kat_keys = [ctx.settings.game.key_mappings.left_ka, ctx.settings.game.key_mappings.right_ka];
+
+                    if don_keys.contains(&code) {
                         let next_don = self.song
                             .track
                             .notes
                             .iter()
                             .enumerate()
                             .find(|(i, note)| {
-                                let note_time_difference = (note.time - current).abs();
+                                let note_time_difference = (note.time + offset - current).abs();
 
                                 note_time_difference <= timings[BAD]
                                     && matches!(note.note_type, NoteType::Don | NoteType::BigDon)
@@ -425,7 +425,7 @@ impl GameState for TaikoMode {
                             });
 
                         if let Some((i, note)) = next_don {
-                            let note_time_difference = (note.time - current).abs();
+                            let note_time_difference = (note.time + offset - current).abs();
 
                             let result = if note_time_difference <= timings[GOOD] {
                                 Some(HitState::Good)
@@ -440,14 +440,14 @@ impl GameState for TaikoMode {
                         }
                     }
 
-                    if KAT_KEYS.contains(&code) {
+                    if kat_keys.contains(&code) {
                         let next_don = self.song
                             .track
                             .notes
                             .iter()
                             .enumerate()
                             .find(|(i, note)| {
-                                let note_time_difference = (note.time - current).abs();
+                                let note_time_difference = (note.time + offset - current).abs();
 
                                 note_time_difference <= timings[BAD]
                                     && matches!(note.note_type, NoteType::Kat | NoteType::BigKat)
@@ -455,7 +455,7 @@ impl GameState for TaikoMode {
                             });
 
                         if let Some((i, note)) = next_don {
-                            let note_time_difference = (note.time - current).abs();
+                            let note_time_difference = (note.time + offset - current).abs();
 
                             let result = if note_time_difference <= timings[GOOD] {
                                 Some(HitState::Good)
