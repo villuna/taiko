@@ -16,10 +16,19 @@ pub struct Settings {
     pub game: GameSettings,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(tag = "mode", content = "resolution")]
+pub enum ResolutionState {
+    #[default]
+    BorderlessFullscreen,
+    Windowed(u32, u32),
+    Fullscreen(u32, u32),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct VisualSettings {
-    pub resolution: (u32, u32),
+    pub resolution: ResolutionState,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -36,14 +45,6 @@ pub struct KeyMap {
     pub right_don: VirtualKeyCode,
     pub left_ka: VirtualKeyCode,
     pub right_ka: VirtualKeyCode,
-}
-
-impl Default for VisualSettings {
-    fn default() -> Self {
-        Self {
-            resolution: (1920, 1080),
-        }
-    }
 }
 
 impl Default for GameSettings {
@@ -71,7 +72,7 @@ impl Default for KeyMap {
 /// If the file does not exist, it will create it with default settings. If it does exist but its
 /// contents are in error, it will also return the default settings. Panics if it encounters any
 /// other errors.
-pub fn read_settings(default_resolution: Option<(u32, u32)>) -> Settings {
+pub fn read_settings() -> Settings {
     match try_read_settings() {
         Ok(s) => s,
         Err(e) => match e {
@@ -83,11 +84,7 @@ pub fn read_settings(default_resolution: Option<(u32, u32)>) -> Settings {
                     SETTINGS_PATH
                 );
 
-                let mut settings = Settings::default();
-                if let Some(resolution) = default_resolution {
-                    settings.visual.resolution = resolution;
-                }
-                settings
+                Settings::default()
             }
 
             SettingsError::FileError(e) => {
@@ -97,10 +94,7 @@ pub fn read_settings(default_resolution: Option<(u32, u32)>) -> Settings {
                         SETTINGS_PATH
                     );
 
-                    let mut settings = Settings::default();
-                    if let Some(resolution) = default_resolution {
-                        settings.visual.resolution = resolution;
-                    }
+                    let settings = Settings::default();
 
                     std::fs::write(SETTINGS_PATH, toml::to_string(&settings).unwrap())
                         .expect(&format!("couldnt write to file \"{}\"", SETTINGS_PATH));

@@ -1,36 +1,86 @@
 use std::time::Instant;
 
-use taiko::{app::App, render::Renderer, settings};
+use taiko::{
+    app::App,
+    render::Renderer,
+    settings::{self, ResolutionState},
+};
 use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::EventLoop,
-    window::{Fullscreen, WindowBuilder},
+    window::{Fullscreen, Window, WindowBuilder},
 };
+
+fn set_window_mode(window: &Window, settings: &mut settings::Settings) {
+    match settings.visual.resolution {
+        settings::ResolutionState::BorderlessFullscreen => {
+            let default_resolution = window.current_monitor().and_then(|monitor| {
+                let size = monitor.size();
+
+                if size.width != 0 && size.height != 0 {
+                    Some((size.width, size.height))
+                } else {
+                    None
+                }
+            });
+
+            match default_resolution {
+                Some((width, height)) => {
+                    window.set_inner_size(PhysicalSize::new(width, height));
+                    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                }
+
+                None => {
+                    // Use default window resolution
+                    let current_resolution = window.inner_size();
+                    settings.visual.resolution = ResolutionState::Windowed(
+                        current_resolution.width,
+                        current_resolution.height,
+                    );
+                    log::error!("Couldn't set window to borderless fullscreen");
+                }
+            }
+        }
+        settings::ResolutionState::Windowed(width, height) => {
+            window.set_fullscreen(None);
+            window.set_inner_size(PhysicalSize::new(width, height));
+        }
+        settings::ResolutionState::Fullscreen { .. } => {
+            let video_mode = window
+                .current_monitor()
+                .and_then(|monitor| monitor.video_modes().next());
+
+            match video_mode {
+                Some(mode) => {
+                    window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+                }
+
+                None => {
+                    // Use default window resolution
+                    let current_resolution = window.inner_size();
+                    settings.visual.resolution = ResolutionState::Windowed(
+                        current_resolution.width,
+                        current_resolution.height,
+                    );
+                    log::error!("Couldn't set window to exclusive fullscreen");
+                }
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("Taiko!!")
+        .with_title("LunaTaiko!!")
         .build(&event_loop)
         .unwrap();
 
-    let default_resolution = window.current_monitor().and_then(|monitor| {
-        let size = monitor.size();
+    let mut settings = settings::read_settings();
 
-        if size.width != 0 && size.height != 0 {
-            Some((size.width, size.height))
-        } else {
-            None
-        }
-    });
-
-    let settings = settings::read_settings(default_resolution);
-
-    let window_size = PhysicalSize::new(settings.visual.resolution.0, settings.visual.resolution.1);
-    window.set_inner_size(window_size);
-    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+    set_window_mode(&window, &mut settings);
 
     let mut frame_time = Instant::now();
     let mut delta = 1.0 / 60.0;
@@ -80,7 +130,7 @@ async fn main() {
                             renderer.resize(*size);
                         }
                         Err(wgpu::SurfaceError::OutOfMemory) => control_flow.set_exit(),
-                        Err(e) => log::error!("{e:?}"),
+                        Err(e) => log::error!("error while rendering: {e:?}"),
                     }
 
                     let time = Instant::now();

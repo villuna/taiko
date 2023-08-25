@@ -59,7 +59,7 @@ fn read_song_list_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Song>> {
 
             match read_song_dir(&subdir_path) {
                 Ok(song) => res.push(song),
-                Err(e) => eprintln!(
+                Err(e) => log::error!(
                     "error encountered while trying to read song at directory {}: {e}",
                     subdir_path.to_string_lossy()
                 ),
