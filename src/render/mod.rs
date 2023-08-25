@@ -502,7 +502,7 @@ impl Renderer {
             self.config.height = size.height;
             self.surface.configure(&self.device, &self.config);
 
-            // Need to create a new msaa target texture and outline texture
+            self.depth_view = create_depth_texture(&self.device, &size);
             self.outline_texture = texture::Texture::empty(
                 &self.device,
                 Some("outline texture"),

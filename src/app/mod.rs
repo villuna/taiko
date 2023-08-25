@@ -13,7 +13,10 @@ use winit::{
     event_loop::ControlFlow,
 };
 
-use crate::{render::{self, texture::Texture}, settings::Settings};
+use crate::{
+    render::{self, texture::Texture},
+    settings::Settings,
+};
 
 const FPS_POLL_TIME: f32 = 0.5;
 const SPRITES_PATH: &str = "assets/images";
@@ -31,7 +34,7 @@ pub struct Context<'a> {
     pub renderer: &'a mut render::Renderer,
     pub keyboard: &'a KeyboardState,
     pub textures: &'a mut TextureCache,
-    pub settings: &'a mut Settings, 
+    pub settings: &'a mut Settings,
 }
 
 pub trait GameState {
@@ -120,7 +123,7 @@ pub struct App {
     state: Vec<Box<dyn GameState>>,
     keyboard: KeyboardState,
     textures: TextureCache,
-    settings: Settings,
+    pub settings: Settings,
 
     fps_timer: f32,
     frames_counted: u32,
@@ -237,10 +240,7 @@ impl App {
             settings: &mut self.settings,
         };
 
-        self.state
-            .last_mut()
-            .unwrap()
-            .handle_event(&mut ctx, event);
+        self.state.last_mut().unwrap().handle_event(&mut ctx, event);
 
         if let WindowEvent::KeyboardInput {
             input,

@@ -2,7 +2,7 @@
 //!
 //! The settings for lunataiko are stored in a toml file (by default `taiko_settings.toml`). Use
 //! the function [read_settings] to read this config from file.
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use winit::event::VirtualKeyCode;
 
 /// The path to the settings file
@@ -71,25 +71,37 @@ impl Default for KeyMap {
 /// If the file does not exist, it will create it with default settings. If it does exist but its
 /// contents are in error, it will also return the default settings. Panics if it encounters any
 /// other errors.
-pub fn read_settings() -> Settings {
+pub fn read_settings(default_resolution: Option<(u32, u32)>) -> Settings {
     match try_read_settings() {
         Ok(s) => s,
         Err(e) => match e {
             SettingsError::InvalidSettings => {
-                eprintln!("Couldn't read settings file due to invalid contents. \
+                eprintln!(
+                    "Couldn't read settings file due to invalid contents. \
                           Please fix the settings file at \"{}\". \
-                          Continuing with default settings...", 
-                          SETTINGS_PATH);
+                          Continuing with default settings...",
+                    SETTINGS_PATH
+                );
 
-                Settings::default()
-            },
+                let mut settings = Settings::default();
+                if let Some(resolution) = default_resolution {
+                    settings.visual.resolution = resolution;
+                }
+                settings
+            }
 
             SettingsError::FileError(e) => {
                 if e.kind() == std::io::ErrorKind::NotFound {
-                    eprintln!("Settings file not found. Creating it at \"{}\"",
-                              SETTINGS_PATH);
+                    eprintln!(
+                        "Settings file not found. Creating it at \"{}\"",
+                        SETTINGS_PATH
+                    );
 
-                    let settings = Settings::default();
+                    let mut settings = Settings::default();
+                    if let Some(resolution) = default_resolution {
+                        settings.visual.resolution = resolution;
+                    }
+
                     std::fs::write(SETTINGS_PATH, toml::to_string(&settings).unwrap())
                         .expect(&format!("couldnt write to file \"{}\"", SETTINGS_PATH));
                     settings
@@ -97,7 +109,7 @@ pub fn read_settings() -> Settings {
                     panic!("unexpected error reading settings!: {e}");
                 }
             }
-        }
+        },
     }
 }
 

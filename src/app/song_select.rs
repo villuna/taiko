@@ -161,15 +161,18 @@ impl GameState for SongSelect {
                 handle.stop(Default::default()).unwrap();
             }
 
-            super::StateTransition::Push(Box::new(TaikoMode::new(
-                &self.songs[song_id],
-                difficulty,
-                sound_data,
-                ctx.audio,
-                ctx.textures,
-                ctx.renderer,
-                &self.bg_sprite,
-            ).expect("error going to taiko mode: song was invalid")))
+            super::StateTransition::Push(Box::new(
+                TaikoMode::new(
+                    &self.songs[song_id],
+                    difficulty,
+                    sound_data,
+                    ctx.audio,
+                    ctx.textures,
+                    ctx.renderer,
+                    &self.bg_sprite,
+                )
+                .expect("error going to taiko mode: song was invalid"),
+            ))
         } else if self.exit {
             super::StateTransition::Exit
         } else {

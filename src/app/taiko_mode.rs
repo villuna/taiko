@@ -20,7 +20,7 @@ use crate::{
         text::Text,
         texture::Sprite,
     },
-    track::{NoteType, Song, NoteTrack},
+    track::{NoteTrack, NoteType, Song},
 };
 
 use super::{GameState, StateTransition, TextureCache};
@@ -190,10 +190,7 @@ impl CurrentSong {
         Some(Self {
             title: song.title.clone(),
             difficulty_level: difficulty,
-            track: song.difficulties.get(difficulty)?
-                       .as_ref()?
-                       .track
-                       .clone()
+            track: song.difficulties.get(difficulty)?.as_ref()?.track.clone(),
         })
     }
 }
@@ -202,7 +199,7 @@ impl CurrentSong {
 enum HitState {
     Bad,
     Ok,
-    Good
+    Good,
 }
 
 pub struct TaikoMode {
@@ -321,9 +318,7 @@ impl GameState for TaikoMode {
 
     fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
         let current = self.current_time();
-        let notes = &self.song
-            .track
-            .notes;
+        let notes = &self.song.track.notes;
 
         let draw_notes = self
             .visual_notes
@@ -396,7 +391,8 @@ impl GameState for TaikoMode {
         } = event
         {
             if let Some(code) = input.virtual_keycode {
-                let pressed = !ctx.keyboard.is_pressed(code) && input.state == ElementState::Pressed;
+                let pressed =
+                    !ctx.keyboard.is_pressed(code) && input.state == ElementState::Pressed;
 
                 if pressed {
                     let current = self.current_time();
@@ -407,16 +403,18 @@ impl GameState for TaikoMode {
                     };
 
                     let offset = ctx.settings.game.global_note_offset / 1000.0;
-                    let don_keys = [ctx.settings.game.key_mappings.left_don, ctx.settings.game.key_mappings.right_don];
-                    let kat_keys = [ctx.settings.game.key_mappings.left_ka, ctx.settings.game.key_mappings.right_ka];
+                    let don_keys = [
+                        ctx.settings.game.key_mappings.left_don,
+                        ctx.settings.game.key_mappings.right_don,
+                    ];
+                    let kat_keys = [
+                        ctx.settings.game.key_mappings.left_ka,
+                        ctx.settings.game.key_mappings.right_ka,
+                    ];
 
                     if don_keys.contains(&code) {
-                        let next_don = self.song
-                            .track
-                            .notes
-                            .iter()
-                            .enumerate()
-                            .find(|(i, note)| {
+                        let next_don =
+                            self.song.track.notes.iter().enumerate().find(|(i, note)| {
                                 let note_time_difference = (note.time + offset - current).abs();
 
                                 note_time_difference <= timings[BAD]
@@ -441,12 +439,8 @@ impl GameState for TaikoMode {
                     }
 
                     if kat_keys.contains(&code) {
-                        let next_don = self.song
-                            .track
-                            .notes
-                            .iter()
-                            .enumerate()
-                            .find(|(i, note)| {
+                        let next_don =
+                            self.song.track.notes.iter().enumerate().find(|(i, note)| {
                                 let note_time_difference = (note.time + offset - current).abs();
 
                                 note_time_difference <= timings[BAD]

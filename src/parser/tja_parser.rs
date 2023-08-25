@@ -343,8 +343,8 @@ fn course_item(input: &str) -> IResult<&str, CourseItem, TJAParseErrorKind> {
 }
 
 /// Preprocess the lines that define a course and turn them into a vector of [CourseItem]s.
-/// This is necessary because we need to be able to look ahead find find some not-yet processed
-/// information while constructing the beatmaps.
+/// This is necessary because we may need to look ahead while we're iterating through these items
+/// and constructing the difficulty.
 fn process_course<'a>(
     lines: &mut impl Iterator<Item = (usize, &'a str)>,
 ) -> Result<Vec<CourseItem<'a>>, TJAParseError> {
@@ -456,7 +456,7 @@ fn notes_in_next_measure<'a, I: Iterator<Item = CourseItem<'a>>>(iter: &mut Look
 fn construct_difficulty(
     items: Vec<CourseItem<'_>>,
     metadata: &HashMap<&str, (usize, &str)>,
-    course_line: usize,
+    course_line_number: usize,
 ) -> Result<Difficulty, TJAParseError> {
     let mut track = NoteTrack::default();
 
@@ -467,10 +467,11 @@ fn construct_difficulty(
     let mut signature = 1f32;
     const DEFAULT_BPM: f32 = 120.0;
     let mut bpm =
-        get_parsed_metadata::<f32>(metadata, "BPM", Some(DEFAULT_BPM), Some(course_line))?;
-    let offset = get_parsed_metadata::<f32>(metadata, "OFFSET", Some(0.0), Some(course_line))?;
+        get_parsed_metadata::<f32>(metadata, "BPM", Some(DEFAULT_BPM), Some(course_line_number))?;
+    let offset =
+        get_parsed_metadata::<f32>(metadata, "OFFSET", Some(0.0), Some(course_line_number))?;
     let init_scroll_speed =
-        get_parsed_metadata::<f32>(metadata, "HEADSCROLL", Some(1.0), Some(course_line))?;
+        get_parsed_metadata::<f32>(metadata, "HEADSCROLL", Some(1.0), Some(course_line_number))?;
 
     // If the number of balloons in the course is nonzero, we have to store
     // how many hits it takes to complete each one. This is the BALLOON metadata
@@ -590,7 +591,7 @@ fn construct_difficulty(
                                         kind: TJAParseErrorKind::MissingMetadataForCourse(
                                             "BALLOON".to_string(),
                                         ),
-                                        line: course_line,
+                                        line: course_line_number,
                                     });
                                 }
                             };
@@ -648,7 +649,7 @@ fn construct_difficulty(
             // So we have to do some extra logic.
             let next = notes.peek().ok_or(TJAParseError {
                 kind: TJAParseErrorKind::RollNotEnded,
-                line: course_line,
+                line: course_line_number,
             })?;
 
             let next_time = if matches!(note_type, SpecialRoll(_)) {
@@ -664,19 +665,19 @@ fn construct_difficulty(
                 } else {
                     return Err(TJAParseError {
                         kind: TJAParseErrorKind::RollNotEnded,
-                        line: course_line,
+                        line: course_line_number,
                     });
                 }
             } else {
                 let (next_type, next_time, _) = notes.next().ok_or(TJAParseError {
                     kind: TJAParseErrorKind::RollNotEnded,
-                    line: course_line,
+                    line: course_line_number,
                 })?;
 
                 if next_type != RollEnd {
                     return Err(TJAParseError {
                         kind: TJAParseErrorKind::RollNotEnded,
-                        line: course_line,
+                        line: course_line_number,
                     });
                 }
 
@@ -702,7 +703,7 @@ fn construct_difficulty(
             RollEnd => {
                 return Err(TJAParseError {
                     kind: TJAParseErrorKind::RollEndWithoutRoll,
-                    line: course_line,
+                    line: course_line_number,
                 })
             }
         };
@@ -717,7 +718,7 @@ fn construct_difficulty(
     track.notes = track_notes;
     track.notes.shrink_to_fit();
 
-    let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None, Some(course_line))?;
+    let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None, Some(course_line_number))?;
     track.barlines = barlines;
 
     Ok(Difficulty { star_level, track })

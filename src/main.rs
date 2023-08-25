@@ -5,26 +5,35 @@ use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::EventLoop,
-    window::WindowBuilder,
+    window::{Fullscreen, WindowBuilder},
 };
-
-use taiko::{HEIGHT, WIDTH};
 
 #[tokio::main]
 async fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_inner_size(PhysicalSize::new(WIDTH, HEIGHT))
-        .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
         .with_title("Taiko!!")
-        .with_resizable(false)
         .build(&event_loop)
         .unwrap();
 
+    let default_resolution = window.current_monitor().and_then(|monitor| {
+        let size = monitor.size();
+
+        if size.width != 0 && size.height != 0 {
+            Some((size.width, size.height))
+        } else {
+            None
+        }
+    });
+
+    let settings = settings::read_settings(default_resolution);
+
+    let window_size = PhysicalSize::new(settings.visual.resolution.0, settings.visual.resolution.1);
+    window.set_inner_size(window_size);
+    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+
     let mut frame_time = Instant::now();
     let mut delta = 1.0 / 60.0;
-
-    let settings = settings::read_settings();
 
     let mut renderer = Renderer::new(window).await.unwrap();
     let mut app = App::new(&renderer, settings).unwrap();
