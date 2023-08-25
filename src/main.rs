@@ -72,6 +72,8 @@ fn set_window_mode(window: &Window, settings: &mut settings::Settings) {
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("LunaTaiko!!")
