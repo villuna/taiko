@@ -42,7 +42,6 @@ pub struct Renderer {
     config: wgpu::SurfaceConfiguration,
     msaa_view: Option<wgpu::TextureView>,
     depth_view: wgpu::TextureView,
-    outline_texture: texture::Texture,
     screen_uniform: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
     pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
@@ -360,13 +359,6 @@ impl Renderer {
         )?)?)
         .build(&device, config.width, config.height, format);
 
-        let outline_texture = texture::Texture::empty(
-            &device,
-            Some("outline texture"),
-            format,
-            (config.width, config.height),
-        )?;
-
         let outline_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("outline pipeline layout"),
@@ -401,7 +393,6 @@ impl Renderer {
             window,
             msaa_view,
             depth_view,
-            outline_texture,
             screen_uniform,
             screen_bind_group,
             pipeline_cache: vec![
@@ -503,14 +494,7 @@ impl Renderer {
             self.surface.configure(&self.device, &self.config);
 
             self.depth_view = create_depth_texture(&self.device, &size);
-            self.outline_texture = texture::Texture::empty(
-                &self.device,
-                Some("outline texture"),
-                self.config.format,
-                (self.config.width, self.config.height),
-            )
-            .unwrap();
-
+            
             if SAMPLE_COUNT > 1 {
                 self.msaa_view = Some(create_msaa_texture(
                     &self.device,
@@ -526,7 +510,9 @@ impl Renderer {
                 &self.screen_uniform,
                 0,
                 bytemuck::cast_slice(&[screen_uniform]),
-            )
+            );
+
+            self.text_brush.resize_view(size.width as f32, size.height as f32, &self.queue);
         }
     }
 
