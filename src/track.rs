@@ -46,6 +46,12 @@ pub struct Note {
     pub scroll_speed: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Barline {
+    pub time: f32,
+    pub scroll_speed: f32,
+}
+
 /// The data for a song, including its metadata and difficulties/note tracks.
 #[derive(Debug, Clone)]
 pub struct Song {
@@ -94,5 +100,5 @@ pub struct Difficulty {
 #[derive(Default, Debug, Clone)]
 pub struct NoteTrack {
     pub notes: Vec<Note>,
-    pub barlines: Vec<f32>,
+    pub barlines: Vec<Barline>,
 }

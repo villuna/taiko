@@ -208,6 +208,7 @@ pub struct TaikoMode {
     start_time: Option<Instant>,
     exit: bool,
     visual_notes: Vec<Option<VisualNote>>,
+    visual_barlines: Vec<Primitive>,
     elapsed: f32,
     paused: bool,
     started: bool,
@@ -251,6 +252,27 @@ impl TaikoMode {
             })
             .collect::<Vec<_>>();
 
+        let visual_barlines = song
+            .track
+            .barlines
+            .iter()
+            .map(|_| {
+                Primitive::filled_shape(device, [0.0; 3], false, |tess, out| {
+                    tess.tessellate_rectangle(
+                        &Box2D::new(
+                            point(-1.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
+                            point(1.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
+                        ),
+                        &FillOptions::DEFAULT,
+                        &mut BuffersBuilder::new(out, SolidColour::new([1.0, 1.0, 1.0, 0.5])),
+                    )?;
+
+                    Ok(())
+                })
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+
         let notes = visual_notes.len();
 
         let ui = UI::new(renderer, &song.title).unwrap();
@@ -261,6 +283,7 @@ impl TaikoMode {
             audio_handle: song_handle,
             exit: false,
             visual_notes,
+            visual_barlines,
             elapsed: 0.0,
             paused: false,
             started: false,
@@ -337,10 +360,41 @@ impl GameState for TaikoMode {
                 }
             });
 
+        let draw_barlines =
+            self.visual_barlines
+                .iter_mut()
+                .enumerate()
+                .filter_map(|(i, visual_barline)| {
+                    let barline = self.song.track.barlines[i];
+
+                    if ((current - 1.0)..current + DEFAULT_DRAW_TIME / barline.scroll_speed)
+                        .contains(&(barline.time))
+                    {
+                        Some((visual_barline, i))
+                    } else {
+                        None
+                    }
+                });
+
         ctx.render(self.bg_sprite.as_ref());
         ctx.render(&self.ui.bg_rect);
         ctx.render(&self.ui.note_field);
         ctx.render(&self.ui.note_line);
+
+        for (v_barline, barline_index) in draw_barlines {
+            let barline = &self.song.track.barlines[barline_index];
+
+            v_barline.set_position(
+                [
+                    NOTE_HIT_X + VELOCITY * (barline.time - current) * barline.scroll_speed,
+                    0.0,
+                    0.0,
+                ],
+                ctx.queue,
+            );
+
+            ctx.render(v_barline);
+        }
 
         for (v_note, note_index) in draw_notes.rev() {
             let note = &notes[note_index];

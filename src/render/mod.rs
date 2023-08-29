@@ -494,7 +494,7 @@ impl Renderer {
             self.surface.configure(&self.device, &self.config);
 
             self.depth_view = create_depth_texture(&self.device, &size);
-            
+
             if SAMPLE_COUNT > 1 {
                 self.msaa_view = Some(create_msaa_texture(
                     &self.device,
@@ -512,7 +512,8 @@ impl Renderer {
                 bytemuck::cast_slice(&[screen_uniform]),
             );
 
-            self.text_brush.resize_view(size.width as f32, size.height as f32, &self.queue);
+            self.text_brush
+                .resize_view(size.width as f32, size.height as f32, &self.queue);
         }
     }
 

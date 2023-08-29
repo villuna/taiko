@@ -12,7 +12,7 @@ use nom::{
     Finish, IResult, Parser,
 };
 
-use crate::track::{Difficulty, Note, NoteTrack, NoteType, Song};
+use crate::track::{Barline, Difficulty, Note, NoteTrack, NoteType, Song};
 /// Types of errors that can be encountered while parsing a TJA file. This is used in the
 /// [TJAParseError] struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -208,7 +208,7 @@ fn digit(i: &str) -> IResult<&str, char, TJAParseErrorKind> {
 
 /// Parses an integer. Converts it into the given generic type
 fn integer<T: std::str::FromStr>(i: &str) -> IResult<&str, T, TJAParseErrorKind> {
-    let onenine = satisfy(|c| ('1'..'9').contains(&c));
+    let onenine = satisfy(|c| ('1'..='9').contains(&c));
 
     map_res(
         alt((
@@ -283,6 +283,10 @@ fn course_command(input: &str) -> IResult<&str, CourseCommand, TJAParseErrorKind
     let command = CourseCommand::inner_from_name_arg(key, value).map_err(nom::Err::Error)?;
 
     Ok((input, command))
+}
+
+fn balloon_list(input: &str) -> IResult<&str, Vec<u16>, TJAParseErrorKind> {
+    terminated(separated_list0(tag(","), integer::<u16>), opt(tag(",")))(input)
 }
 
 fn note(i: &str) -> IResult<&str, Option<TJANoteType>, TJAParseErrorKind> {
@@ -478,11 +482,9 @@ fn construct_difficulty(
     let balloons = metadata
         .get("BALLOON")
         .map(|&(i, list)| {
-            parse(terminated(separated_list0(tag(","), integer::<u16>), eof))(list).map_err(|_| {
-                TJAParseError {
-                    kind: TJAParseErrorKind::InvalidMetadata,
-                    line: i,
-                }
+            parse(balloon_list)(list).map_err(|_| TJAParseError {
+                kind: TJAParseErrorKind::InvalidMetadata,
+                line: i,
             })
         })
         .transpose()?;
@@ -504,7 +506,7 @@ fn construct_difficulty(
 
     let mut time = -offset;
     let mut measure_start_time = time;
-    let mut barlines = vec![time];
+    let mut barlines = vec![Barline { time, scroll_speed }];
     let mut barline_on = true;
 
     let mut notes = Vec::new();
@@ -617,7 +619,7 @@ fn construct_difficulty(
                     measure_start_time = time;
 
                     if barline_on {
-                        barlines.push(time);
+                        barlines.push(Barline { time, scroll_speed });
                     }
 
                     // Recalculate our measure-based variables
