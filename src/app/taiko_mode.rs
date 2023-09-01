@@ -9,7 +9,7 @@ use lyon::{
     lyon_tessellation::{BuffersBuilder, FillOptions, StrokeOptions},
     path::Path,
 };
-use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder};
+use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
 use winit::event::{ElementState, WindowEvent};
 
 use crate::{
@@ -68,6 +68,7 @@ struct UI {
     note_line: Primitive,
     left_panel: Primitive,
     title: Text,
+    judgement_text: [Text; 3],
 }
 
 impl UI {
@@ -167,12 +168,31 @@ impl UI {
 
         let title = Text::new_outlined(renderer, &title).unwrap();
 
+        let mut build_judgement_text = |text, colour| {
+            let section = SectionBuilder::default()
+                .with_screen_position((NOTE_HIT_X, NOTE_Y - 75.0))
+                .with_layout(Layout::default().h_align(HorizontalAlign::Center)
+                             .v_align(VerticalAlign::Bottom))
+                .with_text(vec![wgpu_text::glyph_brush::Text::new(text)
+                    .with_color(colour)
+                    .with_scale(50.0)]);
+
+            Text::new_outlined(renderer, &section).unwrap()
+        };
+
+        let judgement_text = [
+            build_judgement_text("Good", [1.0, 198.0/255.0, 41.0/255.0, 1.0]),
+            build_judgement_text("Ok", [1.0; 4]),
+            build_judgement_text("Bad", [46.0/255.0, 103.0/255.0, 209.0/255.0, 1.0]),
+        ];
+
         Ok(Self {
             bg_rect,
             note_field,
             note_line,
             left_panel,
             title,
+            judgement_text,
         })
     }
 }
@@ -410,6 +430,24 @@ impl GameState for TaikoMode {
             ctx.render(v_note)
         }
 
+        if let Some((result, time)) = self.last_hit {
+            if current - time <= JUDGEMENT_TEXT_DISAPPEAR_TIME {
+                let i = match result {
+                    HitState::Good => GOOD,
+                    HitState::Ok => OK,
+                    HitState::Bad => BAD,
+                };
+
+                let progress = ((current - time) / JUDGEMENT_TEXT_DISAPPEAR_TIME).powf(0.1);
+
+                self.ui.judgement_text[i]
+                    .sprite
+                    .set_position([0.0, -10.0 * progress + 5.0, 0.0], ctx.queue);
+
+                ctx.render(&self.ui.judgement_text[i]);
+            }
+        }
+
         ctx.render(&self.ui.left_panel);
         ctx.render(&self.ui.title);
     }
@@ -449,14 +487,14 @@ impl GameState for TaikoMode {
                     !ctx.keyboard.is_pressed(code) && input.state == ElementState::Pressed;
 
                 if pressed {
-                    let current = self.current_time();
+                    let offset = ctx.settings.game.global_note_offset / 1000.0;
+                    let current = self.current_time() - offset;
                     let timings = if self.song.difficulty_level <= 1 {
                         EASY_NORMAL_TIMING
                     } else {
                         HARD_EXTREME_TIMING
                     };
 
-                    let offset = ctx.settings.game.global_note_offset / 1000.0;
                     let don_keys = [
                         ctx.settings.game.key_mappings.left_don,
                         ctx.settings.game.key_mappings.right_don,
@@ -469,7 +507,7 @@ impl GameState for TaikoMode {
                     if don_keys.contains(&code) {
                         let next_don =
                             self.song.track.notes.iter().enumerate().find(|(i, note)| {
-                                let note_time_difference = (note.time + offset - current).abs();
+                                let note_time_difference = (note.time - current).abs();
 
                                 note_time_difference <= timings[BAD]
                                     && matches!(note.note_type, NoteType::Don | NoteType::BigDon)
@@ -477,7 +515,7 @@ impl GameState for TaikoMode {
                             });
 
                         if let Some((i, note)) = next_don {
-                            let note_time_difference = (note.time + offset - current).abs();
+                            let note_time_difference = (note.time - current).abs();
 
                             let result = if note_time_difference <= timings[GOOD] {
                                 Some(HitState::Good)
@@ -495,7 +533,7 @@ impl GameState for TaikoMode {
                     if kat_keys.contains(&code) {
                         let next_don =
                             self.song.track.notes.iter().enumerate().find(|(i, note)| {
-                                let note_time_difference = (note.time + offset - current).abs();
+                                let note_time_difference = (note.time - current).abs();
 
                                 note_time_difference <= timings[BAD]
                                     && matches!(note.note_type, NoteType::Kat | NoteType::BigKat)

@@ -6,7 +6,7 @@ use super::{context::Renderable, texture, Renderer};
 
 #[derive(Debug)]
 pub struct Text {
-    sprite: texture::Sprite,
+    pub sprite: texture::Sprite,
 }
 
 impl Text {
