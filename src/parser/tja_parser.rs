@@ -692,17 +692,17 @@ fn construct_difficulty(
         };
 
         let note_type = match note_type {
-            Don => NoteType::Don,
-            Kat => NoteType::Kat,
-            BigDon => NoteType::BigDon,
-            BigKat => NoteType::BigKat,
-            Roll => NoteType::Roll(roll_time.unwrap()),
-            BigRoll => NoteType::BigRoll(roll_time.unwrap()),
-            BalloonRoll(n) => NoteType::BalloonRoll(roll_time.unwrap(), n),
-            SpecialRoll(n) => NoteType::SpecialRoll(roll_time.unwrap(), n),
-            CoopDon => NoteType::CoopDon,
-            CoopKat => NoteType::CoopKat,
-            RollEnd => {
+            TJANoteType::Don => NoteType::Don,
+            TJANoteType::Kat => NoteType::Kat,
+            TJANoteType::BigDon => NoteType::BigDon,
+            TJANoteType::BigKat => NoteType::BigKat,
+            TJANoteType::Roll => NoteType::Roll(roll_time.unwrap()),
+            TJANoteType::BigRoll => NoteType::BigRoll(roll_time.unwrap()),
+            TJANoteType::BalloonRoll(n) => NoteType::BalloonRoll(roll_time.unwrap(), n),
+            TJANoteType::SpecialRoll(n) => NoteType::SpecialRoll(roll_time.unwrap(), n),
+            TJANoteType::CoopDon => NoteType::CoopDon,
+            TJANoteType::CoopKat => NoteType::CoopKat,
+            TJANoteType::RollEnd => {
                 return Err(TJAParseError {
                     kind: TJAParseErrorKind::RollEndWithoutRoll,
                     line: course_line_number,
