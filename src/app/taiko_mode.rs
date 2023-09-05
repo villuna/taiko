@@ -23,7 +23,7 @@ use crate::{
     track::{NoteTrack, NoteType, Song},
 };
 
-use super::{GameState, StateTransition, TextureCache};
+use super::{score_screen::ScoreScreen, GameState, StateTransition, TextureCache};
 
 // This is a hard-coded value, big enough to make sure that at default scroll speed every note is
 // drawn for this long. It will be scaled depending on scroll speed, so every note will be drawn
@@ -171,8 +171,11 @@ impl UI {
         let mut build_judgement_text = |text, colour| {
             let section = SectionBuilder::default()
                 .with_screen_position((NOTE_HIT_X, NOTE_Y - 75.0))
-                .with_layout(Layout::default().h_align(HorizontalAlign::Center)
-                             .v_align(VerticalAlign::Bottom))
+                .with_layout(
+                    Layout::default()
+                        .h_align(HorizontalAlign::Center)
+                        .v_align(VerticalAlign::Bottom),
+                )
                 .with_text(vec![wgpu_text::glyph_brush::Text::new(text)
                     .with_color(colour)
                     .with_scale(50.0)]);
@@ -181,9 +184,9 @@ impl UI {
         };
 
         let judgement_text = [
-            build_judgement_text("Good", [1.0, 198.0/255.0, 41.0/255.0, 1.0]),
+            build_judgement_text("Good", [1.0, 198.0 / 255.0, 41.0 / 255.0, 1.0]),
             build_judgement_text("Ok", [1.0; 4]),
-            build_judgement_text("Bad", [46.0/255.0, 103.0/255.0, 209.0/255.0, 1.0]),
+            build_judgement_text("Bad", [46.0 / 255.0, 103.0 / 255.0, 209.0 / 255.0, 1.0]),
         ];
 
         Ok(Self {
@@ -232,9 +235,11 @@ pub struct TaikoMode {
     elapsed: f32,
     paused: bool,
     started: bool,
+
     // every time i decide on an integer size i have to ask myself a philosophical question
     // is it unreasonable to assume no rhythm gamer will achieve a 4,294,967,296 combo?
     combo: u32,
+    max_combo: u32,
     next_note: usize,
 
     hits: Vec<Option<HitState>>,
@@ -312,6 +317,7 @@ impl TaikoMode {
             paused: false,
             started: false,
             combo: 0,
+            max_combo: 0,
             next_note: 0,
             hits: vec![None; notes],
             last_hit: None,
@@ -380,7 +386,41 @@ impl GameState for TaikoMode {
             }
         }
 
-        if self.exit {
+        if self.audio_handle.state() == PlaybackState::Stopped {
+            let goods = self
+                .hits
+                .iter()
+                .filter(|state| **state == Some(HitState::Good))
+                .count() as u32;
+            let okays = self
+                .hits
+                .iter()
+                .filter(|state| **state == Some(HitState::Ok))
+                .count() as u32;
+            let bads = self
+                .hits
+                .iter()
+                .filter(|state| **state == Some(HitState::Bad))
+                .count() as u32;
+            let misses = self
+                .hits
+                .iter()
+                .enumerate()
+                .filter(|(i, state)| {
+                    !self.song.track.notes[*i].note_type.is_roll() && **state == None
+                })
+                .count() as u32;
+
+            StateTransition::Swap(Box::new(ScoreScreen::new(
+                ctx,
+                goods,
+                okays,
+                bads + misses,
+                0,
+                self.max_combo,
+                &self.song.title,
+            )))
+        } else if self.exit {
             self.audio_handle.stop(Default::default()).unwrap();
             StateTransition::Pop
         } else {
@@ -563,6 +603,10 @@ impl GameState for TaikoMode {
                                 self.combo = 0;
                             } else {
                                 self.combo += 1;
+
+                                if self.combo > self.max_combo {
+                                    self.max_combo = self.combo;
+                                }
                             }
                         }
                     }
@@ -595,6 +639,10 @@ impl GameState for TaikoMode {
                                 self.combo = 0;
                             } else {
                                 self.combo += 1;
+
+                                if self.combo > self.max_combo {
+                                    self.max_combo = self.combo;
+                                }
                             }
                         }
                     }

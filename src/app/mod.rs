@@ -4,6 +4,7 @@ use kira::manager::{backend::DefaultBackend, AudioManager};
 use std::collections::HashMap;
 
 mod credits;
+mod score_screen;
 mod song_select;
 mod taiko_mode;
 

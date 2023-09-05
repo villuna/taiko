@@ -444,7 +444,9 @@ fn notes_in_next_measure<'a, I: Iterator<Item = CourseItem<'a>>>(iter: &mut Look
     let mut num_notes = 0;
 
     for i in 0.. {
-        let Some(item) = iter.lookahead(i) else { break; };
+        let Some(item) = iter.lookahead(i) else {
+            break;
+        };
 
         if let CourseItem::Notes { notes, end_measure } = item {
             num_notes += notes.len();
