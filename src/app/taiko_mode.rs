@@ -29,7 +29,7 @@ use super::{GameState, StateTransition, TextureCache};
 // drawn for this long. It will be scaled depending on scroll speed, so every note will be drawn
 // for at least as long as it needs to. It's not very elegant but it works.
 //
-// TODO: No it does not work. For some reason notes that are reeeeeealy slow dissapear before
+// TODO: No it does not work. For some reason notes that are reeeeeealy slow disappear before
 // they're supposed to. See DONKAMA 2000's last note as an example.
 const DEFAULT_DRAW_TIME: f32 = 3.0;
 
@@ -215,7 +215,7 @@ impl CurrentSong {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum HitState {
     Bad,
     Ok,
@@ -232,6 +232,10 @@ pub struct TaikoMode {
     elapsed: f32,
     paused: bool,
     started: bool,
+    // every time i decide on an integer size i have to ask myself a philosophical question
+    // is it unreasonable to assume no rhythm gamer will achieve a 4,294,967,296 combo?
+    combo: u32,
+    next_note: usize,
 
     hits: Vec<Option<HitState>>,
     last_hit: Option<(HitState, f32)>,
@@ -307,6 +311,8 @@ impl TaikoMode {
             elapsed: 0.0,
             paused: false,
             started: false,
+            combo: 0,
+            next_note: 0,
             hits: vec![None; notes],
             last_hit: None,
             ui,
@@ -341,13 +347,36 @@ impl TaikoMode {
 }
 
 impl GameState for TaikoMode {
-    fn update(&mut self, _ctx: &mut super::Context, _dt: f32) -> StateTransition {
+    fn update(&mut self, ctx: &mut super::Context, _dt: f32) -> StateTransition {
         if !self.paused {
             let current = self.current_time();
 
+            // Start the song if we reach 0 seconds
             if current >= 0.0 && !self.started {
                 self.audio_handle.resume(Default::default()).unwrap();
                 self.started = true;
+            }
+
+            let note_current = current - ctx.settings.game.global_note_offset / 1000.0;
+
+            let timings = if self.song.difficulty_level <= 1 {
+                EASY_NORMAL_TIMING
+            } else {
+                HARD_EXTREME_TIMING
+            };
+
+            // Go through all the notes that weren't hit and remove them
+            // (this will do more eventually, currently it just resets combo)
+            for note in &self.song.track.notes[self.next_note..] {
+                if note.time >= note_current - timings[BAD] {
+                    break;
+                }
+
+                if self.hits[self.next_note].is_none() && !note.note_type.is_roll() {
+                    self.combo = 0;
+                }
+
+                self.next_note += 1;
             }
         }
 
@@ -471,6 +500,8 @@ impl GameState for TaikoMode {
                 }
             }
 
+            ui.label(format!("combo: {}", self.combo));
+
             self.exit = ui.button("Return").clicked();
         });
     }
@@ -527,11 +558,17 @@ impl GameState for TaikoMode {
 
                             self.last_hit = result.map(|state| (state, current));
                             self.hits[i] = result;
+
+                            if result == Some(HitState::Bad) {
+                                self.combo = 0;
+                            } else {
+                                self.combo += 1;
+                            }
                         }
                     }
 
                     if kat_keys.contains(&code) {
-                        let next_don =
+                        let next_kat =
                             self.song.track.notes.iter().enumerate().find(|(i, note)| {
                                 let note_time_difference = (note.time - current).abs();
 
@@ -540,7 +577,7 @@ impl GameState for TaikoMode {
                                     && self.hits[*i].is_none()
                             });
 
-                        if let Some((i, note)) = next_don {
+                        if let Some((i, note)) = next_kat {
                             let note_time_difference = (note.time + offset - current).abs();
 
                             let result = if note_time_difference <= timings[GOOD] {
@@ -553,6 +590,12 @@ impl GameState for TaikoMode {
 
                             self.last_hit = result.map(|state| (state, current));
                             self.hits[i] = result;
+
+                            if result == Some(HitState::Bad) {
+                                self.combo = 0;
+                            } else {
+                                self.combo += 1;
+                            }
                         }
                     }
                 }

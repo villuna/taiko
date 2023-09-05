@@ -30,6 +30,18 @@ pub enum NoteType {
     CoopKat,
 }
 
+impl NoteType {
+    pub fn is_roll(&self) -> bool {
+        matches!(
+            self,
+            NoteType::Roll(_)
+                | NoteType::BigRoll(_)
+                | NoteType::BalloonRoll(_, _)
+                | NoteType::SpecialRoll(_, _)
+        )
+    }
+}
+
 /// A note, as it will be stored during the actual game.
 ///
 /// A note has a type, the time (from the song start) that it has
