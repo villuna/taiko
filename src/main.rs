@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use taiko::{
+use lunataiko::{
     app::App,
     render::Renderer,
     settings::{self, ResolutionState},

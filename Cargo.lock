@@ -1257,6 +1257,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c0f442d1db442b524dd9fd704aafed0617b56f7090b2e46bc2da5144e34751"
 
 [[package]]
+name = "lunataiko"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph",
+ "anyhow",
+ "bytemuck",
+ "egui",
+ "egui-wgpu",
+ "egui_winit_platform",
+ "env_logger",
+ "image",
+ "itertools",
+ "kira",
+ "lazy_static",
+ "log",
+ "lookahead",
+ "lyon",
+ "nom",
+ "num-derive",
+ "num-traits",
+ "rand",
+ "serde",
+ "tokio",
+ "toml",
+ "wgpu",
+ "wgpu_text",
+ "winit",
+]
+
+[[package]]
 name = "lyon"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2233,36 +2263,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "taiko"
-version = "0.1.0"
-dependencies = [
- "ab_glyph",
- "anyhow",
- "bytemuck",
- "egui",
- "egui-wgpu",
- "egui_winit_platform",
- "env_logger",
- "image",
- "itertools",
- "kira",
- "lazy_static",
- "log",
- "lookahead",
- "lyon",
- "nom",
- "num-derive",
- "num-traits",
- "rand",
- "serde",
- "tokio",
- "toml",
- "wgpu",
- "wgpu_text",
- "winit",
 ]
 
 [[package]]
