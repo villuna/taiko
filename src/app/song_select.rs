@@ -3,8 +3,8 @@ use std::{io, path::Path, rc::Rc};
 use crate::{
     app::credits::CreditsScreen,
     parser::parse_tja_file,
-    render::{self, texture::Sprite},
-    track::Song,
+    render::texture::Sprite,
+    track::Song, settings::Settings,
 };
 use egui::RichText;
 use kira::{
@@ -179,11 +179,11 @@ impl GameState for SongSelect {
             super::StateTransition::Continue
         }
     }
-    fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
+    fn render<'app, 'pass>(&'pass mut self, ctx: &mut super::RenderContext<'app, 'pass>) {
         ctx.render(self.bg_sprite.as_ref())
     }
 
-    fn debug_ui(&mut self, ctx: egui::Context, audio: &mut AudioManager) {
+    fn debug_ui(&mut self, ctx: egui::Context, audio: &mut AudioManager, _settings: &mut Settings) {
         egui::SidePanel::left("main menu")
             .resizable(false)
             .show(&ctx, |ui| {

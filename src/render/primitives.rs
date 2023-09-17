@@ -286,7 +286,7 @@ impl Primitive {
 }
 
 impl Renderable for Primitive {
-    fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
+    fn render<'a>(&'a self, ctx: &mut super::RenderPassContext<'a>) {
         let pipeline = if self.has_depth {
             "primitive_depth"
         } else {

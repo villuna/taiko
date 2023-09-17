@@ -1,6 +1,8 @@
 use egui::RichText;
 use kira::manager::AudioManager;
 
+use crate::settings::Settings;
+
 use super::GameState;
 
 pub struct CreditsScreen {
@@ -21,7 +23,7 @@ impl GameState for CreditsScreen {
             super::StateTransition::Continue
         }
     }
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager, _settings: &mut Settings) {
         egui::Area::new("Credits")
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(&ctx, |ui| {

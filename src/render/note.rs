@@ -142,7 +142,7 @@ impl VisualNote {
 }
 
 impl Renderable for VisualNote {
-    fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
+    fn render<'a>(&'a self, ctx: &mut super::RenderPassContext<'a>) {
         match self {
             VisualNote::Note(sprite) => sprite.render(ctx),
             VisualNote::Roll { start, body } => {

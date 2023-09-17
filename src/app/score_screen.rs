@@ -1,3 +1,5 @@
+use kira::manager::AudioManager;
+
 use super::{Context, GameState, StateTransition};
 struct Score {
     goods: u32,
@@ -48,7 +50,12 @@ impl GameState for ScoreScreen {
         }
     }
 
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut kira::manager::AudioManager) {
+    fn debug_ui(
+        &mut self,
+        ctx: egui::Context,
+        _audio: &mut AudioManager,
+        _settings: &mut super::Settings,
+    ) {
         egui::Window::new("Seiseki happyou!").show(&ctx, |ui| {
             ui.label(egui::RichText::new(&self.song_name).size(20.0).strong());
             ui.add_space(10.0);

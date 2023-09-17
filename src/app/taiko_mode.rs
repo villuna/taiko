@@ -20,7 +20,7 @@ use crate::{
         text::Text,
         texture::Sprite,
     },
-    track::{NoteTrack, NoteType, Song},
+    track::{NoteTrack, NoteType, Song}, settings::Settings,
 };
 
 use super::{score_screen::ScoreScreen, GameState, StateTransition, TextureCache};
@@ -242,6 +242,8 @@ pub struct TaikoMode {
     max_combo: u32,
     next_note: usize,
 
+    note_offsets: Vec<f32>,
+
     hits: Vec<Option<HitState>>,
     last_hit: Option<(HitState, f32)>,
     ui: UI,
@@ -319,6 +321,7 @@ impl TaikoMode {
             combo: 0,
             max_combo: 0,
             next_note: 0,
+            note_offsets: vec![],
             hits: vec![None; notes],
             last_hit: None,
             ui,
@@ -428,8 +431,8 @@ impl GameState for TaikoMode {
         }
     }
 
-    fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
-        let current = self.current_time();
+    fn render<'app, 'pass>(&'pass mut self, ctx: &mut super::RenderContext<'app, 'pass>) {
+        let current = self.current_time() - ctx.settings.game.global_note_offset / 1000.0;
         let notes = &self.song.track.notes;
 
         let draw_notes = self
@@ -479,7 +482,7 @@ impl GameState for TaikoMode {
                     0.0,
                     0.0,
                 ],
-                ctx.queue,
+                ctx.render_pass.queue,
             );
 
             ctx.render(v_barline);
@@ -493,7 +496,7 @@ impl GameState for TaikoMode {
                     NOTE_Y,
                     note.time,
                 ],
-                ctx.queue,
+                ctx.render_pass.queue,
             );
 
             ctx.render(v_note)
@@ -511,7 +514,7 @@ impl GameState for TaikoMode {
 
                 self.ui.judgement_text[i]
                     .sprite
-                    .set_position([0.0, -10.0 * progress + 5.0, 0.0], ctx.queue);
+                    .set_position([0.0, -10.0 * progress + 5.0, 0.0], ctx.render_pass.queue);
 
                 ctx.render(&self.ui.judgement_text[i]);
             }
@@ -521,7 +524,7 @@ impl GameState for TaikoMode {
         ctx.render(&self.ui.title);
     }
 
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager, settings: &mut Settings) {
         egui::Window::new("taiko mode debug menu").show(&ctx, |ui| {
             let current = self.current_time();
             ui.label(format!("song time: {current}"));
@@ -541,6 +544,11 @@ impl GameState for TaikoMode {
             }
 
             ui.label(format!("combo: {}", self.combo));
+
+            if !self.note_offsets.is_empty() {
+                let average = self.note_offsets.iter().sum::<f32>() / self.note_offsets.len() as f32;
+                ui.label(format!("average offset: {}", average));
+            }
 
             self.exit = ui.button("Return").clicked();
         });
@@ -587,6 +595,7 @@ impl GameState for TaikoMode {
 
                         if let Some((i, note)) = next_don {
                             let note_time_difference = (note.time - current).abs();
+                            self.note_offsets.push(current - note.time);
 
                             let result = if note_time_difference <= timings[GOOD] {
                                 Some(HitState::Good)
@@ -622,7 +631,8 @@ impl GameState for TaikoMode {
                             });
 
                         if let Some((i, note)) = next_kat {
-                            let note_time_difference = (note.time + offset - current).abs();
+                            let note_time_difference = (note.time - current).abs();
+                            self.note_offsets.push(current - note.time);
 
                             let result = if note_time_difference <= timings[GOOD] {
                                 Some(HitState::Good)

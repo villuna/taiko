@@ -25,7 +25,7 @@ pub mod primitives;
 pub mod text;
 pub mod texture;
 
-pub use context::RenderContext;
+pub use context::RenderPassContext;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -462,7 +462,7 @@ impl Renderer {
             .queue(&self.device, &self.queue, Vec::<Section>::new())
             .unwrap();
 
-        let mut ctx = RenderContext {
+        let mut ctx = RenderPassContext {
             render_pass,
             device: &self.device,
             queue: &self.queue,

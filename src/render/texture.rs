@@ -317,7 +317,7 @@ impl Sprite {
 }
 
 impl Renderable for Sprite {
-    fn render<'a>(&'a self, ctx: &mut render::context::RenderContext<'a>) {
+    fn render<'a>(&'a self, ctx: &mut render::context::RenderPassContext<'a>) {
         ctx.render_pass.set_pipeline(
             ctx.pipeline(if self.use_depth {
                 "texture_depth"

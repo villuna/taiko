@@ -15,7 +15,7 @@ use winit::{
 };
 
 use crate::{
-    render::{self, texture::Texture},
+    render::{self, texture::Texture, context::Renderable},
     settings::Settings,
 };
 
@@ -30,12 +30,26 @@ pub enum StateTransition {
     Exit,
 }
 
-pub struct Context<'a> {
-    pub audio: &'a mut AudioManager,
-    pub renderer: &'a mut render::Renderer,
-    pub keyboard: &'a KeyboardState,
-    pub textures: &'a mut TextureCache,
-    pub settings: &'a mut Settings,
+pub struct Context<'app> {
+    pub audio: &'app mut AudioManager,
+    pub renderer: &'app mut render::Renderer,
+    pub keyboard: &'app KeyboardState,
+    pub textures: &'app mut TextureCache,
+    pub settings: &'app mut Settings,
+}
+
+pub struct RenderContext<'app, 'pass> {
+    pub audio: &'app mut AudioManager,
+    pub render_pass: &'app mut render::RenderPassContext<'pass>,
+    pub keyboard: &'app KeyboardState,
+    pub textures: &'app mut TextureCache,
+    pub settings: &'app mut Settings,
+}
+
+impl<'pass> RenderContext<'_, 'pass> {
+    pub fn render<R: Renderable>(&mut self, target: &'pass R) {
+        self.render_pass.render(target);
+    }
 }
 
 pub trait GameState {
@@ -43,9 +57,10 @@ pub trait GameState {
         StateTransition::Continue
     }
 
-    fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
+    // TODO: Fix this up.
+    fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager, _settings: &mut Settings) {}
 
-    fn render<'a>(&'a mut self, _ctx: &mut render::RenderContext<'a>) {}
+    fn render<'app, 'pass>(&'pass mut self, _ctx: &mut RenderContext<'app, 'pass>) {}
 
     fn handle_event(&mut self, _ctx: &mut Context, _event: &WindowEvent<'_>) {}
 }
@@ -210,7 +225,7 @@ impl App {
         self.state
             .last_mut()
             .unwrap()
-            .debug_ui(ctx.clone(), &mut self.audio_manager);
+            .debug_ui(ctx.clone(), &mut self.audio_manager, &mut self.settings);
 
         if self.show_fps_counter {
             egui::Area::new("fps counter")
@@ -225,8 +240,16 @@ impl App {
         }
     }
 
-    pub fn render<'a>(&'a mut self, ctx: &mut render::RenderContext<'a>) {
-        self.state.last_mut().unwrap().render(ctx)
+    pub fn render<'pass>(&'pass mut self, rctx: &mut render::RenderPassContext<'pass>) {
+        let mut ctx = RenderContext {
+            audio: &mut self.audio_manager,
+            render_pass: rctx,
+            keyboard: &self.keyboard,
+            textures: &mut self.textures,
+            settings: &mut self.settings,
+        };
+
+        self.state.last_mut().unwrap().render(&mut ctx)
     }
 
     pub fn handle_event(&mut self, event: &WindowEvent<'_>, renderer: &mut render::Renderer) {

@@ -105,7 +105,7 @@ impl Text {
 }
 
 impl Renderable for Text {
-    fn render<'a>(&'a self, ctx: &mut super::RenderContext<'a>) {
+    fn render<'a>(&'a self, ctx: &mut super::RenderPassContext<'a>) {
         ctx.render(&self.sprite);
     }
 }
