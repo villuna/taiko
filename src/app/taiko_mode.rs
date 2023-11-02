@@ -2,7 +2,7 @@ use std::{rc::Rc, time::Instant};
 
 use kira::{
     manager::AudioManager,
-    sound::static_sound::{PlaybackState, StaticSoundData, StaticSoundHandle},
+    sound::{PlaybackState, static_sound::{StaticSoundData, StaticSoundHandle}},
 };
 use lyon::{
     geom::{point, Box2D},
@@ -524,7 +524,7 @@ impl GameState for TaikoMode {
         ctx.render(&self.ui.title);
     }
 
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager, settings: &mut Settings) {
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager, _settings: &mut Settings) {
         egui::Window::new("taiko mode debug menu").show(&ctx, |ui| {
             let current = self.current_time();
             ui.label(format!("song time: {current}"));

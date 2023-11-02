@@ -127,11 +127,9 @@ impl SongSelect {
         let selected = &self.songs[selected];
 
         let settings = StreamingSoundSettings::default()
-            .start_position(selected.demostart as _)
+            .playback_region(selected.demostart as f64..)
             .fade_in_tween(Some(*IN_TWEEN))
-            .loop_behavior(Some(kira::LoopBehavior {
-                start_position: selected.demostart as _,
-            }));
+            .loop_region(selected.demostart as f64..);
 
         let song = StreamingSoundData::from_file(&selected.audio_filename, settings)?;
 

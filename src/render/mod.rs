@@ -476,7 +476,7 @@ impl Renderer {
         app.render(&mut ctx);
 
         self.egui_handler
-            .render(&mut ctx.render_pass, paint_jobs, &screen_descriptor);
+            .render(&mut ctx.render_pass, &paint_jobs, &screen_descriptor);
 
         drop(ctx);
 
