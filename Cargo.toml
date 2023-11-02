@@ -6,28 +6,45 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-ab_glyph = "0.2.21"
-anyhow = "1.0.70"
-bytemuck = { version = "1.13.1", features = ["derive"] }
+[workspace]
+members = [
+    "silkwood",
+]
+
+[workspace.dependencies]
 egui = "0.23.0"
-egui-wgpu = "0.23.0"
-egui_winit_platform = "0.20.0"
-env_logger = "0.10.0"
-image = "0.24.6"
-itertools = "0.11"
 kira = "0.8.5"
+winit = { version = "0.28.3", features = ["serde"] }
+anyhow = "1.0"
+lyon = "1.0.1"
+wgpu = "0.17.0"
+wgpu_text = "0.8.3"
+
+[dependencies]
+silkwood = { path = "./silkwood" }
+ab_glyph = "0.2.21"
+anyhow.workspace = true
+# bytemuck = { version = "1.13.1", features = ["derive"] }
+egui.workspace = true
+# egui-wgpu = "0.23.0"
+# egui_winit_platform = "0.20.0"
+env_logger = "0.10.0"
+# image = "0.24.6"
+itertools = "0.11"
+kira.workspace = true
 lazy_static = "1.4.0"
 log = "0.4.17"
 lookahead = "0.1.0"
-lyon = "1.0.1"
+lyon.workspace = true
 nom = "7.1.3"
 num-derive = "0.4"
 num-traits = "0.2"
-rand = "0.8.5"
+# rand = "0.8.5"
 serde = { version = "1.0.183", features = ["derive"] }
-tokio = { version = "1.27.0", features = ["macros", "rt-multi-thread"] }
+# tokio = { version = "1.27.0", features = ["macros", "rt-multi-thread"] }
 toml = "0.8"
-wgpu = "0.17.0"
-wgpu_text = "0.8.3"
-winit = { version = "0.28.3", features = ["serde"] }
+wgpu.workspace = true
+# I'll have to get rid of this dependency, it's unnecessary
+wgpu_text.workspace = true
+winit.workspace = true
+

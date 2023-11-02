@@ -3,9 +3,11 @@ use lyon::{
     lyon_tessellation::{BuffersBuilder, FillOptions},
 };
 
-use crate::{app::TextureCache, track::NoteType};
+use silkwood::app::TextureCache;
+use crate::track::NoteType;
 
-use super::{
+use silkwood::render::{
+    RenderPassContext,
     context::Renderable,
     primitives::{Primitive, SolidColour},
     texture::Sprite,
@@ -142,7 +144,7 @@ impl VisualNote {
 }
 
 impl Renderable for VisualNote {
-    fn render<'a>(&'a self, ctx: &mut super::RenderPassContext<'a>) {
+    fn render<'a>(&'a self, ctx: &mut RenderPassContext<'a>) {
         match self {
             VisualNote::Note(sprite) => sprite.render(ctx),
             VisualNote::Roll { start, body } => {

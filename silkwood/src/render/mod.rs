@@ -20,10 +20,10 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub mod context;
 mod egui;
-pub mod note;
 pub mod primitives;
-pub mod text;
 pub mod texture;
+pub mod ui;
+pub use ui::text as text;
 
 pub use context::RenderPassContext;
 
@@ -176,7 +176,11 @@ fn create_render_pipeline(
 }
 
 impl Renderer {
-    pub async fn new(window: Window) -> anyhow::Result<Self> {
+    pub fn new(window: Window) -> anyhow::Result<Self> {
+        pollster::block_on(Self::new_async(window))
+    }
+
+    async fn new_async(window: Window) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {

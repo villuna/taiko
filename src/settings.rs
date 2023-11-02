@@ -2,11 +2,20 @@
 //!
 //! The settings for lunataiko are stored in a toml file (by default `taiko_settings.toml`). Use
 //! the function [read_settings] to read this config from file.
+use std::sync::RwLock;
+
 use serde::{Deserialize, Serialize};
 use winit::event::VirtualKeyCode;
 
 /// The path to the settings file
 pub const SETTINGS_PATH: &str = "taiko_settings.toml";
+
+pub static SETTINGS: RwLock<Settings> = RwLock::new(Settings {
+    visual: VisualSettings { resolution: ResolutionState::BorderlessFullscreen },
+    game: GameSettings {
+        global_note_offset: 0.0, key_mappings: KeyMap::default_mapping()
+    },
+});
 
 /// All the settings for the game
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -56,8 +65,8 @@ impl Default for GameSettings {
     }
 }
 
-impl Default for KeyMap {
-    fn default() -> Self {
+impl KeyMap {
+    const fn default_mapping() -> Self {
         Self {
             left_don: VirtualKeyCode::F,
             right_don: VirtualKeyCode::J,
@@ -67,13 +76,19 @@ impl Default for KeyMap {
     }
 }
 
+impl Default for KeyMap {
+    fn default() -> Self {
+        Self::default_mapping()
+    }
+}
+
 /// Try to ead and deserialize settings from the settings path.
 ///
 /// If the file does not exist, it will create it with default settings. If it does exist but its
 /// contents are in error, it will also return the default settings. Panics if it encounters any
 /// other errors.
-pub fn read_settings() -> Settings {
-    match try_read_settings() {
+pub fn read_settings() {
+    let settings = match try_read_settings() {
         Ok(s) => s,
         Err(e) => match e {
             SettingsError::InvalidSettings => {
@@ -104,7 +119,9 @@ pub fn read_settings() -> Settings {
                 }
             }
         },
-    }
+    };
+
+    *SETTINGS.write().unwrap() = settings;
 }
 
 /// Tries to read and deserialize config from the settings path.

@@ -1,6 +1,6 @@
 use kira::manager::AudioManager;
 
-use super::{Context, GameState, StateTransition};
+use silkwood::app::{Context, GameState, StateTransition};
 struct Score {
     goods: u32,
     okays: u32,
@@ -54,7 +54,6 @@ impl GameState for ScoreScreen {
         &mut self,
         ctx: egui::Context,
         _audio: &mut AudioManager,
-        _settings: &mut super::Settings,
     ) {
         egui::Window::new("Seiseki happyou!").show(&ctx, |ui| {
             ui.label(egui::RichText::new(&self.song_name).size(20.0).strong());

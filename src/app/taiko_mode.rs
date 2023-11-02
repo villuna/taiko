@@ -12,18 +12,21 @@ use lyon::{
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
 use winit::event::{ElementState, WindowEvent};
 
-use crate::{
+use super::visual::note::VisualNote;
+
+use silkwood::{
     render::{
         self,
-        note::VisualNote,
         primitives::{LinearGradient, Primitive, SolidColour},
         text::Text,
         texture::Sprite,
     },
-    track::{NoteTrack, NoteType, Song}, settings::Settings,
+    app::{self, GameState, StateTransition, TextureCache, RenderContext}
 };
 
-use super::{score_screen::ScoreScreen, GameState, StateTransition, TextureCache};
+use crate::{track::{NoteTrack, NoteType, Song}, settings::SETTINGS};
+
+use super::score_screen::ScoreScreen;
 
 // This is a hard-coded value, big enough to make sure that at default scroll speed every note is
 // drawn for this long. It will be scaled depending on scroll speed, so every note will be drawn
@@ -356,7 +359,7 @@ impl TaikoMode {
 }
 
 impl GameState for TaikoMode {
-    fn update(&mut self, ctx: &mut super::Context, _dt: f32) -> StateTransition {
+    fn update(&mut self, ctx: &mut app::Context, _dt: f32) -> StateTransition {
         if !self.paused {
             let current = self.current_time();
 
@@ -366,7 +369,7 @@ impl GameState for TaikoMode {
                 self.started = true;
             }
 
-            let note_current = current - ctx.settings.game.global_note_offset / 1000.0;
+            let note_current = current - SETTINGS.read().unwrap().game.global_note_offset / 1000.0;
 
             let timings = if self.song.difficulty_level <= 1 {
                 EASY_NORMAL_TIMING
@@ -431,8 +434,8 @@ impl GameState for TaikoMode {
         }
     }
 
-    fn render<'app, 'pass>(&'pass mut self, ctx: &mut super::RenderContext<'app, 'pass>) {
-        let current = self.current_time() - ctx.settings.game.global_note_offset / 1000.0;
+    fn render<'app, 'pass>(&'pass mut self, ctx: &mut RenderContext<'app, 'pass>) {
+        let current = self.current_time() - SETTINGS.read().unwrap().game.global_note_offset / 1000.0;
         let notes = &self.song.track.notes;
 
         let draw_notes = self
@@ -524,7 +527,7 @@ impl GameState for TaikoMode {
         ctx.render(&self.ui.title);
     }
 
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager, _settings: &mut Settings) {
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
         egui::Window::new("taiko mode debug menu").show(&ctx, |ui| {
             let current = self.current_time();
             ui.label(format!("song time: {current}"));
@@ -554,7 +557,7 @@ impl GameState for TaikoMode {
         });
     }
 
-    fn handle_event(&mut self, ctx: &mut super::Context, event: &WindowEvent<'_>) {
+    fn handle_event(&mut self, ctx: &mut app::Context, event: &WindowEvent<'_>) {
         if let &WindowEvent::KeyboardInput {
             input,
             is_synthetic: false,
@@ -564,9 +567,10 @@ impl GameState for TaikoMode {
             if let Some(code) = input.virtual_keycode {
                 let pressed =
                     !ctx.keyboard.is_pressed(code) && input.state == ElementState::Pressed;
+                let settings = SETTINGS.read().unwrap();
 
                 if pressed {
-                    let offset = ctx.settings.game.global_note_offset / 1000.0;
+                    let offset = settings.game.global_note_offset / 1000.0;
                     let current = self.current_time() - offset;
                     let timings = if self.song.difficulty_level <= 1 {
                         EASY_NORMAL_TIMING
@@ -575,12 +579,12 @@ impl GameState for TaikoMode {
                     };
 
                     let don_keys = [
-                        ctx.settings.game.key_mappings.left_don,
-                        ctx.settings.game.key_mappings.right_don,
+                        settings.game.key_mappings.left_don,
+                        settings.game.key_mappings.right_don,
                     ];
                     let kat_keys = [
-                        ctx.settings.game.key_mappings.left_ka,
-                        ctx.settings.game.key_mappings.right_ka,
+                        settings.game.key_mappings.left_ka,
+                        settings.game.key_mappings.right_ka,
                     ];
 
                     if don_keys.contains(&code) {
