@@ -1,6 +1,6 @@
 [package]
-name = "lunataiko"
-authors = ["luna borella <ulfrthewolf@gmail.com>"]
+name = "taiko"
+authors = ["luna <ulfrthewolf@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
 

@@ -1,6 +1,6 @@
-# LunaTaiko
-(that's a working title)
-A Taiko no tatsujin clone/simulator. I'm contractually obliged to mention it's written in rust.
+# Unnamed Taiko Simulator
+
+A Taiko clone/simulator. I'm contractually obliged to mention it's written in rust.
 
 This is still under construction. My goals for this project are to create a taiko-style rhythm game that can read and play songs using the tja format. It can... kinda do that now! But there is much work to be done before I am comfortable calling it a "working game".
 
