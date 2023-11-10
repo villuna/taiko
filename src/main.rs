@@ -92,7 +92,7 @@ fn main() {
 
     let mut renderer = Renderer::new(window).unwrap();
 
-    let mut app = App::new(&renderer, |renderer, textures| {
+    let mut app = App::new(&mut renderer, |renderer, textures| {
         Box::new(SongSelect::new(
             textures,
             &renderer.device,

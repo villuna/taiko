@@ -136,8 +136,8 @@ pub struct App {
 }
 
 impl App {
-    pub fn new<F>(renderer: &render::Renderer, create_state: F) -> anyhow::Result<Self> 
-    where F: FnOnce(&render::Renderer, &mut TextureCache) -> Box<dyn GameState>
+    pub fn new<F>(renderer: &mut render::Renderer, create_state: F) -> anyhow::Result<Self> 
+    where F: FnOnce(&mut render::Renderer, &mut TextureCache) -> Box<dyn GameState>
     {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
         let mut textures = TextureCache::default();
@@ -155,7 +155,7 @@ impl App {
                 .unwrap();
         }
 
-        let state = create_state(&renderer, &mut textures);
+        let state = create_state(renderer, &mut textures);
 
         Ok(App {
             audio_manager,

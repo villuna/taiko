@@ -6,7 +6,4 @@ mod main_menu;
 mod visual;
 
 pub use song_select::SongSelect;
-
-use crate::settings::Settings;
-
-const SPRITES_PATH: &str = "assets/images";
+pub use main_menu::MainMenu;

@@ -1,9 +1,9 @@
 //! Primitives - functions for constructing and drawing primitives
 
-use lyon::lyon_tessellation::{
+use lyon::{lyon_tessellation::{
     FillTessellator, FillVertex, FillVertexConstructor, StrokeTessellator, StrokeVertex,
-    StrokeVertexConstructor, VertexBuffers,
-};
+    StrokeVertexConstructor, VertexBuffers, FillOptions, BuffersBuilder, StrokeOptions,
+}, path::{Path, builder::BorderRadii}, geom::{Box2D, point}};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     vertex_attr_array,
@@ -35,6 +35,7 @@ impl PrimitiveVertex {
 ///
 /// Should not be used directly. Instead just call one of the Primitive 'depth' constructor
 /// functions.
+#[derive(Copy, Clone, Debug)]
 pub struct WithDepth<T> {
     inner: T,
     z: f32,
@@ -72,6 +73,7 @@ where
 ///
 /// "Solid" in this case doesn't mean "not transparent", it just means that there is no gradient. I
 /// can't think of a better name. Sorry.
+#[derive(Copy, Clone, Debug)]
 pub struct SolidColour {
     pub colour: [f32; 4],
 }
@@ -105,6 +107,7 @@ impl StrokeVertexConstructor<PrimitiveVertex> for SolidColour {
 /// You should ideally make sure that all vertices constructed by this are within the gradient,
 /// because due to the limitations of this approach, we cannot construct for instance, a gradient
 /// that only spans a small portion of a rectangle.
+#[derive(Copy, Clone, Debug)]
 pub struct LinearGradient {
     pub colour1: [f32; 4],
     pub colour2: [f32; 4],
@@ -186,6 +189,68 @@ pub struct Primitive {
 }
 
 impl Primitive {
+    pub fn filled_roundrect<C: FillVertexConstructor<PrimitiveVertex> + Clone>(
+        device: &wgpu::Device,
+        position: [f32; 3],
+        dimensions: [f32; 2],
+        radius: f32,
+        has_depth: bool,
+        colour: C,
+    ) -> anyhow::Result<Self> {
+        Self::filled_shape(device, position, has_depth, |tess, out| {
+            let mut p = Path::builder();
+            let min = point(0., 0.);
+            let max = point(
+                dimensions[0],
+                dimensions[1],
+            );
+            p.add_rounded_rectangle(&Box2D::new(min, max), &BorderRadii::new(radius), lyon::path::Winding::Positive);
+            
+            tess.tessellate_path(
+                &p.build(),
+                &FillOptions::DEFAULT,
+                &mut BuffersBuilder::new(
+                    out,
+                    colour.clone(),
+                ),
+            )?;
+
+            Ok(())
+        })
+    }
+
+    pub fn stroke_roundrect<C: StrokeVertexConstructor<PrimitiveVertex> + Clone>(
+        device: &wgpu::Device,
+        position: [f32; 3],
+        dimensions: [f32; 2],
+        radius: f32,
+        has_depth: bool,
+        colour: C,
+        line_width: f32,
+    ) -> anyhow::Result<Self> {
+        Self::stroke_shape(device, position, has_depth, |tess, out| {
+            let mut p = Path::builder();
+            let min = point(0., 0.);
+
+            let max = point(
+                dimensions[0],
+                dimensions[1],
+            );
+            p.add_rounded_rectangle(&Box2D::new(min, max), &BorderRadii::new(radius), lyon::path::Winding::Positive);
+            
+            tess.tessellate_path(
+                &p.build(),
+                &StrokeOptions::DEFAULT.with_line_width(line_width),
+                &mut BuffersBuilder::new(
+                    out,
+                    colour.clone(),
+                ),
+            )?;
+
+            Ok(())
+        })
+    }
+
     /// Constructs a Primitive out of filled shapes.
     pub fn filled_shape<F>(
         device: &wgpu::Device,
