@@ -34,8 +34,8 @@ impl Text {
         let mut texture = texture::Texture::empty(
             &renderer.device,
             Some("text texture"),
-            renderer.config.format,
-            (renderer.config.width, renderer.config.height),
+            renderer.config().format,
+            (renderer.config().width, renderer.config().height),
         )?;
 
         renderer
@@ -69,8 +69,8 @@ impl Text {
             let outlined_texture = texture::Texture::empty(
                 &renderer.device,
                 Some("text texture"),
-                renderer.config.format,
-                (renderer.config.width, renderer.config.height),
+                renderer.config().format,
+                (renderer.config().width, renderer.config().height),
             )?;
 
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -87,7 +87,7 @@ impl Text {
             });
 
             render_pass.set_pipeline(renderer.pipeline("outline").unwrap());
-            render_pass.set_bind_group(0, &renderer.screen_bind_group, &[]);
+            render_pass.set_bind_group(0, &renderer.screen_bind_group(), &[]);
             render_pass.set_bind_group(1, &texture.bind_group, &[]);
             render_pass.set_vertex_buffer(0, texture.vertex_buffer.slice(..));
             render_pass.set_index_buffer(texture.index_buffer.slice(..), wgpu::IndexFormat::Uint16);

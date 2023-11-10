@@ -2245,7 +2245,6 @@ dependencies = [
 name = "taiko"
 version = "0.1.0"
 dependencies = [
- "ab_glyph",
  "anyhow",
  "egui",
  "env_logger",

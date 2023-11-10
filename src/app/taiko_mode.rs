@@ -18,10 +18,10 @@ use silkwood::{
     render::{
         self,
         primitives::{LinearGradient, Primitive, SolidColour},
-        text::Text,
         texture::Sprite,
     },
-    app::{self, GameState, StateTransition, TextureCache, RenderContext}
+    app::{self, GameState, StateTransition, TextureCache, RenderContext},
+    ui::text::Text,
 };
 
 use crate::{track::{NoteTrack, NoteType, Song}, settings::SETTINGS};

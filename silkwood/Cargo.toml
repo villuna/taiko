@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 wgpu = "0.17.0"
-wgpu_text = "0.8.3"
+wgpu_text.workspace = true
 ab_glyph = "0.2"
 image = "0.24"
 lyon = "1.0"

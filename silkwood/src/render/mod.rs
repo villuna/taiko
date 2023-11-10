@@ -22,8 +22,6 @@ pub mod context;
 mod egui;
 pub mod primitives;
 pub mod texture;
-pub mod ui;
-pub use ui::text as text;
 
 pub use context::RenderPassContext;
 
@@ -46,7 +44,7 @@ pub struct Renderer {
     screen_bind_group: wgpu::BindGroup,
     pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
 
-    text_brush: wgpu_text::TextBrush,
+    pub text_brush: wgpu_text::TextBrush,
     egui_handler: egui::Egui,
 }
 
@@ -547,5 +545,13 @@ impl Renderer {
                 }
             },
         )
+    }
+
+    pub fn config(&self) -> &wgpu::SurfaceConfiguration {
+        &self.config
+    }
+
+    pub fn screen_bind_group(&self) -> &wgpu::BindGroup {
+        &self.screen_bind_group
     }
 }

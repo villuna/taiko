@@ -22,7 +22,7 @@ wgpu_text = "0.8.3"
 
 [dependencies]
 silkwood = { path = "./silkwood" }
-ab_glyph = "0.2.21"
+#ab_glyph = "0.2.21"
 anyhow.workspace = true
 # bytemuck = { version = "1.13.1", features = ["derive"] }
 egui.workspace = true
