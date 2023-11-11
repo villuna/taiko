@@ -23,8 +23,8 @@ use silkwood::{
         self,
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
         texture::Sprite,
+        text::Text,
     },
-    ui::text::Text,
 };
 
 use crate::{

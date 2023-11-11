@@ -1,13 +1,13 @@
 use anyhow::Context;
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
 
-use crate::render::{
+use silkwood::render::{
     context::Renderable,
     shapes::{Shape, ShapeBuilder, SolidColour},
+    text::Text,
     Renderer,
+    RenderPassContext,
 };
-
-use super::text::Text;
 
 pub struct Button {
     main_rect: Shape,
@@ -57,7 +57,7 @@ impl Button {
 }
 
 impl Renderable for Button {
-    fn render<'pass>(&'pass self, ctx: &mut crate::render::RenderPassContext<'pass>) {
+    fn render<'pass>(&'pass self, ctx: &mut RenderPassContext<'pass>) {
         self.main_rect.render(ctx);
         self.main_text.render(ctx);
     }

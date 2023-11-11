@@ -22,6 +22,7 @@ pub mod context;
 mod egui;
 pub mod shapes;
 pub mod texture;
+pub mod text;
 
 pub use context::RenderPassContext;
 
