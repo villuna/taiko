@@ -1,12 +1,12 @@
+use anyhow::Context;
 use wgpu_text::glyph_brush::{SectionBuilder, Layout, HorizontalAlign, VerticalAlign};
 
-use crate::render::{primitives::{Primitive, SolidColour}, Renderer, context::Renderable};
+use crate::render::{shapes::{Shape, SolidColour, ShapeBuilder}, Renderer, context::Renderable};
 
 use super::text::Text;
 
 pub struct Button {
-    main_rectangle: Primitive,
-    main_outline: Primitive,
+    main_rect: Shape,
     main_text: Text,
 }
 
@@ -17,28 +17,24 @@ impl Button {
         position: [f32; 2],
         dimensions: [f32; 2],
         colour: [f32; 4],
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
         let moved_position = [position[0] - dimensions[0] / 2.0, position[1] - dimensions[1] / 2.0, 0.0];
-        let main_rectangle = Primitive::filled_roundrect(
-            &renderer.device,
-            moved_position,
-            dimensions,
-            20.0,
-            false,
-            SolidColour::new(colour),
-        )
-        .unwrap();
-
-        let main_outline = Primitive::stroke_roundrect(
-            &renderer.device,
-            moved_position,
-            dimensions,
-            20.0,
-            false,
-            SolidColour::new([1.0; 4]),
-            7.0,
-        )
-        .unwrap();
+        let main_rect = ShapeBuilder::new()
+            .position(moved_position)
+            .filled_roundrect(
+                [0., 0.],
+                dimensions,
+                20.0,
+                SolidColour::new(colour),
+            ).context("creating fill for button")?
+            .stroke_roundrect(
+                [0., 0.,],
+                dimensions,
+                20.0,
+                SolidColour::new([1.0; 4]),
+                7.0,
+            ).context("creating outline for button")?
+            .build(&renderer.device);
 
         let main_text = SectionBuilder::default()
             .with_screen_position((position[0], position[1]))
@@ -47,16 +43,15 @@ impl Button {
                 .with_color([1.0, 1.0, 1.0, 1.0])
                 .with_scale(80.0)]);
 
-        let main_text = Text::new_outlined(renderer, &main_text).unwrap();
+        let main_text = Text::new_outlined(renderer, &main_text).context("creating text for button")?;
 
-        Self { main_rectangle, main_outline, main_text }
+        Ok(Self { main_rect, main_text })
     }
 }
 
 impl Renderable for Button {
     fn render<'pass>(&'pass self, ctx: &mut crate::render::RenderPassContext<'pass>) {
-        self.main_rectangle.render(ctx);
-        self.main_outline.render(ctx);
+        self.main_rect.render(ctx);
         self.main_text.render(ctx);
     }
 }

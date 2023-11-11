@@ -5,8 +5,8 @@ use kira::{
     sound::{PlaybackState, static_sound::{StaticSoundData, StaticSoundHandle}},
 };
 use lyon::{
-    geom::{point, Box2D},
-    lyon_tessellation::{BuffersBuilder, FillOptions, StrokeOptions},
+    geom::point,
+    lyon_tessellation::{BuffersBuilder, StrokeOptions},
     path::Path,
 };
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
@@ -17,7 +17,7 @@ use super::visual::note::VisualNote;
 use silkwood::{
     render::{
         self,
-        primitives::{LinearGradient, Primitive, SolidColour},
+        shapes::{LinearGradient, Shape, SolidColour, ShapeBuilder},
         texture::Sprite,
     },
     app::{self, GameState, StateTransition, TextureCache, RenderContext},
@@ -66,101 +66,84 @@ const BAD: usize = 2;
 const JUDGEMENT_TEXT_DISAPPEAR_TIME: f32 = 0.5;
 
 struct UI {
-    bg_rect: Primitive,
-    note_field: Primitive,
-    note_line: Primitive,
-    left_panel: Primitive,
+    bg_rect: Shape,
+    note_field: Shape,
+    note_line: Shape,
+    left_panel: Shape,
     title: Text,
     judgement_text: [Text; 3],
 }
 
 impl UI {
     fn new(renderer: &mut render::Renderer, song_name: &str) -> anyhow::Result<Self> {
-        let bg_rect = Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
-            tess.tessellate_rectangle(
-                &Box2D::new(
-                    point(0.0, 0.0),
-                    point(1920.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                ),
-                &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(
-                    out,
-                    LinearGradient::new(
-                        [0.15, 0.15, 0.15, 0.9],
-                        [0.0, 0.0, 0.0, 1.0],
-                        [0.0, 0.0],
-                        [0.0, 1.0],
-                    )
-                    .unwrap(),
-                ),
-            )?;
+        // The area on which the notes will be travelling
+        let note_field = ShapeBuilder::new()
+            .filled_rectangle(
+                [NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0],
+                [1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0],
+                SolidColour::new(NOTE_FIELD_COLOUR),
+            )?
+            .build(&renderer.device);
 
-            tess.tessellate_rectangle(
-                &Box2D::new(point(0.0, NOTE_Y), point(1920.0, 1080.0)),
-                &FillOptions::DEFAULT,
-                &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 0.8])),
-            )?;
+        let bg_rect = ShapeBuilder::new()
+            // a dark grey gradient above the note field
+            .filled_rectangle(
+                [0., 0.], 
+                [1920., NOTE_Y - NOTE_FIELD_HEIGHT / 2.0], 
+                LinearGradient::new(
+                    [0.15, 0.15, 0.15, 0.9],
+                    [0.0, 0.0, 0.0, 1.0],
+                    [0.0, 0.0],
+                    [0.0, 1.0],
+                )
+                .unwrap()
+            )?
+            // A translucent black area below the note field
+            .filled_rectangle(
+                [0., NOTE_Y],
+                [1920., 1080.],
+                SolidColour::new([0.0, 0.0, 0.0, 0.8]),
+            )?
+            .build(&renderer.device);
 
-            Ok(())
-        })?;
+        // The marquee that shows where notes should be hit
+        let note_line = ShapeBuilder::new()
+            .stroke_shape(|tess, out| {
+                let mut path = Path::builder();
+                path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
+                path.line_to(point(NOTE_HIT_X, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0));
+                path.end(false);
 
-        let note_field =
-            Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
-                tess.tessellate_rectangle(
-                    &Box2D::new(
-                        point(NOTE_HIT_X - 200.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                        point(1920.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                    ),
-                    &FillOptions::DEFAULT,
-                    &mut BuffersBuilder::new(out, SolidColour::new(NOTE_FIELD_COLOUR)),
-                )?;
+                let options = StrokeOptions::DEFAULT.with_line_width(4.0);
+                let mut builder = BuffersBuilder::new(out, SolidColour::new(NOTE_LINE_COLOUR));
 
-                Ok(())
-            })?;
+                // A line that shows exactly where notes should be hit
+                tess.tessellate_path(&path.build(), &options, &mut builder)?;
 
-        let note_line = Primitive::stroke_shape(&renderer.device, [0.0; 3], false, |tess, out| {
-            let mut path = Path::builder();
-            path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
-            path.line_to(point(NOTE_HIT_X, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0));
-            path.end(false);
+                // The outline of a small note
+                tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 50.0, &options, &mut builder)?;
 
-            let options = StrokeOptions::DEFAULT.with_line_width(4.0);
-            let mut builder = BuffersBuilder::new(out, SolidColour::new(NOTE_LINE_COLOUR));
-
-            // A line that shows exactly where notes should be hit
-            tess.tessellate_path(&path.build(), &options, &mut builder)?;
-
-            // The outline of a small note
-            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 50.0, &options, &mut builder)?;
-
-            // The outline of a large note
-            tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 75.0, &options, &mut builder)?;
-
-            Ok(())
-        })?;
-
-        let left_panel =
-            Primitive::filled_shape(&renderer.device, [0.0; 3], false, |tess, out| {
-                tess.tessellate_rectangle(
-                    &Box2D::new(
-                        point(0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                        point(NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                    ),
-                    &FillOptions::DEFAULT,
-                    &mut BuffersBuilder::new(out, SolidColour::new(LEFT_PANEL_COLOUR)),
-                )?;
-
-                tess.tessellate_rectangle(
-                    &Box2D::new(
-                        point(NOTE_HIT_X - 203.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                        point(NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                    ),
-                    &FillOptions::DEFAULT,
-                    &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 1.0])),
-                )?;
+                // The outline of a large note
+                tess.tessellate_circle(point(NOTE_HIT_X, NOTE_Y), 75.0, &options, &mut builder)?;
 
                 Ok(())
-            })?;
+            })?
+            .build(&renderer.device);
+
+        // A panel over the left hand side of the note field where notes will disappear under.
+        // Also will show combo and a visual representation of the drum input
+        let left_panel = ShapeBuilder::new()
+            .filled_rectangle(
+                [0.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0],
+                [NOTE_HIT_X - 203.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0],
+                SolidColour::new(LEFT_PANEL_COLOUR),
+            )?
+            .filled_rectangle(
+                [NOTE_HIT_X - 203.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0],
+                [NOTE_HIT_X - 200.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0],
+                SolidColour::new([0.0, 0.0, 0.0, 1.0]),
+            )?
+            .build(&renderer.device);
 
         let title = SectionBuilder::default()
             .with_screen_position((1820.0, 40.0))
@@ -234,7 +217,7 @@ pub struct TaikoMode {
     start_time: Option<Instant>,
     exit: bool,
     visual_notes: Vec<Option<VisualNote>>,
-    visual_barlines: Vec<Primitive>,
+    visual_barlines: Vec<Shape>,
     elapsed: f32,
     paused: bool,
     started: bool,
@@ -291,19 +274,13 @@ impl TaikoMode {
             .barlines
             .iter()
             .map(|_| {
-                Primitive::filled_shape(device, [0.0; 3], false, |tess, out| {
-                    tess.tessellate_rectangle(
-                        &Box2D::new(
-                            point(-1.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0),
-                            point(1.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0),
-                        ),
-                        &FillOptions::DEFAULT,
-                        &mut BuffersBuilder::new(out, SolidColour::new([1.0, 1.0, 1.0, 0.5])),
-                    )?;
-
-                    Ok(())
-                })
-                .unwrap()
+                ShapeBuilder::new()
+                    .filled_rectangle(
+                        [-1.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0],
+                        [1.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0],
+                        SolidColour::new([1.0, 1.0, 1.0, 0.5]),
+                    ).unwrap()
+                    .build(device)
             })
             .collect::<Vec<_>>();
 

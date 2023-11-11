@@ -9,7 +9,7 @@ use wgpu_text::{glyph_brush::Section, BrushBuilder};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
-use primitives::PrimitiveVertex;
+use shapes::ShapeVertex;
 use texture::TextureVertex;
 
 use self::texture::SpriteInstance;
@@ -20,7 +20,7 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub mod context;
 mod egui;
-pub mod primitives;
+pub mod shapes;
 pub mod texture;
 
 pub use context::RenderPassContext;
@@ -288,7 +288,7 @@ impl Renderer {
             Some(DEPTH_FORMAT),
             false,
             &[
-                PrimitiveVertex::vertex_layout(),
+                ShapeVertex::vertex_layout(),
                 SpriteInstance::vertex_layout(),
             ],
             &primitive_shader,
@@ -303,7 +303,7 @@ impl Renderer {
             Some(DEPTH_FORMAT),
             true,
             &[
-                PrimitiveVertex::vertex_layout(),
+                ShapeVertex::vertex_layout(),
                 SpriteInstance::vertex_layout(),
             ],
             &primitive_shader,
