@@ -21,8 +21,8 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 pub mod context;
 mod egui;
 pub mod shapes;
-pub mod texture;
 pub mod text;
+pub mod texture;
 
 pub use context::RenderPassContext;
 

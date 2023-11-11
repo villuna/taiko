@@ -22,8 +22,8 @@ use silkwood::{
     render::{
         self,
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
-        texture::Sprite,
         text::Text,
+        texture::Sprite,
     },
 };
 
@@ -418,7 +418,7 @@ impl GameState for TaikoMode {
         }
     }
 
-    fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_ , 'pass>) {
+    fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_, 'pass>) {
         let current =
             self.current_time() - SETTINGS.read().unwrap().game.global_note_offset / 1000.0;
         let notes = &self.song.track.notes;

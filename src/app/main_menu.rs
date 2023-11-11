@@ -1,5 +1,5 @@
-use silkwood::{app::GameState, render::Renderer};
 use crate::app::visual::button::Button;
+use silkwood::{app::GameState, render::Renderer};
 
 pub struct MainMenu {
     test_button: Button,

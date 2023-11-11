@@ -5,8 +5,7 @@ use silkwood::render::{
     context::Renderable,
     shapes::{Shape, ShapeBuilder, SolidColour},
     text::Text,
-    Renderer,
-    RenderPassContext,
+    RenderPassContext, Renderer,
 };
 
 pub struct Button {
