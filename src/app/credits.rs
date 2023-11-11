@@ -1,9 +1,7 @@
 use egui::RichText;
 use kira::manager::AudioManager;
 
-use crate::settings::Settings;
-
-use super::GameState;
+use silkwood::app::{self, GameState, StateTransition};
 
 pub struct CreditsScreen {
     exit: bool,
@@ -16,14 +14,14 @@ impl CreditsScreen {
 }
 
 impl GameState for CreditsScreen {
-    fn update(&mut self, _ctx: &mut super::Context, _dt: f32) -> super::StateTransition {
+    fn update(&mut self, _ctx: &mut app::Context, _dt: f32) -> StateTransition {
         if self.exit {
-            super::StateTransition::Pop
+            StateTransition::Pop
         } else {
-            super::StateTransition::Continue
+            StateTransition::Continue
         }
     }
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager, _settings: &mut Settings) {
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
         egui::Area::new("Credits")
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(&ctx, |ui| {

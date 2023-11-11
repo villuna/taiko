@@ -9,7 +9,7 @@ use wgpu_text::{glyph_brush::Section, BrushBuilder};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
-use primitives::PrimitiveVertex;
+use shapes::ShapeVertex;
 use texture::TextureVertex;
 
 use self::texture::SpriteInstance;
@@ -20,10 +20,9 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub mod context;
 mod egui;
-pub mod note;
-pub mod primitives;
-pub mod text;
+pub mod shapes;
 pub mod texture;
+pub mod text;
 
 pub use context::RenderPassContext;
 
@@ -46,7 +45,7 @@ pub struct Renderer {
     screen_bind_group: wgpu::BindGroup,
     pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
 
-    text_brush: wgpu_text::TextBrush,
+    pub text_brush: wgpu_text::TextBrush,
     egui_handler: egui::Egui,
 }
 
@@ -176,7 +175,11 @@ fn create_render_pipeline(
 }
 
 impl Renderer {
-    pub async fn new(window: Window) -> anyhow::Result<Self> {
+    pub fn new(window: Window) -> anyhow::Result<Self> {
+        pollster::block_on(Self::new_async(window))
+    }
+
+    async fn new_async(window: Window) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -286,7 +289,7 @@ impl Renderer {
             Some(DEPTH_FORMAT),
             false,
             &[
-                PrimitiveVertex::vertex_layout(),
+                ShapeVertex::vertex_layout(),
                 SpriteInstance::vertex_layout(),
             ],
             &primitive_shader,
@@ -301,7 +304,7 @@ impl Renderer {
             Some(DEPTH_FORMAT),
             true,
             &[
-                PrimitiveVertex::vertex_layout(),
+                ShapeVertex::vertex_layout(),
                 SpriteInstance::vertex_layout(),
             ],
             &primitive_shader,
@@ -543,5 +546,13 @@ impl Renderer {
                 }
             },
         )
+    }
+
+    pub fn config(&self) -> &wgpu::SurfaceConfiguration {
+        &self.config
+    }
+
+    pub fn screen_bind_group(&self) -> &wgpu::BindGroup {
+        &self.screen_bind_group
     }
 }

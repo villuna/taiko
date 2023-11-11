@@ -1,11 +1,9 @@
 use std::{io, path::Path, rc::Rc};
 
-use crate::{
-    app::credits::CreditsScreen,
-    parser::parse_tja_file,
-    render::texture::Sprite,
-    track::Song, settings::Settings,
-};
+use crate::{app::credits::CreditsScreen, parser::parse_tja_file, track::Song};
+
+use silkwood::render::texture::Sprite;
+
 use egui::RichText;
 use kira::{
     manager::AudioManager,
@@ -18,7 +16,9 @@ use kira::{
 };
 use lazy_static::lazy_static;
 
-use super::{taiko_mode::TaikoMode, GameState, TextureCache};
+use super::taiko_mode::TaikoMode;
+
+use silkwood::app::{self, GameState, RenderContext, StateTransition, TextureCache};
 
 type SongHandle = StreamingSoundHandle<FromFileError>;
 
@@ -138,14 +138,14 @@ impl SongSelect {
 }
 
 impl GameState for SongSelect {
-    fn update(&mut self, ctx: &mut super::Context, _dt: f32) -> super::StateTransition {
+    fn update(&mut self, ctx: &mut app::Context, _dt: f32) -> StateTransition {
         if self.go_to_credits {
             if let Some(handle) = self.song_handle.as_mut() {
                 handle.stop(*OUT_TWEEN).unwrap();
             }
 
             self.go_to_credits = false;
-            super::StateTransition::Push(Box::new(CreditsScreen::new()))
+            StateTransition::Push(Box::new(CreditsScreen::new()))
         } else if let Some((song_id, difficulty)) = self.go_to_song {
             let sound_data = StaticSoundData::from_file(
                 &self.songs[song_id].audio_filename,
@@ -159,7 +159,7 @@ impl GameState for SongSelect {
                 handle.stop(Default::default()).unwrap();
             }
 
-            super::StateTransition::Push(Box::new(
+            StateTransition::Push(Box::new(
                 TaikoMode::new(
                     &self.songs[song_id],
                     difficulty,
@@ -172,16 +172,16 @@ impl GameState for SongSelect {
                 .expect("error going to taiko mode: song was invalid"),
             ))
         } else if self.exit {
-            super::StateTransition::Exit
+            StateTransition::Exit
         } else {
-            super::StateTransition::Continue
+            StateTransition::Continue
         }
     }
-    fn render<'app, 'pass>(&'pass mut self, ctx: &mut super::RenderContext<'app, 'pass>) {
+    fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_, 'pass>) {
         ctx.render(self.bg_sprite.as_ref())
     }
 
-    fn debug_ui(&mut self, ctx: egui::Context, audio: &mut AudioManager, _settings: &mut Settings) {
+    fn debug_ui(&mut self, ctx: egui::Context, audio: &mut AudioManager) {
         egui::SidePanel::left("main menu")
             .resizable(false)
             .show(&ctx, |ui| {

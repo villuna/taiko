@@ -1,6 +1,6 @@
 use kira::manager::AudioManager;
 
-use super::{Context, GameState, StateTransition};
+use silkwood::app::{Context, GameState, StateTransition};
 struct Score {
     goods: u32,
     okays: u32,
@@ -50,19 +50,14 @@ impl GameState for ScoreScreen {
         }
     }
 
-    fn debug_ui(
-        &mut self,
-        ctx: egui::Context,
-        _audio: &mut AudioManager,
-        _settings: &mut super::Settings,
-    ) {
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
         egui::Window::new("Seiseki happyou!").show(&ctx, |ui| {
             ui.label(egui::RichText::new(&self.song_name).size(20.0).strong());
             ui.add_space(10.0);
             ui.label(format!("Good: {}", self.score.goods));
             ui.label(format!("Ok: {}", self.score.okays));
             ui.label(format!("Bad: {}", self.score.bads));
-            ui.label(format!("Drumroll: Not yet implemented :P"));
+            ui.label("Drumroll: Not yet implemented :P");
             ui.label(format!("Max Combo: {}", self.score.max_combo));
 
             self.exit = ui.button("Back to menu").clicked();

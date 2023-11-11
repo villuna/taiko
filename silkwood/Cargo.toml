@@ -1,0 +1,25 @@
+[package]
+name = "silkwood"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wgpu = "0.17.0"
+wgpu_text.workspace = true
+ab_glyph = "0.2"
+image = "0.24"
+lyon = "1.0"
+bytemuck = { version = "1.13.1", features = ["derive"] }
+pollster = "0.3"
+
+# Eventually I will get rid of this dependency and only require it in the binary crate
+anyhow.workspace = true
+
+kira.workspace = true
+winit.workspace = true
+
+egui.workspace = true
+egui-wgpu = "0.23.0"
+egui_winit_platform = "0.20.0"

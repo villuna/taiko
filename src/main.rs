@@ -1,10 +1,11 @@
 use std::time::Instant;
 
-use taiko::{
-    app::App,
-    render::Renderer,
-    settings::{self, ResolutionState},
-};
+use silkwood::{app::App, render::Renderer};
+
+use taiko::app::SongSelect;
+
+use taiko::settings::{self, ResolutionState, SETTINGS};
+
 use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -70,8 +71,7 @@ fn set_window_mode(window: &Window, settings: &mut settings::Settings) {
     }
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     env_logger::init();
 
     let event_loop = EventLoop::new();
@@ -80,15 +80,19 @@ async fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let mut settings = settings::read_settings();
+    settings::read_settings();
 
-    set_window_mode(&window, &mut settings);
+    set_window_mode(&window, &mut SETTINGS.write().unwrap());
 
     let mut frame_time = Instant::now();
     let mut delta = 1.0 / 60.0;
 
-    let mut renderer = Renderer::new(window).await.unwrap();
-    let mut app = App::new(&renderer, settings).unwrap();
+    let mut renderer = Renderer::new(window).unwrap();
+
+    let mut app = App::new(&mut renderer, |renderer, textures| {
+        Box::new(SongSelect::new(textures, &renderer.device, &renderer.queue).unwrap())
+    })
+    .unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         if !renderer.handle_event(&event) {

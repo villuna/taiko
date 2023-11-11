@@ -8,7 +8,7 @@ pub struct RenderPassContext<'pass> {
 }
 
 /// A trait that allows objects to render themselves to the screen in any given render pass. If a
-/// type implements Renderable, then it is able to be rendered by the [RenderContext]'s render
+/// type implements Renderable, then it is able to be rendered by the [RenderPassContext]'s render
 /// function.
 pub trait Renderable {
     fn render<'pass>(&'pass self, ctx: &mut RenderPassContext<'pass>);

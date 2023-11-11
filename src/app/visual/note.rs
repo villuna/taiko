@@ -1,14 +1,13 @@
-use lyon::{
-    geom::{point, Box2D},
-    lyon_tessellation::{BuffersBuilder, FillOptions},
-};
+use lyon::lyon_tessellation::TessellationError;
 
-use crate::{app::TextureCache, track::NoteType};
+use crate::track::NoteType;
+use silkwood::{app::TextureCache, render::shapes::ShapeBuilder};
 
-use super::{
+use silkwood::render::{
     context::Renderable,
-    primitives::{Primitive, SolidColour},
+    shapes::{Shape, SolidColour},
     texture::Sprite,
+    RenderPassContext,
 };
 
 const ROLL_COLOUR: [f32; 4] = [1.0, 195.0 / 255.0, 44.0 / 255.0, 1.0];
@@ -16,7 +15,7 @@ const ROLL_COLOUR: [f32; 4] = [1.0, 195.0 / 255.0, 44.0 / 255.0, 1.0];
 #[derive(Debug)]
 pub enum VisualNote {
     Note(Sprite),
-    Roll { start: Sprite, body: Primitive },
+    Roll { start: Sprite, body: Shape },
 }
 
 impl VisualNote {
@@ -28,44 +27,34 @@ impl VisualNote {
         textures: &mut TextureCache,
     ) -> Option<Self> {
         let mut get_texture = |filename| textures.get(device, queue, filename).unwrap();
-        let create_roll_body = |length, height| {
+        let create_roll_body = |length, height| -> Result<Shape, TessellationError> {
             const OUTLINE_WIDTH: f32 = 3.0;
 
-            Primitive::filled_shape(device, [0.0; 3], true, |tess, out| {
+            Ok(ShapeBuilder::new()
+                .has_depth(true)
                 // Outline
-                tess.tessellate_rectangle(
-                    &Box2D::new(point(height / 2.0, 0.0), point(length, height)),
-                    &FillOptions::DEFAULT,
-                    &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 1.0])),
-                )?;
-
-                tess.tessellate_circle(
-                    point(length, height / 2.0),
+                .filled_rectangle(
+                    [height / 2.0, 0.0],
+                    [length, height],
+                    SolidColour::new([0.0, 0.0, 0.0, 1.0]),
+                )?
+                .filled_circle(
+                    [length, height / 2.0],
                     height / 2.0,
-                    &FillOptions::DEFAULT,
-                    &mut BuffersBuilder::new(out, SolidColour::new([0.0, 0.0, 0.0, 1.0])),
-                )?;
-
+                    SolidColour::new([0.0, 0.0, 0.0, 1.0]),
+                )?
                 // Inside
-                tess.tessellate_rectangle(
-                    &Box2D::new(
-                        point(height / 2.0 + OUTLINE_WIDTH, OUTLINE_WIDTH),
-                        point(length - OUTLINE_WIDTH, height - OUTLINE_WIDTH),
-                    ),
-                    &FillOptions::DEFAULT,
-                    &mut BuffersBuilder::new(out, SolidColour::new(ROLL_COLOUR)),
-                )?;
-
-                tess.tessellate_circle(
-                    point(length, height / 2.0),
+                .filled_rectangle(
+                    [height / 2.0 + OUTLINE_WIDTH, OUTLINE_WIDTH],
+                    [length - OUTLINE_WIDTH, height - OUTLINE_WIDTH],
+                    SolidColour::new(ROLL_COLOUR),
+                )?
+                .filled_circle(
+                    [length, height / 2.0],
                     height / 2.0 - OUTLINE_WIDTH,
-                    &FillOptions::DEFAULT,
-                    &mut BuffersBuilder::new(out, SolidColour::new(ROLL_COLOUR)),
-                )?;
-
-                Ok(())
-            })
-            .ok()
+                    SolidColour::new(ROLL_COLOUR),
+                )?
+                .build(device))
         };
 
         Some(match note_type {
@@ -90,7 +79,7 @@ impl VisualNote {
             NoteType::Roll(length) => {
                 let start = Sprite::new(get_texture("drumroll_start.png"), [0.0; 3], device, true);
                 let body_length = pixel_vel * length;
-                let body = create_roll_body(body_length, 100.0)?;
+                let body = create_roll_body(body_length, 100.0).ok()?;
 
                 VisualNote::Roll { start, body }
             }
@@ -103,7 +92,7 @@ impl VisualNote {
                     true,
                 );
                 let body_length = pixel_vel * length;
-                let body = create_roll_body(body_length, 150.0)?;
+                let body = create_roll_body(body_length, 150.0).ok()?;
 
                 VisualNote::Roll { start, body }
             }
@@ -142,7 +131,7 @@ impl VisualNote {
 }
 
 impl Renderable for VisualNote {
-    fn render<'a>(&'a self, ctx: &mut super::RenderPassContext<'a>) {
+    fn render<'a>(&'a self, ctx: &mut RenderPassContext<'a>) {
         match self {
             VisualNote::Note(sprite) => sprite.render(ctx),
             VisualNote::Roll { start, body } => {
