@@ -11,9 +11,12 @@ use winit::event::VirtualKeyCode;
 pub const SETTINGS_PATH: &str = "taiko_settings.toml";
 
 pub static SETTINGS: RwLock<Settings> = RwLock::new(Settings {
-    visual: VisualSettings { resolution: ResolutionState::BorderlessFullscreen },
+    visual: VisualSettings {
+        resolution: ResolutionState::BorderlessFullscreen,
+    },
     game: GameSettings {
-        global_note_offset: 0.0, key_mappings: KeyMap::default_mapping()
+        global_note_offset: 0.0,
+        key_mappings: KeyMap::default_mapping(),
     },
 });
 
@@ -112,7 +115,7 @@ pub fn read_settings() {
                     let settings = Settings::default();
 
                     std::fs::write(SETTINGS_PATH, toml::to_string(&settings).unwrap())
-                        .expect(&format!("couldnt write to file \"{}\"", SETTINGS_PATH));
+                        .unwrap_or_else(|_| panic!("couldnt write to file \"{}\"", SETTINGS_PATH));
                     settings
                 } else {
                     panic!("unexpected error reading settings!: {e}");

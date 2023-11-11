@@ -8,7 +8,7 @@ use winit::{
     event_loop::ControlFlow,
 };
 
-use crate::render::{self, texture::Texture, context::Renderable};
+use crate::render::{self, context::Renderable, texture::Texture};
 
 const FPS_POLL_TIME: f32 = 0.5;
 const SPRITES_PATH: &str = "assets/images";
@@ -136,8 +136,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new<F>(renderer: &mut render::Renderer, create_state: F) -> anyhow::Result<Self> 
-    where F: FnOnce(&mut render::Renderer, &mut TextureCache) -> Box<dyn GameState>
+    pub fn new<F>(renderer: &mut render::Renderer, create_state: F) -> anyhow::Result<Self>
+    where
+        F: FnOnce(&mut render::Renderer, &mut TextureCache) -> Box<dyn GameState>,
     {
         let audio_manager = AudioManager::<DefaultBackend>::new(Default::default())?;
         let mut textures = TextureCache::default();

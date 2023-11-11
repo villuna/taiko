@@ -5,10 +5,15 @@
 //! so when constructing more complicated shapes you may need to interface with it (for example, in
 //! the `ShapeBuilder`'s `filled_shape` and `stroke_shape` methods)
 
-use lyon::{lyon_tessellation::{
-    FillTessellator, FillVertex, FillVertexConstructor, StrokeTessellator, StrokeVertex,
-    StrokeVertexConstructor, VertexBuffers, FillOptions, BuffersBuilder, StrokeOptions, TessellationError,
-}, path::{Path, builder::BorderRadii}, geom::{Box2D, point}};
+use lyon::{
+    geom::{point, Box2D},
+    lyon_tessellation::{
+        BuffersBuilder, FillOptions, FillTessellator, FillVertex, FillVertexConstructor,
+        StrokeOptions, StrokeTessellator, StrokeVertex, StrokeVertexConstructor, TessellationError,
+        VertexBuffers,
+    },
+    path::{builder::BorderRadii, Path},
+};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     vertex_attr_array,
@@ -166,7 +171,7 @@ pub struct ShapeBuilder {
 
 impl ShapeBuilder {
     /// Constructs a new shape builder.
-    /// 
+    ///
     /// By default, the shape will have position [0, 0, 0] and will not use depth when drawing.
     pub fn new() -> Self {
         Self {
@@ -195,7 +200,9 @@ impl ShapeBuilder {
 
         let instance = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("primitive instance buffer"),
-            contents: bytemuck::cast_slice(&[SpriteInstance { position: self.position }]),
+            contents: bytemuck::cast_slice(&[SpriteInstance {
+                position: self.position,
+            }]),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -227,10 +234,7 @@ impl ShapeBuilder {
 
     /// Allows access to the [FillTessellator] and [VertexBuffers] so that you can add your own
     /// arbitrary filled shapes.
-    pub fn filled_shape<F>(
-        mut self,
-        mut build_shapes: F,
-    ) -> Result<Self, TessellationError>
+    pub fn filled_shape<F>(mut self, mut build_shapes: F) -> Result<Self, TessellationError>
     where
         F: FnMut(
             &mut FillTessellator,
@@ -243,10 +247,7 @@ impl ShapeBuilder {
 
     /// Allows access to the [StrokeTessellator] and [VertexBuffers] so that you can add your own
     /// arbitrary stroke shapes.
-    pub fn stroke_shape<F>(
-        mut self,
-        mut build_shapes: F,
-    ) -> Result<Self, TessellationError>
+    pub fn stroke_shape<F>(mut self, mut build_shapes: F) -> Result<Self, TessellationError>
     where
         F: FnMut(
             &mut StrokeTessellator,
@@ -264,23 +265,14 @@ impl ShapeBuilder {
         max_point: [f32; 2],
         colour: C,
     ) -> Result<Self, TessellationError> {
-        let min = point(
-            min_point[0],
-            min_point[1]
-        );
+        let min = point(min_point[0], min_point[1]);
 
-        let max = point(
-            max_point[0],
-            max_point[1],
-        );
+        let max = point(max_point[0], max_point[1]);
 
         self.fill_tesselator.tessellate_rectangle(
             &Box2D::new(min, max),
             &FillOptions::DEFAULT,
-            &mut BuffersBuilder::new(
-                &mut self.output, 
-                colour.clone(),
-            ),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
         )?;
 
         Ok(self)
@@ -294,23 +286,14 @@ impl ShapeBuilder {
         colour: C,
         line_width: f32,
     ) -> Result<Self, TessellationError> {
-        let min = point(
-            min_point[0],
-            min_point[1]
-        );
+        let min = point(min_point[0], min_point[1]);
 
-        let max = point(
-            max_point[0],
-            max_point[1],
-        );
+        let max = point(max_point[0], max_point[1]);
 
         self.stroke_tesselator.tessellate_rectangle(
             &Box2D::new(min, max),
             &StrokeOptions::DEFAULT.with_line_width(line_width),
-            &mut BuffersBuilder::new(
-                &mut self.output, 
-                colour.clone(),
-            ),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
         )?;
 
         Ok(self)
@@ -323,19 +306,13 @@ impl ShapeBuilder {
         radius: f32,
         colour: C,
     ) -> Result<Self, TessellationError> {
-        let centre = point(
-            centre[0],
-            centre[1]
-        );
+        let centre = point(centre[0], centre[1]);
 
         self.fill_tesselator.tessellate_circle(
             centre,
             radius,
             &FillOptions::DEFAULT,
-            &mut BuffersBuilder::new(
-                &mut self.output, 
-                colour.clone(),
-            ),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
         )?;
 
         Ok(self)
@@ -349,19 +326,13 @@ impl ShapeBuilder {
         colour: C,
         line_width: f32,
     ) -> Result<Self, TessellationError> {
-        let centre = point(
-            centre[0],
-            centre[1]
-        );
+        let centre = point(centre[0], centre[1]);
 
         self.stroke_tesselator.tessellate_circle(
             centre,
             radius,
             &StrokeOptions::DEFAULT.with_line_width(line_width),
-            &mut BuffersBuilder::new(
-                &mut self.output, 
-                colour.clone(),
-            ),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
         )?;
 
         Ok(self)
@@ -377,24 +348,19 @@ impl ShapeBuilder {
         colour: C,
     ) -> Result<Self, TessellationError> {
         let mut p = Path::builder();
-        let min = point(
-            min_point[0],
-            min_point[1]
+        let min = point(min_point[0], min_point[1]);
+
+        let max = point(max_point[0], max_point[1]);
+        p.add_rounded_rectangle(
+            &Box2D::new(min, max),
+            &BorderRadii::new(radius),
+            lyon::path::Winding::Positive,
         );
 
-        let max = point(
-            max_point[0],
-            max_point[1],
-        );
-        p.add_rounded_rectangle(&Box2D::new(min, max), &BorderRadii::new(radius), lyon::path::Winding::Positive);
-        
         self.fill_tesselator.tessellate_path(
             &p.build(),
             &FillOptions::DEFAULT,
-            &mut BuffersBuilder::new(
-                &mut self.output,
-                colour.clone(),
-            ),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
         )?;
 
         Ok(self)
@@ -411,24 +377,19 @@ impl ShapeBuilder {
         line_width: f32,
     ) -> Result<Self, TessellationError> {
         let mut p = Path::builder();
-        let min = point(
-            min_point[0],
-            min_point[1]
+        let min = point(min_point[0], min_point[1]);
+
+        let max = point(max_point[0], max_point[1]);
+        p.add_rounded_rectangle(
+            &Box2D::new(min, max),
+            &BorderRadii::new(radius),
+            lyon::path::Winding::Positive,
         );
 
-        let max = point(
-            max_point[0],
-            max_point[1],
-        );
-        p.add_rounded_rectangle(&Box2D::new(min, max), &BorderRadii::new(radius), lyon::path::Winding::Positive);
-        
         self.stroke_tesselator.tessellate_path(
             &p.build(),
             &StrokeOptions::DEFAULT.with_line_width(line_width),
-            &mut BuffersBuilder::new(
-                &mut self.output,
-                colour.clone(),
-            ),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
         )?;
 
         Ok(self)

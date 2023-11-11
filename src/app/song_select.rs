@@ -1,10 +1,6 @@
 use std::{io, path::Path, rc::Rc};
 
-use crate::{
-    app::credits::CreditsScreen,
-    parser::parse_tja_file,
-    track::Song,
-};
+use crate::{app::credits::CreditsScreen, parser::parse_tja_file, track::Song};
 
 use silkwood::render::texture::Sprite;
 
@@ -22,7 +18,7 @@ use lazy_static::lazy_static;
 
 use super::taiko_mode::TaikoMode;
 
-use silkwood::app::{self, RenderContext, GameState, TextureCache, StateTransition};
+use silkwood::app::{self, GameState, RenderContext, StateTransition, TextureCache};
 
 type SongHandle = StreamingSoundHandle<FromFileError>;
 
@@ -181,7 +177,7 @@ impl GameState for SongSelect {
             StateTransition::Continue
         }
     }
-    fn render<'app, 'pass>(&'pass mut self, ctx: &mut RenderContext<'app, 'pass>) {
+    fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_, 'pass>) {
         ctx.render(self.bg_sprite.as_ref())
     }
 

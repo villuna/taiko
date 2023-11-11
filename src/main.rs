@@ -1,9 +1,6 @@
 use std::time::Instant;
 
-use silkwood::{
-    app::App,
-    render::Renderer,
-};
+use silkwood::{app::App, render::Renderer};
 
 use taiko::app::SongSelect;
 
@@ -93,12 +90,9 @@ fn main() {
     let mut renderer = Renderer::new(window).unwrap();
 
     let mut app = App::new(&mut renderer, |renderer, textures| {
-        Box::new(SongSelect::new(
-            textures,
-            &renderer.device,
-            &renderer.queue,
-        ).unwrap())
-    }).unwrap();
+        Box::new(SongSelect::new(textures, &renderer.device, &renderer.queue).unwrap())
+    })
+    .unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         if !renderer.handle_event(&event) {

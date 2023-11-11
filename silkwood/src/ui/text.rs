@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use wgpu_text::glyph_brush::Section;
 
-use crate::render::{context::Renderable, texture, Renderer, RenderPassContext};
+use crate::render::{context::Renderable, texture, RenderPassContext, Renderer};
 
 #[derive(Debug)]
 pub struct Text {

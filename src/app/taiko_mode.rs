@@ -2,7 +2,10 @@ use std::{rc::Rc, time::Instant};
 
 use kira::{
     manager::AudioManager,
-    sound::{PlaybackState, static_sound::{StaticSoundData, StaticSoundHandle}},
+    sound::{
+        static_sound::{StaticSoundData, StaticSoundHandle},
+        PlaybackState,
+    },
 };
 use lyon::{
     geom::point,
@@ -15,16 +18,19 @@ use winit::event::{ElementState, WindowEvent};
 use super::visual::note::VisualNote;
 
 use silkwood::{
+    app::{self, GameState, RenderContext, StateTransition, TextureCache},
     render::{
         self,
-        shapes::{LinearGradient, Shape, SolidColour, ShapeBuilder},
+        shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
         texture::Sprite,
     },
-    app::{self, GameState, StateTransition, TextureCache, RenderContext},
     ui::text::Text,
 };
 
-use crate::{track::{NoteTrack, NoteType, Song}, settings::SETTINGS};
+use crate::{
+    settings::SETTINGS,
+    track::{NoteTrack, NoteType, Song},
+};
 
 use super::score_screen::ScoreScreen;
 
@@ -88,15 +94,15 @@ impl UI {
         let bg_rect = ShapeBuilder::new()
             // a dark grey gradient above the note field
             .filled_rectangle(
-                [0., 0.], 
-                [1920., NOTE_Y - NOTE_FIELD_HEIGHT / 2.0], 
+                [0., 0.],
+                [1920., NOTE_Y - NOTE_FIELD_HEIGHT / 2.0],
                 LinearGradient::new(
                     [0.15, 0.15, 0.15, 0.9],
                     [0.0, 0.0, 0.0, 1.0],
                     [0.0, 0.0],
                     [0.0, 1.0],
                 )
-                .unwrap()
+                .unwrap(),
             )?
             // A translucent black area below the note field
             .filled_rectangle(
@@ -279,7 +285,8 @@ impl TaikoMode {
                         [-1.0, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0],
                         [1.0, NOTE_Y + NOTE_FIELD_HEIGHT / 2.0],
                         SolidColour::new([1.0, 1.0, 1.0, 0.5]),
-                    ).unwrap()
+                    )
+                    .unwrap()
                     .build(device)
             })
             .collect::<Vec<_>>();
@@ -390,7 +397,7 @@ impl GameState for TaikoMode {
                 .iter()
                 .enumerate()
                 .filter(|(i, state)| {
-                    !self.song.track.notes[*i].note_type.is_roll() && **state == None
+                    !self.song.track.notes[*i].note_type.is_roll() && state.is_none()
                 })
                 .count() as u32;
 
@@ -411,8 +418,9 @@ impl GameState for TaikoMode {
         }
     }
 
-    fn render<'app, 'pass>(&'pass mut self, ctx: &mut RenderContext<'app, 'pass>) {
-        let current = self.current_time() - SETTINGS.read().unwrap().game.global_note_offset / 1000.0;
+    fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_ , 'pass>) {
+        let current =
+            self.current_time() - SETTINGS.read().unwrap().game.global_note_offset / 1000.0;
         let notes = &self.song.track.notes;
 
         let draw_notes = self
@@ -526,7 +534,8 @@ impl GameState for TaikoMode {
             ui.label(format!("combo: {}", self.combo));
 
             if !self.note_offsets.is_empty() {
-                let average = self.note_offsets.iter().sum::<f32>() / self.note_offsets.len() as f32;
+                let average =
+                    self.note_offsets.iter().sum::<f32>() / self.note_offsets.len() as f32;
                 ui.label(format!("average offset: {}", average));
             }
 

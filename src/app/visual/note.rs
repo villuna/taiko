@@ -1,13 +1,13 @@
 use lyon::lyon_tessellation::TessellationError;
 
-use silkwood::{app::TextureCache, render::shapes::ShapeBuilder};
 use crate::track::NoteType;
+use silkwood::{app::TextureCache, render::shapes::ShapeBuilder};
 
 use silkwood::render::{
-    RenderPassContext,
     context::Renderable,
     shapes::{Shape, SolidColour},
     texture::Sprite,
+    RenderPassContext,
 };
 
 const ROLL_COLOUR: [f32; 4] = [1.0, 195.0 / 255.0, 44.0 / 255.0, 1.0];
@@ -27,7 +27,7 @@ impl VisualNote {
         textures: &mut TextureCache,
     ) -> Option<Self> {
         let mut get_texture = |filename| textures.get(device, queue, filename).unwrap();
-        let create_roll_body = |length, height| -> Result<Shape, TessellationError>{
+        let create_roll_body = |length, height| -> Result<Shape, TessellationError> {
             const OUTLINE_WIDTH: f32 = 3.0;
 
             Ok(ShapeBuilder::new()
