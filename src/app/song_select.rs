@@ -278,5 +278,25 @@ impl GameState for SongSelect {
                 }
             });
         }
+
+        #[cfg(debug_assertions)]
+        let build = "debug";
+
+        #[cfg(not(debug_assertions))]
+        let build = "release";
+
+        egui::Area::new("version")
+            .fixed_pos(egui::pos2(1700.0, 1050.0))
+            .show(&ctx, |ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "lunataiko version {} ({})",
+                        env!("CARGO_PKG_VERSION"),
+                        build,
+                    ))
+                    .color(egui::Color32::from_rgb(255, 255, 255))
+                    .size(15.0),
+                );
+            });
     }
 }

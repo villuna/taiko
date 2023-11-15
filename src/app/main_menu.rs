@@ -24,4 +24,26 @@ impl GameState for MainMenu {
     fn render<'pass>(&'pass mut self, ctx: &mut silkwood::app::RenderContext<'_, 'pass>) {
         ctx.render(&self.test_button)
     }
+
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut kira::manager::AudioManager) {
+        #[cfg(debug_assertions)]
+        let build = "debug";
+
+        #[cfg(not(debug_assertions))]
+        let build = "release";
+
+        egui::Area::new("version")
+            .fixed_pos(egui::pos2(1700.0, 1050.0))
+            .show(&ctx, |ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "lunataiko version {} ({})",
+                        env!("CARGO_PKG_VERSION"),
+                        build,
+                    ))
+                    .color(egui::Color32::from_rgb(255, 255, 255))
+                    .size(15.0),
+                );
+            });
+    }
 }

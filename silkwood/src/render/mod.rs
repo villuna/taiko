@@ -1,10 +1,10 @@
 use ab_glyph::FontArc;
 use anyhow::anyhow;
 use egui_wgpu::renderer::ScreenDescriptor;
-use wgpu::{
-    include_wgsl,
-    util::{BufferInitDescriptor, DeviceExt},
-};
+#[cfg(not(debug_assertions))]
+use wgpu::include_wgsl;
+
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu_text::{glyph_brush::Section, BrushBuilder};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -174,6 +174,28 @@ fn create_render_pipeline(
     })
 }
 
+// An extension of the include_wgsl macro that only includes the shaders at compile time if
+// building for release version
+macro_rules! include_shader {
+    ($($token:tt)*) => {{
+        #[cfg(debug_assertions)]
+        {
+            let path = { $($token)* };
+            let full_path = format!("{}/src/render/{}", env!("CARGO_MANIFEST_DIR"), path);
+
+            wgpu::ShaderModuleDescriptor {
+                label: Some(path),
+                source: wgpu::ShaderSource::Wgsl(std::fs::read_to_string(full_path).unwrap().into())
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            include_wgsl!($($token)*)
+        }
+    }}
+}
+
 impl Renderer {
     pub fn new(window: Window) -> anyhow::Result<Self> {
         pollster::block_on(Self::new_async(window))
@@ -279,7 +301,7 @@ impl Renderer {
             });
 
         let primitive_shader =
-            device.create_shader_module(include_wgsl!("shaders/primitive_shader.wgsl"));
+            device.create_shader_module(include_shader!("shaders/primitive_shader.wgsl"));
 
         let primitive_pipeline = create_render_pipeline(
             &device,
@@ -312,7 +334,7 @@ impl Renderer {
         );
 
         let texture_shader =
-            device.create_shader_module(include_wgsl!("shaders/texture_shader.wgsl"));
+            device.create_shader_module(include_shader!("shaders/texture_shader.wgsl"));
 
         let texture_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -373,7 +395,7 @@ impl Renderer {
             });
 
         let outline_shader =
-            device.create_shader_module(include_wgsl!("shaders/outline_shader.wgsl"));
+            device.create_shader_module(include_shader!("shaders/outline_shader.wgsl"));
 
         let outline_pipeline = create_render_pipeline(
             &device,
