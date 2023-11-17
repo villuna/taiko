@@ -1,6 +1,9 @@
 use std::{io, path::Path, rc::Rc};
 
-use crate::{app::credits::CreditsScreen, beatmap_parser::{parse_tja_file, track::Song}};
+use crate::{
+    app::credits::CreditsScreen,
+    beatmap_parser::{parse_tja_file, track::Song},
+};
 
 use silkwood::render::texture::Sprite;
 
@@ -245,7 +248,6 @@ impl GameState for SongSelect {
                         self.go_to_credits = true;
                     }
                 });
-                
             });
 
         if let Some(song_index) = self.selected {
@@ -289,17 +291,20 @@ impl GameState for SongSelect {
         egui::Area::new("version")
             .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
             .show(&ctx, |ui| {
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(false), |ui| {
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "luna's taiko sim - version {} ({})",
-                            env!("CARGO_PKG_VERSION"),
-                            build,
-                        ))
-                        .color(egui::Color32::from_rgb(255, 255, 255))
-                        .size(15.0),
-                    );
-                });
-            }); 
+                ui.with_layout(
+                    egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(false),
+                    |ui| {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "luna's taiko sim - version {} ({})",
+                                env!("CARGO_PKG_VERSION"),
+                                build,
+                            ))
+                            .color(egui::Color32::from_rgb(255, 255, 255))
+                            .size(15.0),
+                        );
+                    },
+                );
+            });
     }
 }

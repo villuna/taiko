@@ -26,8 +26,8 @@ use silkwood::{
 };
 
 use crate::{
-    settings::SETTINGS,
     beatmap_parser::track::{NoteTrack, NoteType, Song},
+    settings::SETTINGS,
 };
 
 use super::score_screen::ScoreScreen;
