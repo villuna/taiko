@@ -12,7 +12,7 @@ use nom::{
     Finish, IResult, Parser,
 };
 
-use crate::track::{Barline, Difficulty, Note, NoteTrack, NoteType, Song};
+use super::track::{Barline, Difficulty, Note, NoteTrack, NoteType, Song};
 /// Types of errors that can be encountered while parsing a TJA file. This is used in the
 /// [TJAParseError] struct.
 #[derive(Clone, Debug, PartialEq, Eq)]

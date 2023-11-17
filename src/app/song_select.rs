@@ -1,6 +1,6 @@
 use std::{io, path::Path, rc::Rc};
 
-use crate::{app::credits::CreditsScreen, parser::parse_tja_file, track::Song};
+use crate::{app::credits::CreditsScreen, beatmap_parser::{parse_tja_file, track::Song}};
 
 use silkwood::render::texture::Sprite;
 

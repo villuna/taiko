@@ -1,6 +1,6 @@
 use lyon::lyon_tessellation::TessellationError;
 
-use crate::track::NoteType;
+use crate::beatmap_parser::track::NoteType;
 use silkwood::{app::TextureCache, render::shapes::ShapeBuilder};
 
 use silkwood::render::{

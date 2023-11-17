@@ -15,8 +15,6 @@ use lyon::{
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
 use winit::event::{ElementState, WindowEvent};
 
-use super::visual::note::VisualNote;
-
 use silkwood::{
     app::{self, GameState, RenderContext, StateTransition, TextureCache},
     render::{
@@ -29,10 +27,13 @@ use silkwood::{
 
 use crate::{
     settings::SETTINGS,
-    track::{NoteTrack, NoteType, Song},
+    beatmap_parser::track::{NoteTrack, NoteType, Song},
 };
 
 use super::score_screen::ScoreScreen;
+
+mod note;
+use note::VisualNote;
 
 // This is a hard-coded value, big enough to make sure that at default scroll speed every note is
 // drawn for this long. It will be scaled depending on scroll speed, so every note will be drawn

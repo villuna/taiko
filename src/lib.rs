@@ -1,4 +1,3 @@
 pub mod app;
-pub mod parser;
+pub mod beatmap_parser;
 pub mod settings;
-pub mod track;

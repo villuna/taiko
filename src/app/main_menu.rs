@@ -1,4 +1,4 @@
-use crate::app::visual::button::Button;
+use super::ui_elements::Button;
 use silkwood::{app::GameState, render::Renderer};
 
 pub struct MainMenu {
