@@ -186,14 +186,12 @@ impl GameState for SongSelect {
             .resizable(false)
             .show(&ctx, |ui| {
                 ui.label(
-                    RichText::new("LunaTaiko Demo!")
+                    RichText::new("Taiko Clone Demo!")
                         .text_style(egui::TextStyle::Heading)
                         .size(40.0)
                         .color(egui::Color32::from_rgb(255, 84, 54))
                         .strong(),
                 );
-
-                ui.label(RichText::new("\"That's a working title!\"").italics());
 
                 ui.add_space(50.0);
 
@@ -234,17 +232,20 @@ impl GameState for SongSelect {
                         .map(|id| self.play_preview(audio, id).unwrap());
                 }
 
-                ui.add_space(800.0);
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                    ui.add_space(10.0);
 
-                if ui.button(RichText::new("credits").size(20.0)).clicked() {
-                    self.go_to_credits = true;
-                }
+                    if ui.button(RichText::new("exit").size(20.0)).clicked() {
+                        self.exit = true;
+                    }
 
-                ui.add_space(10.0);
+                    ui.add_space(10.0);
 
-                if ui.button(RichText::new("exit").size(20.0)).clicked() {
-                    self.exit = true;
-                }
+                    if ui.button(RichText::new("credits").size(20.0)).clicked() {
+                        self.go_to_credits = true;
+                    }
+                });
+                
             });
 
         if let Some(song_index) = self.selected {
@@ -286,17 +287,19 @@ impl GameState for SongSelect {
         let build = "release";
 
         egui::Area::new("version")
-            .fixed_pos(egui::pos2(1700.0, 1050.0))
+            .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
             .show(&ctx, |ui| {
-                ui.label(
-                    egui::RichText::new(format!(
-                        "lunataiko version {} ({})",
-                        env!("CARGO_PKG_VERSION"),
-                        build,
-                    ))
-                    .color(egui::Color32::from_rgb(255, 255, 255))
-                    .size(15.0),
-                );
-            });
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(false), |ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "luna's taiko sim - version {} ({})",
+                            env!("CARGO_PKG_VERSION"),
+                            build,
+                        ))
+                        .color(egui::Color32::from_rgb(255, 255, 255))
+                        .size(15.0),
+                    );
+                });
+            }); 
     }
 }

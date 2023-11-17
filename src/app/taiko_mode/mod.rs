@@ -545,6 +545,11 @@ impl GameState for TaikoMode {
     }
 
     fn handle_event(&mut self, ctx: &mut app::Context, event: &WindowEvent<'_>) {
+        let mut current = self.current_time();
+        let settings = SETTINGS.read().unwrap();
+        let offset = settings.game.global_note_offset / 1000.0;
+        current = current - offset;
+
         if let &WindowEvent::KeyboardInput {
             input,
             is_synthetic: false,
@@ -554,11 +559,7 @@ impl GameState for TaikoMode {
             if let Some(code) = input.virtual_keycode {
                 let pressed =
                     !ctx.keyboard.is_pressed(code) && input.state == ElementState::Pressed;
-                let settings = SETTINGS.read().unwrap();
-
                 if pressed {
-                    let offset = settings.game.global_note_offset / 1000.0;
-                    let current = self.current_time() - offset;
                     let timings = if self.song.difficulty_level <= 1 {
                         EASY_NORMAL_TIMING
                     } else {
