@@ -77,6 +77,7 @@ fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("LunaTaiko!!")
+        .with_inner_size(PhysicalSize::new(1920, 1080))
         .build(&event_loop)
         .unwrap();
 
