@@ -2700,9 +2700,9 @@ dependencies = [
 
 [[package]]
 name = "wgpu_text"
-version = "0.8.4"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a8c080119d273e7cef18bfae3c33b23939391a24189ed2b923f606804bff7a6"
+checksum = "9256dee9ceee03841e2744f62113743fa8b6220ad7866fb49d86c31bfb6ebe33"
 dependencies = [
  "bytemuck",
  "glyph_brush",
