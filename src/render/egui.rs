@@ -87,7 +87,7 @@ impl Egui {
     pub fn render<'a>(
         &'a self,
         render_pass: &mut wgpu::RenderPass<'a>,
-        paint_jobs: &'a Vec<egui::ClippedPrimitive>,
+        paint_jobs: &'a [egui::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
         self.renderer

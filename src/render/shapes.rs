@@ -397,6 +397,12 @@ impl ShapeBuilder {
     }
 }
 
+impl Default for ShapeBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Shape {
     /// Moves the whole shape to the given position.
     pub fn set_position(&self, position: [f32; 3], queue: &wgpu::Queue) {

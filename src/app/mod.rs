@@ -60,7 +60,7 @@ pub trait GameState {
     // TODO: Fix this up.
     fn debug_ui(&mut self, _ctx: egui::Context, _audio: &mut AudioManager) {}
 
-    fn render<'app, 'pass>(&'pass mut self, _ctx: &mut RenderContext<'app, 'pass>) {}
+    fn render<'pass>(&'pass mut self, _ctx: &mut RenderContext<'_, 'pass>) {}
 
     fn handle_event(&mut self, _ctx: &mut Context, _event: &WindowEvent<'_>) {}
 }
@@ -109,16 +109,16 @@ pub struct MouseState {
 
 impl MouseState {
     fn handle_input(&mut self, event: &WindowEvent<'_>) {
-        match event {
-            &WindowEvent::CursorMoved { position, .. } => {
+        match *event {
+            WindowEvent::CursorMoved { position, .. } => {
                 self.position = Some((position.x as f32, position.y as f32));
             }
 
-            &WindowEvent::CursorLeft { .. } => {
+            WindowEvent::CursorLeft { .. } => {
                 self.position = None;
             }
 
-            &WindowEvent::MouseInput { state, button, .. } => {
+            WindowEvent::MouseInput { state, button, .. } => {
                 let pressed = state == ElementState::Pressed;
 
                 self.button_map.entry(button).or_insert((false, false)).1 = pressed;
@@ -130,7 +130,9 @@ impl MouseState {
 
     /// Returns whether or not the given button is pressed this frame.
     pub fn is_pressed(&self, button: MouseButton) -> bool {
-        self.button_map.get(&button).is_some_and(|&(_, pressed)| pressed)
+        self.button_map
+            .get(&button)
+            .is_some_and(|&(_, pressed)| pressed)
     }
 
     /// Returns whether or not the given button was just pressed this frame (i.e: pressed this frame

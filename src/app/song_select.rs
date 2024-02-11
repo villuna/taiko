@@ -97,10 +97,7 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 }
 
 impl SongSelect {
-    pub fn new(
-        textures: &mut TextureCache,
-        renderer: &Renderer,
-    ) -> anyhow::Result<Self> {
+    pub fn new(textures: &mut TextureCache, renderer: &Renderer) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
         let bg_sprite = Sprite::new(
             textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?,

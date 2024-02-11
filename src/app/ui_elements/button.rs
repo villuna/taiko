@@ -1,9 +1,9 @@
-use lyon::tessellation::FillVertexConstructor;
+use crate::app::Context;
 use crate::render::context::Renderable;
 use crate::render::shapes::{Shape, ShapeBuilder, ShapeVertex, SolidColour};
 use crate::render::text::Text;
 use crate::render::{RenderPassContext, Renderer};
-use crate::app::Context;
+use lyon::tessellation::FillVertexConstructor;
 use wgpu_text::glyph_brush;
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, Section, VerticalAlign};
 use winit::event::MouseButton;
@@ -60,7 +60,7 @@ impl Button {
 
         let outline = ShapeBuilder::new()
             .position([pos[0], pos[1], 0.])
-            .stroke_roundrect([0., 0.], size, 12., SolidColour::new([220./255.; 4]), 3.)?
+            .stroke_roundrect([0., 0.], size, 12., SolidColour::new([220. / 255.; 4]), 3.)?
             .build(&renderer.device);
 
         let shadow = ShapeBuilder::new()
@@ -87,8 +87,10 @@ impl Button {
 
     pub fn update(&mut self, ctx: &mut Context) {
         self.mouse_entered = ctx.mouse.cursor_pos().is_some_and(|(x, y)| {
-            x >= self.pos[0] && x <= self.pos[0] + self.size[0] &&
-            y >= self.pos[1] && y <= self.pos[1] + self.size[1]
+            x >= self.pos[0]
+                && x <= self.pos[0] + self.size[0]
+                && y >= self.pos[1]
+                && y <= self.pos[1] + self.size[1]
         });
     }
 
@@ -109,4 +111,3 @@ impl Renderable for Button {
         }
     }
 }
-

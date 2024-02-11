@@ -87,7 +87,7 @@ impl Text {
             });
 
             render_pass.set_pipeline(renderer.pipeline("outline").unwrap());
-            render_pass.set_bind_group(0, &renderer.screen_bind_group(), &[]);
+            render_pass.set_bind_group(0, renderer.screen_bind_group(), &[]);
             render_pass.set_bind_group(1, &texture.bind_group, &[]);
             render_pass.set_vertex_buffer(0, texture.vertex_buffer.slice(..));
             render_pass.set_index_buffer(texture.index_buffer.slice(..), wgpu::IndexFormat::Uint16);

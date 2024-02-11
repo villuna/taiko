@@ -1,6 +1,9 @@
 use std::time::Instant;
 
-use taiko::{app::{MainMenu, App}, render::Renderer};
+use taiko::{
+    app::{App, MainMenu},
+    render::Renderer,
+};
 
 use taiko::settings::{self, ResolutionState, SETTINGS};
 

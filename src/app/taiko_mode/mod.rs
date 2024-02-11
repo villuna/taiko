@@ -17,13 +17,13 @@ use winit::event::{ElementState, WindowEvent};
 
 use crate::{
     app::{self, GameState, RenderContext, StateTransition, TextureCache},
+    beatmap_parser::track::{NoteTrack, NoteType, Song},
     render::{
         self,
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
         text::Text,
         texture::Sprite,
     },
-    beatmap_parser::track::{NoteTrack, NoteType, Song},
     settings::SETTINGS,
 };
 
@@ -545,7 +545,7 @@ impl GameState for TaikoMode {
         let mut current = self.current_time();
         let settings = SETTINGS.read().unwrap();
         let offset = settings.game.global_note_offset / 1000.0;
-        current = current - offset;
+        current -= offset;
 
         if let &WindowEvent::KeyboardInput {
             input,
