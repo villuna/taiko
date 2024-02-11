@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use silkwood::{app::App, render::Renderer};
 
-use taiko::app::SongSelect;
+use taiko::app::MainMenu;
 
 use taiko::settings::{self, ResolutionState, SETTINGS};
 
@@ -91,7 +91,7 @@ fn main() {
     let mut renderer = Renderer::new(window).unwrap();
 
     let mut app = App::new(&mut renderer, |renderer, textures| {
-        Box::new(SongSelect::new(textures, &renderer.device, &renderer.queue).unwrap())
+        Box::new(MainMenu::new(textures, renderer).unwrap())
     })
     .unwrap();
 
@@ -102,16 +102,7 @@ fn main() {
                     app.handle_event(&event, &mut renderer);
 
                     match event {
-                        WindowEvent::CloseRequested
-                        | WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    virtual_keycode: Some(VirtualKeyCode::Escape),
-                                    state: ElementState::Pressed,
-                                    ..
-                                },
-                            ..
-                        } => {
+                        WindowEvent::CloseRequested => {
                             control_flow.set_exit();
                         }
 

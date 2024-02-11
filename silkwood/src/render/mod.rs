@@ -5,7 +5,10 @@ use egui_wgpu::renderer::ScreenDescriptor;
 use wgpu::include_wgsl;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu_text::{glyph_brush::Section, BrushBuilder};
+use wgpu_text::{
+    glyph_brush::{FontId, Section},
+    BrushBuilder,
+};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
@@ -44,6 +47,7 @@ pub struct Renderer {
     screen_uniform: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
     pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
+    font_cache: Vec<(&'static str, FontId)>,
 
     pub text_brush: wgpu_text::TextBrush,
     egui_handler: egui::Egui,
@@ -379,10 +383,23 @@ impl Renderer {
         let depth_view = create_depth_texture(&device, &size);
         let egui_handler = egui::Egui::new(&device, &config, window.scale_factor());
 
-        let text_brush = BrushBuilder::using_font(FontArc::try_from_vec(std::fs::read(
-            "assets/fonts/MochiyPopOne-Regular.ttf",
-        )?)?)
-        .build(&device, config.width, config.height, format);
+        let mut font_cache = Vec::new();
+        let mut text_brush = BrushBuilder::using_fonts(vec![]);
+
+        for font in std::fs::read_dir("assets/fonts")? {
+            let Some(font) = font
+                .ok()
+                .and_then(|f| f.file_name().into_string().ok())
+                else { continue; };
+
+            let id = text_brush.add_font(FontArc::try_from_vec(std::fs::read(format!(
+                "assets/fonts/{}",
+                font
+            ))?)?);
+            font_cache.push((font.leak() as &'static str, id));
+        }
+
+        let text_brush = text_brush.build(&device, config.width, config.height, format);
 
         let outline_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -427,6 +444,7 @@ impl Renderer {
                 ("primitive_depth", primitive_pipeline_depth),
                 ("outline", outline_pipeline),
             ],
+            font_cache,
             text_brush,
             egui_handler,
         })
@@ -560,6 +578,18 @@ impl Renderer {
 
     pub fn pipeline(&self, name: &str) -> Option<&wgpu::RenderPipeline> {
         self.pipeline_cache.iter().find_map(
+            |(n, pipeline)| {
+                if name == *n {
+                    Some(pipeline)
+                } else {
+                    None
+                }
+            },
+        )
+    }
+
+    pub fn font(&self, name: &str) -> Option<&FontId> {
+        self.font_cache.iter().find_map(
             |(n, pipeline)| {
                 if name == *n {
                     Some(pipeline)

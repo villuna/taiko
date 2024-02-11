@@ -50,7 +50,8 @@ fn texture_vertices(width: u32, height: u32) -> [TextureVertex; 4] {
 const TEXTURE_INDICES: [u16; 6] = [0, 1, 2, 1, 3, 2];
 
 impl TextureVertex {
-    const ATTRS: &'static [wgpu::VertexAttribute] = &vertex_attr_array![0 => Float32x2, 1 => Float32x2];
+    const ATTRS: &'static [wgpu::VertexAttribute] =
+        &vertex_attr_array![0 => Float32x2, 1 => Float32x2];
 
     /// Returns the vertex buffer layout describing this vertex
     pub fn vertex_layout<'a>() -> wgpu::VertexBufferLayout<'a> {

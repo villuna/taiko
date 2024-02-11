@@ -4,7 +4,7 @@ use kira::manager::{backend::DefaultBackend, AudioManager};
 use std::collections::HashMap;
 
 use winit::{
-    event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
 };
 
@@ -26,6 +26,7 @@ pub struct Context<'app> {
     pub renderer: &'app mut render::Renderer,
     pub keyboard: &'app KeyboardState,
     pub textures: &'app mut TextureCache,
+    pub mouse: &'app MouseState,
 }
 
 pub struct RenderContext<'app, 'pass> {
@@ -71,10 +72,7 @@ impl KeyboardState {
 
     /// Returns whether or not the given key is pressed this frame.
     pub fn is_pressed(&self, key: VirtualKeyCode) -> bool {
-        self.0
-            .get(&key)
-            .map(|(_, pressed)| *pressed)
-            .unwrap_or(false)
+        self.0.get(&key).is_some_and(|&(_, pressed)| pressed)
     }
 
     /// Returns whether or not the given key was just pressed this frame (i.e: pressed this frame
@@ -82,8 +80,7 @@ impl KeyboardState {
     pub fn is_just_pressed(&self, key: VirtualKeyCode) -> bool {
         self.0
             .get(&key)
-            .map(|(last_frame, this_frame)| !(*last_frame) && *this_frame)
-            .unwrap_or(false)
+            .is_some_and(|(last_frame, this_frame)| !(*last_frame) && *this_frame)
     }
 
     /// Returns whether or not the given key was just released this frame (i.e: released this frame
@@ -91,8 +88,59 @@ impl KeyboardState {
     pub fn is_just_released(&self, key: VirtualKeyCode) -> bool {
         self.0
             .get(&key)
-            .map(|(last_frame, this_frame)| *last_frame && !*this_frame)
-            .unwrap_or(false)
+            .is_some_and(|(last_frame, this_frame)| *last_frame && !*this_frame)
+    }
+}
+
+pub struct MouseState {
+    position: Option<(f32, f32)>,
+    button_map: HashMap<MouseButton, (bool, bool)>,
+}
+
+impl MouseState {
+    fn handle_input(&mut self, event: &WindowEvent<'_>) {
+        match event {
+            &WindowEvent::CursorMoved { position, .. } => {
+                self.position = Some((position.x as f32, position.y as f32));
+            }
+
+            &WindowEvent::CursorLeft { .. } => {
+                self.position = None;
+            }
+
+            &WindowEvent::MouseInput { state, button, .. } => {
+                let pressed = state == ElementState::Pressed;
+
+                self.button_map.entry(button).or_insert((false, false)).1 = pressed;
+            }
+
+            _ => {}
+        }
+    }
+
+    /// Returns whether or not the given button is pressed this frame.
+    pub fn is_pressed(&self, button: MouseButton) -> bool {
+        self.button_map.get(&button).is_some_and(|&(_, pressed)| pressed)
+    }
+
+    /// Returns whether or not the given button was just pressed this frame (i.e: pressed this frame
+    /// but not last frame)
+    pub fn is_just_pressed(&self, button: MouseButton) -> bool {
+        self.button_map
+            .get(&button)
+            .is_some_and(|(last_frame, this_frame)| !(*last_frame) && *this_frame)
+    }
+
+    /// Returns whether or not the given button was just released this frame (i.e: released this frame
+    /// but not last frame)
+    pub fn is_just_released(&self, button: MouseButton) -> bool {
+        self.button_map
+            .get(&button)
+            .is_some_and(|(last_frame, this_frame)| *last_frame && !*this_frame)
+    }
+
+    pub fn cursor_pos(&self) -> Option<(f32, f32)> {
+        self.position
     }
 }
 
@@ -127,6 +175,7 @@ pub struct App {
     audio_manager: AudioManager,
     state: Vec<Box<dyn GameState>>,
     keyboard: KeyboardState,
+    mouse: MouseState,
     textures: TextureCache,
 
     fps_timer: f32,
@@ -162,6 +211,10 @@ impl App {
             audio_manager,
             state: vec![state],
             keyboard: KeyboardState(HashMap::new()),
+            mouse: MouseState {
+                position: None,
+                button_map: HashMap::new(),
+            },
             textures,
 
             fps_timer: 0.0,
@@ -190,6 +243,7 @@ impl App {
             audio: &mut self.audio_manager,
             renderer,
             keyboard: &self.keyboard,
+            mouse: &self.mouse,
             textures: &mut self.textures,
         };
 
@@ -244,6 +298,7 @@ impl App {
             audio: &mut self.audio_manager,
             renderer,
             keyboard: &self.keyboard,
+            mouse: &self.mouse,
             textures: &mut self.textures,
         };
 
@@ -261,5 +316,7 @@ impl App {
                 self.show_fps_counter = !self.show_fps_counter;
             }
         }
+
+        self.mouse.handle_input(event);
     }
 }

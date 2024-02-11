@@ -29,7 +29,8 @@ pub struct ShapeVertex {
 }
 
 impl ShapeVertex {
-    const ATTRS: &'static [wgpu::VertexAttribute] = &vertex_attr_array![0 => Float32x3, 1 => Float32x4];
+    const ATTRS: &'static [wgpu::VertexAttribute] =
+        &vertex_attr_array![0 => Float32x3, 1 => Float32x4];
 
     pub fn vertex_layout<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {

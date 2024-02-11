@@ -2,10 +2,10 @@ use std::{io, path::Path, rc::Rc};
 
 use crate::{
     app::credits::CreditsScreen,
-    beatmap_parser::{parse_tja_file, track::Song},
+    beatmap_parser::{parse_tja_file, Song},
 };
 
-use silkwood::render::texture::Sprite;
+use silkwood::render::{texture::Sprite, Renderer};
 
 use egui::RichText;
 use kira::{
@@ -99,14 +99,13 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 impl SongSelect {
     pub fn new(
         textures: &mut TextureCache,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        renderer: &Renderer,
     ) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
         let bg_sprite = Sprite::new(
-            textures.get(device, queue, "song_select_bg.jpg")?,
+            textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?,
             [0.0; 3],
-            device,
+            &renderer.device,
             false,
         );
 
@@ -175,7 +174,7 @@ impl GameState for SongSelect {
                 .expect("error going to taiko mode: song was invalid"),
             ))
         } else if self.exit {
-            StateTransition::Exit
+            StateTransition::Pop
         } else {
             StateTransition::Continue
         }
@@ -238,7 +237,7 @@ impl GameState for SongSelect {
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                     ui.add_space(10.0);
 
-                    if ui.button(RichText::new("exit").size(20.0)).clicked() {
+                    if ui.button(RichText::new("return").size(20.0)).clicked() {
                         self.exit = true;
                     }
 
