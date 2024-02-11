@@ -18,7 +18,7 @@ winit = { version = "0.28.3", features = ["serde"] }
 anyhow = "1.0"
 lyon = "1.0.1"
 wgpu = "0.17.0"
-# wgpu_text doesnt follow semver -_-
+# wgpu_text doesn't follow semver -_-
 wgpu_text = "=0.8.3"
 
 [dependencies]
