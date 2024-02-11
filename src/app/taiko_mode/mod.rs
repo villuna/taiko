@@ -15,7 +15,7 @@ use lyon::{
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
 use winit::event::{ElementState, WindowEvent};
 
-use silkwood::{
+use crate::{
     app::{self, GameState, RenderContext, StateTransition, TextureCache},
     render::{
         self,
@@ -23,9 +23,6 @@ use silkwood::{
         text::Text,
         texture::Sprite,
     },
-};
-
-use crate::{
     beatmap_parser::track::{NoteTrack, NoteType, Song},
     settings::SETTINGS,
 };

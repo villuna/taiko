@@ -5,7 +5,7 @@ use crate::{
     beatmap_parser::{parse_tja_file, Song},
 };
 
-use silkwood::render::{texture::Sprite, Renderer};
+use crate::render::{texture::Sprite, Renderer};
 
 use egui::RichText;
 use kira::{
@@ -21,7 +21,7 @@ use lazy_static::lazy_static;
 
 use super::taiko_mode::TaikoMode;
 
-use silkwood::app::{self, GameState, RenderContext, StateTransition, TextureCache};
+use crate::app::{self, GameState, RenderContext, StateTransition, TextureCache};
 
 type SongHandle = StreamingSoundHandle<FromFileError>;
 

@@ -390,6 +390,7 @@ impl Renderer {
             let Some(font) = font
                 .ok()
                 .and_then(|f| f.file_name().into_string().ok())
+                .filter(|f| f.ends_with(".ttf"))
                 else { continue; };
 
             let id = text_brush.add_font(FontArc::try_from_vec(std::fs::read(format!(

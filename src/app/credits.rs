@@ -1,7 +1,7 @@
 use egui::RichText;
 use kira::manager::AudioManager;
 
-use silkwood::app::{self, GameState, StateTransition};
+use crate::app::{self, GameState, StateTransition};
 
 pub struct CreditsScreen {
     exit: bool,

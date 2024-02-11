@@ -1,5 +1,5 @@
-use silkwood::{
-    app::{GameState, TextureCache, StateTransition, Context, RenderContext},
+use crate::{
+    app::{GameState, TextureCache, StateTransition, Context, RenderContext, ui_elements::Button},
     render::{
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
         text::Text,
@@ -8,7 +8,6 @@ use silkwood::{
     },
 };
 use wgpu_text::glyph_brush::{self, Section};
-use crate::app::ui_elements::Button;
 
 use super::SongSelect;
 

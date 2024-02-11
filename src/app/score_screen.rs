@@ -1,6 +1,6 @@
 use kira::manager::AudioManager;
 
-use silkwood::app::{Context, GameState, StateTransition};
+use crate::app::{Context, GameState, StateTransition};
 struct Score {
     goods: u32,
     okays: u32,

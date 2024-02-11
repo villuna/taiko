@@ -1,14 +1,12 @@
 use std::time::Instant;
 
-use silkwood::{app::App, render::Renderer};
-
-use taiko::app::MainMenu;
+use taiko::{app::{MainMenu, App}, render::Renderer};
 
 use taiko::settings::{self, ResolutionState, SETTINGS};
 
 use winit::{
     dpi::PhysicalSize,
-    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::EventLoop,
     window::{Fullscreen, Window, WindowBuilder},
 };

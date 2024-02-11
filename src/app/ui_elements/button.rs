@@ -1,9 +1,9 @@
 use lyon::tessellation::FillVertexConstructor;
-use silkwood::render::context::Renderable;
-use silkwood::render::shapes::{Shape, ShapeBuilder, ShapeVertex, SolidColour};
-use silkwood::render::text::Text;
-use silkwood::render::{RenderPassContext, Renderer};
-use silkwood::app::Context;
+use crate::render::context::Renderable;
+use crate::render::shapes::{Shape, ShapeBuilder, ShapeVertex, SolidColour};
+use crate::render::text::Text;
+use crate::render::{RenderPassContext, Renderer};
+use crate::app::Context;
 use wgpu_text::glyph_brush;
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, Section, VerticalAlign};
 use winit::event::MouseButton;
