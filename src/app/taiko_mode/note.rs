@@ -97,6 +97,16 @@ impl VisualNote {
                 VisualNote::Roll { start, body }
             }
 
+            NoteType::BalloonRoll(_, _) => Self::Note(Sprite::new(
+                get_texture("balloon.png"),
+                // The balloon texture is 300x100.
+                // the notehead is at [50, 50]
+                // so this is the offset we need to move the centre to the centre of the notehead
+                [100.0, 0.0, 0.0],
+                device,
+                true,
+            )),
+
             _ => return None,
         })
     }
