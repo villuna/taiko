@@ -238,6 +238,11 @@ pub struct TaikoMode {
     last_hit: Option<(HitState, f32)>,
     ui: UI,
     bg_sprite: Rc<Sprite>,
+
+    balloon_sprite: Sprite,
+    balloon_is_active: bool,
+    balloon_hits_left: u16,
+    balloon_deadline: f32,
 }
 
 impl TaikoMode {
@@ -249,14 +254,12 @@ impl TaikoMode {
         textures: &mut TextureCache,
         renderer: &mut render::Renderer,
         bg_sprite: &Rc<Sprite>,
-    ) -> Option<Self> {
+    ) -> anyhow::Result<Self> {
         let mut song_handle = manager.play(song_data).unwrap();
         song_handle.pause(Default::default()).unwrap();
 
-        let device = &renderer.device;
-        let queue = &renderer.queue;
-
-        let song = CurrentSong::from_song(song, difficulty)?;
+        let song = CurrentSong::from_song(song, difficulty)
+            .expect("Unexpected error while processing song!");
 
         let visual_notes = song
             .track
@@ -264,8 +267,8 @@ impl TaikoMode {
             .iter()
             .map(|note| {
                 VisualNote::new(
-                    device,
-                    queue,
+                    &renderer.device,
+                    &renderer.queue,
                     &note.note_type,
                     VELOCITY * note.scroll_speed,
                     textures,
@@ -285,7 +288,7 @@ impl TaikoMode {
                         SolidColour::new([1.0, 1.0, 1.0, 0.5]),
                     )
                     .unwrap()
-                    .build(device)
+                    .build(&renderer.device)
             })
             .collect::<Vec<_>>();
 
@@ -293,7 +296,14 @@ impl TaikoMode {
 
         let ui = UI::new(renderer, &song.title).unwrap();
 
-        Some(Self {
+        let balloon_sprite = Sprite::new(
+            textures.get(&renderer.device, &renderer.queue, "balloon.png")?,
+            [NOTE_HIT_X - 50.0, NOTE_Y - 50.0, 0.0],
+            &renderer.device,
+            false,
+        );
+
+        Ok(Self {
             song,
             start_time: Some(Instant::now()),
             audio_handle: song_handle,
@@ -311,6 +321,10 @@ impl TaikoMode {
             last_hit: None,
             ui,
             bg_sprite: Rc::clone(bg_sprite),
+            balloon_sprite,
+            balloon_is_active: false,
+            balloon_hits_left: 0,
+            balloon_deadline: 0.0,
         })
     }
 
@@ -360,7 +374,6 @@ impl GameState for TaikoMode {
             };
 
             // Go through all the notes that weren't hit and remove them
-            // (this will do more eventually, currently it just resets combo)
             for note in &self.song.track.notes[self.next_note..] {
                 if note.time >= note_current - timings[BAD] {
                     break;
@@ -371,6 +384,21 @@ impl GameState for TaikoMode {
                 }
 
                 self.next_note += 1;
+            }
+
+            if let Some(next_note) = &self.song.track.notes.get(self.next_note) {
+                if let NoteType::BalloonRoll(time, hits) = next_note.note_type {
+                    if !self.balloon_is_active && next_note.time <= note_current {
+                        self.balloon_is_active = true;
+                        self.next_note += 1;
+                        self.balloon_hits_left = hits;
+                        self.balloon_deadline = note_current + time;
+                    }
+                }
+            }
+
+            if self.balloon_is_active && self.balloon_deadline < note_current {
+                self.balloon_is_active = false;
             }
         }
 
@@ -428,8 +456,12 @@ impl GameState for TaikoMode {
             .filter_map(|(i, sprite)| {
                 let note = notes[i];
 
+                if matches!(note.note_type, NoteType::BalloonRoll(_, _)) && note.time <= current {
+                    return None;
+                }
+
                 if ((current - 1.0)..current + DEFAULT_DRAW_TIME / note.scroll_speed)
-                    .contains(&(note.time))
+                    .contains(&note.time)
                     && self.hits[i].is_none()
                 {
                     sprite.as_mut().map(|s| (s, i))
@@ -508,6 +540,10 @@ impl GameState for TaikoMode {
 
         ctx.render(&self.ui.left_panel);
         ctx.render(&self.ui.title);
+
+        if self.balloon_is_active {
+            ctx.render(&self.balloon_sprite);
+        }
     }
 
     fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
@@ -534,8 +570,18 @@ impl GameState for TaikoMode {
             if !self.note_offsets.is_empty() {
                 let average =
                     self.note_offsets.iter().sum::<f32>() / self.note_offsets.len() as f32;
-                ui.label(format!("average offset: {}", average));
+                ui.label(format!("average offset: {}ms", average / 1000.0));
             }
+
+            if self.balloon_is_active {
+                ui.separator();
+                ui.label("Balloon");
+                ui.label(format!("hits left: {}", self.balloon_hits_left));
+                let note_current = current - SETTINGS.read().unwrap().game.global_note_offset / 1000.0;
+                ui.label(format!("time left: {}", self.balloon_deadline - note_current));
+            }
+
+            ui.separator();
 
             self.exit = ui.button("Return").clicked();
         });
