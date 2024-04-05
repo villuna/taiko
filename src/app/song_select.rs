@@ -159,6 +159,7 @@ impl GameState for SongSelect {
             }
 
             StateTransition::Push(Box::new(
+                /*
                 TaikoMode::new(
                     &self.songs[song_id],
                     difficulty,
@@ -169,6 +170,13 @@ impl GameState for SongSelect {
                     &self.bg_sprite,
                 )
                 .expect("error going to taiko mode: song was invalid"),
+                */
+                TaikoMode::new(
+                    &self.songs[song_id],
+                    difficulty,
+                    ctx.renderer,
+                    ctx.textures
+                ).unwrap()
             ))
         } else if self.exit {
             StateTransition::Pop
