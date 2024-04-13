@@ -45,7 +45,7 @@ pub struct SongSelect {
     songs: Vec<Song>,
     selected: Option<usize>,
     difficulty: usize,
-    song_handle: Option<SongHandle>,
+    song_preview_handle: Option<SongHandle>,
     bg_sprite: Rc<Sprite>,
     go_to_credits: bool,
     exit: bool,
@@ -111,7 +111,7 @@ impl SongSelect {
             bg_sprite: Rc::new(bg_sprite),
             selected: None,
             difficulty: 0,
-            song_handle: None,
+            song_preview_handle: None,
             go_to_credits: false,
             exit: false,
             go_to_song: None,
@@ -139,7 +139,7 @@ impl SongSelect {
 impl GameState for SongSelect {
     fn update(&mut self, ctx: &mut app::Context, _dt: f32) -> StateTransition {
         if self.go_to_credits {
-            if let Some(handle) = self.song_handle.as_mut() {
+            if let Some(handle) = self.song_preview_handle.as_mut() {
                 handle.stop(*OUT_TWEEN).unwrap();
             }
 
@@ -154,7 +154,7 @@ impl GameState for SongSelect {
 
             self.go_to_song = None;
 
-            if let Some(handle) = self.song_handle.as_mut() {
+            if let Some(handle) = self.song_preview_handle.as_mut() {
                 handle.stop(Default::default()).unwrap();
             }
 
@@ -173,6 +173,8 @@ impl GameState for SongSelect {
                 */
                 TaikoMode::new(
                     &self.songs[song_id],
+                    sound_data,
+                    ctx.audio,
                     difficulty,
                     ctx.renderer,
                     ctx.textures
@@ -230,11 +232,11 @@ impl GameState for SongSelect {
                     });
 
                 if self.selected != old_song {
-                    if let Some(handle) = self.song_handle.as_mut() {
+                    if let Some(handle) = self.song_preview_handle.as_mut() {
                         handle.stop(*OUT_TWEEN).unwrap();
                     }
 
-                    self.song_handle = self
+                    self.song_preview_handle = self
                         .selected
                         .map(|id| self.play_preview(audio, id).unwrap());
                 }

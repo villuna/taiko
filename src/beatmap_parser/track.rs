@@ -40,6 +40,20 @@ impl NoteType {
                 | NoteType::SpecialRoll(_, _)
         )
     }
+
+    pub fn is_don(&self) -> bool {
+        matches!(
+            self,
+            NoteType::Don | NoteType::BigDon | NoteType::CoopDon
+        )
+    }
+
+    pub fn is_kat(&self) -> bool {
+        matches!(
+            self,
+            NoteType::Kat | NoteType::BigKat | NoteType::CoopKat
+        )
+    }
 }
 
 /// A note, as it will be stored during the actual game.
@@ -71,8 +85,9 @@ pub struct Song {
     pub subtitle: Option<String>,
     pub audio_filename: String,
     pub bpm: f32,
-    /// The amount of time between the beginning of the track and the first measure,
-    /// note timing will be relative to this offset
+    /// The offset of the notes in seconds.
+    /// This is the number of seconds earlier notes should appear relative to the song. i.e., if the
+    /// offset is positive, notes will appear earlier. If it is negative, they will appear later.
     pub offset: f32,
     /// The time that the song preview should start from.
     pub demostart: f32,

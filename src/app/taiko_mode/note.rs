@@ -1,6 +1,9 @@
+//! Defines structs for drawing notes and barlines to the screen
 use lyon::lyon_tessellation::TessellationError;
 
 use crate::beatmap_parser::track::NoteType;
+use crate::beatmap_parser::{Barline, Note};
+use crate::render::Renderer;
 use crate::{app::TextureCache, render::shapes::ShapeBuilder};
 
 use crate::render::{
@@ -10,7 +13,37 @@ use crate::render::{
     RenderPassContext,
 };
 
-const ROLL_COLOUR: [f32; 4] = [1.0, 195.0 / 255.0, 44.0 / 255.0, 1.0];
+use super::ui::{NOTE_FIELD_HEIGHT, NOTE_FIELD_Y, NOTE_HIT_X, NOTE_Y};
+
+const VELOCITY: f32 = (1920. - NOTE_HIT_X) / 2.;
+const ROLL_COLOUR: [f32; 4] = [1., 195. / 255., 44. / 255., 1.];
+
+/// Takes a list of notes in a song and creates visual representations for all of them.
+pub fn create_visual_notes(renderer: &mut Renderer, textures: &mut TextureCache, notes: &[Note]) -> Vec<VisualNote> {
+    notes.iter()
+        .filter_map(|note|
+            VisualNote::new(renderer, note.note_type, VELOCITY * note.scroll_speed, textures)
+        )
+        .collect()
+}
+
+/// Takes a list of barlines in a song and creates visual representations for all of them.
+pub fn create_visual_barlines(renderer: &mut Renderer, barlines: &[Barline]) -> Vec<Shape> {
+    barlines.iter()
+        .filter_map(|barline| {
+            Some(ShapeBuilder::new()
+                .filled_rectangle([-1., 0.], [1., NOTE_FIELD_HEIGHT], SolidColour::new([1., 1., 1., 0.5])).ok()?
+                .position([x_position_of_note(barline.time, 0., barline.scroll_speed), NOTE_FIELD_Y, 0.])
+                .build(&renderer.device))
+        })
+        .collect()
+}
+
+/// Where on the screen a note should be drawn given the current time of the song, when the note
+/// should be hit and how fast it travels.
+pub fn x_position_of_note(current_time: f32, note_time: f32, scroll_speed: f32) -> f32 {
+    NOTE_HIT_X + VELOCITY * (note_time - current_time) * scroll_speed
+}
 
 #[derive(Debug)]
 pub enum VisualNote {
@@ -20,13 +53,12 @@ pub enum VisualNote {
 
 impl VisualNote {
     pub fn new(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        note_type: &NoteType,
+        renderer: &mut Renderer,
+        note_type: NoteType,
         pixel_vel: f32,
         textures: &mut TextureCache,
     ) -> Option<Self> {
-        let mut get_texture = |filename| textures.get(device, queue, filename).unwrap();
+        let mut get_texture = |filename| textures.get(&renderer.device, &renderer.queue, filename).unwrap();
         let create_roll_body = |length, height| -> Result<Shape, TessellationError> {
             const OUTLINE_WIDTH: f32 = 3.0;
 
@@ -54,30 +86,32 @@ impl VisualNote {
                     height / 2.0 - OUTLINE_WIDTH,
                     SolidColour::new(ROLL_COLOUR),
                 )?
-                .build(device))
+                .build(&renderer.device))
         };
 
+        // Not sure i like this code style, even if it does cut down on code reuse
+        // maybe refactor?
         Some(match note_type {
             NoteType::Don => {
-                Self::Note(Sprite::new(get_texture("don.png"), [0.0; 3], device, true))
+                Self::Note(Sprite::new(get_texture("don.png"), [0.0; 3], &renderer.device, true))
             }
             NoteType::Kat => {
-                Self::Note(Sprite::new(get_texture("kat.png"), [0.0; 3], device, true))
+                Self::Note(Sprite::new(get_texture("kat.png"), [0.0; 3], &renderer.device, true))
             }
             NoteType::BigDon | NoteType::CoopDon => Self::Note(Sprite::new(
                 get_texture("big_don.png"),
                 [0.0; 3],
-                device,
+                &renderer.device,
                 true,
             )),
             NoteType::BigKat | NoteType::CoopKat => Self::Note(Sprite::new(
                 get_texture("big_kat.png"),
                 [0.0; 3],
-                device,
+                &renderer.device,
                 true,
             )),
             NoteType::Roll(length) => {
-                let start = Sprite::new(get_texture("drumroll_start.png"), [0.0; 3], device, true);
+                let start = Sprite::new(get_texture("drumroll_start.png"), [0.0; 3], &renderer.device, true);
                 let body_length = pixel_vel * length;
                 let body = create_roll_body(body_length, 100.0).ok()?;
 
@@ -88,7 +122,7 @@ impl VisualNote {
                 let start = Sprite::new(
                     get_texture("big_drumroll_start.png"),
                     [0.0; 3],
-                    device,
+                    &renderer.device,
                     true,
                 );
                 let body_length = pixel_vel * length;
@@ -103,7 +137,7 @@ impl VisualNote {
                 // the notehead is at [50, 50]
                 // so this is the offset we need to move the centre to the centre of the notehead
                 [100.0, 0.0, 0.0],
-                device,
+                &renderer.device,
                 true,
             )),
 
@@ -115,7 +149,7 @@ impl VisualNote {
     ///
     /// The note will be centered at this position, that is to say
     /// if the note is set to be at the position where it should be
-    pub fn set_position(&mut self, position: [f32; 3], queue: &wgpu::Queue) {
+    fn set_position(&mut self, position: [f32; 3], queue: &wgpu::Queue) {
         match self {
             VisualNote::Note(sprite) => {
                 let (x, y) = sprite.dimensions();
@@ -137,6 +171,10 @@ impl VisualNote {
                 body.set_position(new_position, queue);
             }
         }
+    }
+
+    pub fn set_position_for_time(&mut self, renderer: &mut Renderer, current_time: f32, note_time: f32, scroll_speed: f32) {
+        self.set_position([x_position_of_note(current_time, note_time, scroll_speed), NOTE_Y, note_time], &renderer.queue);
     }
 }
 
