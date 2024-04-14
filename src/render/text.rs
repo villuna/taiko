@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use wgpu_text::glyph_brush::Section;
 
-use crate::render::{context::Renderable, texture, RenderPassContext, Renderer};
+use crate::render::{Renderable, texture, Renderer};
 
 #[derive(Debug)]
 pub struct Text {
@@ -105,7 +105,7 @@ impl Text {
 }
 
 impl Renderable for Text {
-    fn render<'a>(&'a self, ctx: &mut RenderPassContext<'a>) {
-        ctx.render(&self.sprite);
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+        self.sprite.render(renderer, render_pass);
     }
 }

@@ -1,6 +1,5 @@
 //! Various types used for drawing textures
 
-use crate::render;
 use image::GenericImageView;
 use std::{path::Path, rc::Rc, sync::OnceLock};
 use wgpu::{
@@ -8,7 +7,7 @@ use wgpu::{
     vertex_attr_array,
 };
 
-use super::context::Renderable;
+use super::{Renderable, Renderer};
 
 static TEXTURE_BIND_GROUP_LAYOUT: OnceLock<wgpu::BindGroupLayout> = OnceLock::new();
 
@@ -318,25 +317,25 @@ impl Sprite {
 }
 
 impl Renderable for Sprite {
-    fn render<'a>(&'a self, ctx: &mut render::context::RenderPassContext<'a>) {
-        ctx.render_pass.set_pipeline(
-            ctx.pipeline(if self.use_depth {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+        render_pass.set_pipeline(
+            renderer.pipeline(if self.use_depth {
                 "texture_depth"
             } else {
                 "texture"
             })
             .expect("texture render pipeline does not exist!"),
         );
-        ctx.render_pass
+        render_pass
             .set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
-        ctx.render_pass.set_index_buffer(
+        render_pass.set_index_buffer(
             self.texture.index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,
         );
-        ctx.render_pass
+        render_pass
             .set_bind_group(1, &self.texture.bind_group, &[]);
-        ctx.render_pass
+        render_pass
             .set_vertex_buffer(1, self.instance_buffer.slice(..));
-        ctx.render_pass.draw_indexed(0..6 as _, 0, 0..1);
+        render_pass.draw_indexed(0..6 as _, 0, 0..1);
     }
 }

@@ -1,13 +1,13 @@
 use lyon::lyon_tessellation::TessellationError;
 
 use crate::beatmap_parser::track::NoteType;
+use crate::render::Renderer;
 use crate::{app::TextureCache, render::shapes::ShapeBuilder};
 
 use crate::render::{
-    context::Renderable,
+    Renderable,
     shapes::{Shape, SolidColour},
     texture::Sprite,
-    RenderPassContext,
 };
 
 const ROLL_COLOUR: [f32; 4] = [1.0, 195.0 / 255.0, 44.0 / 255.0, 1.0];
@@ -141,14 +141,14 @@ impl VisualNote {
 }
 
 impl Renderable for VisualNote {
-    fn render<'a>(&'a self, ctx: &mut RenderPassContext<'a>) {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
         match self {
-            VisualNote::Note(sprite) => sprite.render(ctx),
+            VisualNote::Note(sprite) => sprite.render(renderer, render_pass),
             VisualNote::Roll { start, body } => {
                 // If start and body both have the same depth, then start should render on top
                 // of the body, given the compare function is `LessEqual`
-                body.render(ctx);
-                start.render(ctx);
+                body.render(renderer, render_pass);
+                start.render(renderer, render_pass);
             }
         }
     }

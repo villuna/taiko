@@ -500,7 +500,7 @@ impl GameState for TaikoMode {
                     0.0,
                     0.0,
                 ],
-                ctx.render_pass.queue,
+                &ctx.renderer.queue,
             );
 
             ctx.render(v_barline);
@@ -514,7 +514,7 @@ impl GameState for TaikoMode {
                     NOTE_Y,
                     note.time,
                 ],
-                ctx.render_pass.queue,
+                &ctx.renderer.queue,
             );
 
             ctx.render(v_note)
@@ -532,7 +532,7 @@ impl GameState for TaikoMode {
 
                 self.ui.judgement_text[i]
                     .sprite
-                    .set_position([0.0, -10.0 * progress + 5.0, 0.0], ctx.render_pass.queue);
+                    .set_position([0.0, -10.0 * progress + 5.0, 0.0], &ctx.renderer.queue);
 
                 ctx.render(&self.ui.judgement_text[i]);
             }

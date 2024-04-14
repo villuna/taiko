@@ -1,8 +1,8 @@
 use crate::app::Context;
-use crate::render::context::Renderable;
+use crate::render::Renderable;
 use crate::render::shapes::{Shape, ShapeBuilder, ShapeVertex, SolidColour};
 use crate::render::text::Text;
-use crate::render::{RenderPassContext, Renderer};
+use crate::render::Renderer;
 use lyon::tessellation::FillVertexConstructor;
 use wgpu_text::glyph_brush;
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, Section, VerticalAlign};
@@ -100,14 +100,14 @@ impl Button {
 }
 
 impl Renderable for Button {
-    fn render<'pass>(&'pass self, ctx: &mut RenderPassContext<'pass>) {
-        self.shadow.render(ctx);
-        self.bg.render(ctx);
-        self.text.render(ctx);
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+        self.shadow.render(renderer, render_pass);
+        self.bg.render(renderer, render_pass);
+        self.text.render(renderer, render_pass);
 
         if self.mouse_entered {
-            self.hover_overlay.render(ctx);
-            self.outline.render(ctx);
+            self.hover_overlay.render(renderer, render_pass);
+            self.outline.render(renderer, render_pass);
         }
     }
 }

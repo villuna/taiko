@@ -19,7 +19,7 @@ use wgpu::{
     vertex_attr_array,
 };
 
-use super::{context::Renderable, SpriteInstance};
+use super::{Renderable, Renderer, SpriteInstance};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Zeroable, bytemuck::Pod)]
@@ -415,22 +415,22 @@ impl Shape {
 }
 
 impl Renderable for Shape {
-    fn render<'a>(&'a self, ctx: &mut super::RenderPassContext<'a>) {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
         let pipeline = if self.has_depth {
             "primitive_depth"
         } else {
             "primitive"
         };
 
-        ctx.render_pass.set_pipeline(
-            ctx.pipeline(pipeline)
+        render_pass.set_pipeline(
+            renderer.pipeline(pipeline)
                 .unwrap_or_else(|| panic!("{pipeline} render pipeline doesn't exist!")),
         );
-        ctx.render_pass.set_vertex_buffer(0, self.vertex.slice(..));
-        ctx.render_pass
+        render_pass.set_vertex_buffer(0, self.vertex.slice(..));
+        render_pass
             .set_vertex_buffer(1, self.instance.slice(..));
-        ctx.render_pass
+        render_pass
             .set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
-        ctx.render_pass.draw_indexed(0..self.indices, 0, 0..1);
+        render_pass.draw_indexed(0..self.indices, 0, 0..1);
     }
 }
