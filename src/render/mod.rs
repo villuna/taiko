@@ -21,13 +21,17 @@ const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-pub mod context;
 mod egui;
 pub mod shapes;
 pub mod text;
 pub mod texture;
 
-pub use context::RenderPassContext;
+/// A trait that allows objects to render themselves to the screen in any given render pass. If a
+/// type implements Renderable, then it is able to be rendered by the [RenderPassContext]'s render
+/// function.
+pub trait Renderable {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>);
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -480,7 +484,7 @@ impl Renderer {
             &self.window,
         );
 
-        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: if SAMPLE_COUNT == 1 {
@@ -508,23 +512,15 @@ impl Renderer {
             .queue(&self.device, &self.queue, Vec::<Section>::new())
             .unwrap();
 
-        let mut ctx = RenderPassContext {
-            render_pass,
-            device: &self.device,
-            queue: &self.queue,
-            pipeline_cache: &self.pipeline_cache,
-        };
-
-        ctx.render_pass
-            .set_bind_group(0, &self.screen_bind_group, &[]);
+        render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
 
         // Rendering goes here...
-        app.render(&mut ctx);
+        app.render(self, &mut render_pass);
 
         self.egui_handler
-            .render(&mut ctx.render_pass, &paint_jobs, &screen_descriptor);
+            .render(&mut render_pass, &paint_jobs, &screen_descriptor);
 
-        drop(ctx);
+        drop(render_pass);
 
         self.queue.submit([encoder.finish()]);
         texture.present();

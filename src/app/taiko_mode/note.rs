@@ -7,10 +7,9 @@ use crate::render::Renderer;
 use crate::{app::TextureCache, render::shapes::ShapeBuilder};
 
 use crate::render::{
-    context::Renderable,
+    Renderable,
     shapes::{Shape, SolidColour},
     texture::Sprite,
-    RenderPassContext,
 };
 
 use super::ui::{NOTE_FIELD_HEIGHT, NOTE_FIELD_Y, NOTE_HIT_X, NOTE_Y};
@@ -179,14 +178,14 @@ impl VisualNote {
 }
 
 impl Renderable for VisualNote {
-    fn render<'a>(&'a self, ctx: &mut RenderPassContext<'a>) {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
         match self {
-            VisualNote::Note(sprite) => sprite.render(ctx),
+            VisualNote::Note(sprite) => sprite.render(renderer, render_pass),
             VisualNote::Roll { start, body } => {
                 // If start and body both have the same depth, then start should render on top
                 // of the body, given the compare function is `LessEqual`
-                body.render(ctx);
-                start.render(ctx);
+                body.render(renderer, render_pass);
+                start.render(renderer, render_pass);
             }
         }
     }

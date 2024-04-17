@@ -18,7 +18,7 @@ use winit::{
     event_loop::ControlFlow,
 };
 
-use crate::render::{self, context::Renderable, texture::Texture};
+use crate::render::{self, Renderable, texture::Texture, Renderer};
 
 const FPS_POLL_TIME: f32 = 0.5;
 const SPRITES_PATH: &str = "assets/images";
@@ -31,24 +31,27 @@ pub enum StateTransition {
     Exit,
 }
 
-pub struct Context<'app> {
-    pub audio: &'app mut AudioManager,
-    pub renderer: &'app mut render::Renderer,
-    pub keyboard: &'app KeyboardState,
-    pub textures: &'app mut TextureCache,
-    pub mouse: &'app MouseState,
+pub struct Context<'ctx> {
+    pub audio: &'ctx mut AudioManager,
+    pub renderer: &'ctx mut render::Renderer,
+    pub keyboard: &'ctx KeyboardState,
+    pub textures: &'ctx mut TextureCache,
+    pub mouse: &'ctx MouseState,
 }
 
-pub struct RenderContext<'app, 'pass> {
-    pub audio: &'app mut AudioManager,
-    pub render_pass: &'app mut render::RenderPassContext<'pass>,
-    pub keyboard: &'app KeyboardState,
-    pub textures: &'app mut TextureCache,
+pub struct RenderContext<'ctx, 'pass> {
+    pub audio: &'ctx mut AudioManager,
+    pub renderer: &'pass Renderer,
+    pub textures: &'ctx mut TextureCache,
+    pub keyboard: &'ctx KeyboardState,
+    pub mouse: &'ctx MouseState,
+
+    pub render_pass: &'ctx mut wgpu::RenderPass<'pass>,
 }
 
 impl<'pass> RenderContext<'_, 'pass> {
     pub fn render<R: Renderable>(&mut self, target: &'pass R) {
-        self.render_pass.render(target);
+        target.render(self.renderer, self.render_pass);
     }
 }
 
@@ -291,12 +294,14 @@ impl App {
         }
     }
 
-    pub fn render<'pass>(&'pass mut self, rctx: &mut render::RenderPassContext<'pass>) {
+    pub fn render<'pass>(&'pass mut self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
         let mut ctx = RenderContext {
             audio: &mut self.audio_manager,
-            render_pass: rctx,
+            renderer,
             keyboard: &self.keyboard,
+            mouse: &self.mouse,
             textures: &mut self.textures,
+            render_pass,
         };
 
         self.state.last_mut().unwrap().render(&mut ctx)
