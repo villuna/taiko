@@ -18,22 +18,26 @@ const VELOCITY: f32 = (1920. - NOTE_HIT_X) / 2.;
 const ROLL_COLOUR: [f32; 4] = [1., 195. / 255., 44. / 255., 1.];
 
 /// Takes a list of notes in a song and creates visual representations for all of them.
-pub fn create_visual_notes(renderer: &mut Renderer, textures: &mut TextureCache, notes: &[Note]) -> Vec<VisualNote> {
+pub fn create_notes(renderer: &Renderer, textures: &mut TextureCache, notes: &[Note]) -> Vec<TaikoModeNote> {
     notes.iter()
-        .filter_map(|note|
-            VisualNote::new(renderer, note.note_type, VELOCITY * note.scroll_speed, textures)
-        )
+        .filter_map(|note| TaikoModeNote::new(renderer, note, textures))
         .collect()
 }
 
 /// Takes a list of barlines in a song and creates visual representations for all of them.
-pub fn create_visual_barlines(renderer: &mut Renderer, barlines: &[Barline]) -> Vec<Shape> {
+pub fn create_barlines(renderer: &mut Renderer, barlines: &[Barline]) -> Vec<TaikoModeBarline> {
     barlines.iter()
-        .filter_map(|barline| {
-            Some(ShapeBuilder::new()
-                .filled_rectangle([-1., 0.], [1., NOTE_FIELD_HEIGHT], SolidColour::new([1., 1., 1., 0.5])).ok()?
+        .map(|barline| {
+            let visual_line = ShapeBuilder::new()
+                .filled_rectangle([-1., 0.], [1., NOTE_FIELD_HEIGHT], SolidColour::new([1., 1., 1., 0.5])).expect("Error creating barline shape")
                 .position([x_position_of_note(barline.time, 0., barline.scroll_speed), NOTE_FIELD_Y, 0.])
-                .build(&renderer.device))
+                .build(&renderer.device);
+
+            TaikoModeBarline {
+                visual_line,
+                time: barline.time,
+                scroll_speed: barline.scroll_speed,
+            }
         })
         .collect()
 }
@@ -45,18 +49,35 @@ pub fn x_position_of_note(current_time: f32, note_time: f32, scroll_speed: f32) 
 }
 
 #[derive(Debug)]
-pub enum VisualNote {
+enum VisualNote {
     Note(Sprite),
     Roll { start: Sprite, body: Shape },
 }
 
+#[derive(Debug)]
+pub struct TaikoModeNote {
+    visual_note: VisualNote,
+    time: f32,
+    scroll_speed: f32,
+    visible: bool,
+}
+
+#[derive(Debug)]
+pub struct TaikoModeBarline {
+    visual_line: Shape,
+    time: f32,
+    scroll_speed: f32,
+}
+    
 impl VisualNote {
-    pub fn new(
-        renderer: &mut Renderer,
-        note_type: NoteType,
-        pixel_vel: f32,
+    fn new(
+        renderer: &Renderer,
+        note: &Note,
         textures: &mut TextureCache,
     ) -> Option<Self> {
+        let note_type = note.note_type;
+        let pixel_vel = VELOCITY * note.scroll_speed;
+
         let mut get_texture = |filename| textures.get(&renderer.device, &renderer.queue, filename).unwrap();
         let create_roll_body = |length, height| -> Result<Shape, TessellationError> {
             const OUTLINE_WIDTH: f32 = 3.0;
@@ -172,7 +193,7 @@ impl VisualNote {
         }
     }
 
-    pub fn set_position_for_time(&mut self, renderer: &mut Renderer, current_time: f32, note_time: f32, scroll_speed: f32) {
+    fn set_position_for_time(&mut self, renderer: &Renderer, current_time: f32, note_time: f32, scroll_speed: f32) {
         self.set_position([x_position_of_note(current_time, note_time, scroll_speed), NOTE_Y, note_time], &renderer.queue);
     }
 }
@@ -188,5 +209,58 @@ impl Renderable for VisualNote {
                 start.render(renderer, render_pass);
             }
         }
+    }
+}
+
+impl TaikoModeNote {
+    pub fn new(
+        renderer: &Renderer,
+        note: &Note,
+        textures: &mut TextureCache,
+    ) -> Option<Self> {
+        Some(Self {
+            visual_note: VisualNote::new(renderer, note, textures)?,
+            scroll_speed: note.scroll_speed,
+            time: note.time,
+            visible: true,
+        })
+    }
+
+    pub fn update_position(&mut self, renderer: &Renderer, note_adjusted_time: f32) {
+        self.visual_note.set_position_for_time(renderer, note_adjusted_time, self.time, self.scroll_speed)
+    }
+
+    pub fn time(&self) -> f32 {
+        self.time
+    }
+
+    pub fn scroll_speed(&self) -> f32 {
+        self.scroll_speed
+    }
+}
+
+impl TaikoModeBarline {
+    pub fn update_position(&mut self, renderer: &Renderer, note_adjusted_time: f32) {
+        self.visual_line.set_position([x_position_of_note(note_adjusted_time, self.time, self.scroll_speed), NOTE_FIELD_Y, 0.0], &renderer.queue);
+    }
+
+    pub fn time(&self) -> f32 {
+        self.time
+    }
+
+    pub fn scroll_speed(&self) -> f32 {
+        self.scroll_speed
+    }
+}
+
+impl Renderable for TaikoModeNote {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+        self.visual_note.render(renderer, render_pass);
+    }
+}
+
+impl Renderable for TaikoModeBarline {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+        self.visual_line.render(renderer, render_pass);
     }
 }

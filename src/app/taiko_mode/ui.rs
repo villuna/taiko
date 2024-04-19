@@ -7,6 +7,8 @@ use crate::render::Renderer;
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
 use crate::render::text::Text;
 
+use super::note::{TaikoModeBarline, TaikoModeNote};
+
 // Colours
 pub const HEADER_TOP_COL: [f32; 4] = [30. / 255., 67. / 255., 198. / 255., 0.94];
 pub const HEADER_BOTTOM_COL: [f32; 4] = [150. / 255., 90. / 255., 225. / 255., 1.];
@@ -142,9 +144,19 @@ impl NoteField {
         Ok(Self { field, left_panel })
     }
 
-    pub fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_, 'pass>) {
+    pub fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_, 'pass>, notes: impl Iterator<Item = &'pass TaikoModeNote>, barlines: impl Iterator<Item = &'pass TaikoModeBarline>) {
         ctx.render(&self.field);
-        // Render notes here
+        
+        // Thankfully barlines are all drawn before all the notes
+        // so we don't have to worry about ordering shenanigans :D
+        for b in barlines {
+            ctx.render(b);
+        }
+
+        for n in notes {
+            ctx.render(n);
+        }
+
         ctx.render(&self.left_panel);
     }
 }
