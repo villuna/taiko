@@ -277,65 +277,171 @@ impl Texture {
 #[derive(Debug)]
 pub struct Sprite {
     texture: Rc<Texture>,
+    position: [f32; 2],
+    origin: [f32; 2],
+    depth: Option<f32>,
+
     instance_buffer: wgpu::Buffer,
-    use_depth: bool,
 }
 
-impl Sprite {
-    pub fn new(
-        texture: Rc<Texture>,
-        position: [f32; 3],
-        device: &wgpu::Device,
-        use_depth: bool,
-    ) -> Self {
-        let instance = SpriteInstance { position };
+#[derive(Clone, Debug)]
+pub struct SpriteBuilder {
+    texture: Rc<Texture>,
+    position: [f32; 2],
+    depth: Option<f32>,
+    origin: [f32; 2],
+}
 
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None, //TODO probably give this a name aye
-            contents: bytemuck::cast_slice(&[instance]),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
-
-        Sprite {
+impl SpriteBuilder {
+    pub fn new(texture: Rc<Texture>) -> Self {
+        Self {
             texture,
-            instance_buffer,
-            use_depth,
+            position: [0., 0.],
+            depth: None,
+            origin: [0., 0.],
         }
     }
 
+    pub fn texture(mut self, texture: Rc<Texture>) -> Self {
+        self.texture = texture;
+        self
+    }
+
+    pub fn position(mut self, position: [f32; 2]) -> Self {
+        self.position = position;
+        self
+    }
+
+    pub fn depth(mut self, depth: Option<f32>) -> Self {
+        self.depth = depth;
+        self
+    }
+
+    /// The origin of the sprite is the point relative to the sprite that will be drawn at the
+    /// sprite's position.
+    ///
+    /// For example, if the origin is [0, 0] (the default, which is at the top
+    /// left corner), and the sprite's position is [100, 100], then the sprite will be drawn with
+    /// its top left corner at [100, 100].
+    ///
+    /// Another example: you can set the origin to [width / 2, height / 2] to centre the sprite.
+    pub fn origin(mut self, origin: [f32; 2]) -> Self {
+        self.origin = origin;
+        self
+    }
+    
+    /// Centres the sprite, i.e. sets the sprite's origin to the centre of the sprite.
+    /// 
+    /// See [SpriteBuilder::origin]
+    pub fn centre(mut self) -> Self {
+        let dimensions = self.texture.dimensions;
+        let centre = [dimensions.0 as f32 / 2., dimensions.1 as f32 / 2.];
+        self.origin = centre;
+        self
+    }
+
+    pub fn build(self, renderer: &Renderer) -> Sprite {
+        let instance = SpriteInstance {
+            position: [
+                self.position[0] - self.origin[0],
+                self.position[1] - self.origin[1],
+                self.depth.unwrap_or_default(),
+            ],
+        };
+
+        let instance_buffer =
+            renderer
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("sprite instance buffer"),
+                    contents: bytemuck::cast_slice(&[instance]),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                });
+
+        Sprite {
+            texture: self.texture,
+            position: self.position,
+            depth: self.depth,
+            origin: self.origin,
+
+            instance_buffer,
+        }
+    }
+}
+
+impl Sprite {
     pub fn dimensions(&self) -> (u32, u32) {
         self.texture.dimensions
     }
 
-    pub fn set_position(&mut self, position: [f32; 3], queue: &wgpu::Queue) {
-        queue.write_buffer(
+    /// Returns the relative bounding box of the sprite.
+    ///
+    /// This will be two points, the top left corner and the bottom left corner of the box. This
+    /// box defines the bounds of the sprite *relative to its position*. So, if a sprite is 100x100
+    /// and centred, its bounding box will always be ([-50, -50], [50, 50]), regardless of its
+    /// actual position on the screen.
+    pub fn relative_bounding_box(&self) -> ([f32; 2], [f32; 2]) {
+        let dimensions = self.dimensions();
+        let (dx, dy) = (dimensions.0 as f32, dimensions.1 as f32);
+
+        let start = [-self.origin[0], -self.origin[1]];
+        let end = [start[0] + dx as f32, start[1] + dy as f32];
+        (start, end)
+    }
+
+    fn position_3d(&self) -> [f32; 3] {
+        [
+            self.position[0] - self.origin[0],
+            self.position[1] - self.origin[1],
+            self.depth.unwrap_or_default(),
+        ]
+    }
+
+    pub fn set_position(&mut self, position: [f32; 2], renderer: &Renderer) {
+        self.position = position;
+        renderer.queue.write_buffer(
             &self.instance_buffer,
             0,
-            bytemuck::cast_slice(&[SpriteInstance { position }]),
+            bytemuck::cast_slice(&[SpriteInstance {
+                position: self.position_3d(),
+            }]),
+        )
+    }
+
+    pub fn set_depth(&mut self, depth: Option<f32>, renderer: &Renderer) {
+        self.depth = depth;
+        renderer.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&[SpriteInstance {
+                position: self.position_3d(),
+            }]),
         )
     }
 }
 
 impl Renderable for Sprite {
-    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+    fn render<'pass>(
+        &'pass self,
+        renderer: &'pass Renderer,
+        render_pass: &mut wgpu::RenderPass<'pass>,
+    ) {
         render_pass.set_pipeline(
-            renderer.pipeline(if self.use_depth {
-                "texture_depth"
-            } else {
-                "texture"
-            })
-            .expect("texture render pipeline does not exist!"),
+            renderer
+                .pipeline(if self.depth.is_some() {
+                    "texture_depth"
+                } else {
+                    "texture"
+                })
+                .expect("texture render pipeline does not exist!"),
         );
-        render_pass
-            .set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(0, self.texture.vertex_buffer.slice(..));
         render_pass.set_index_buffer(
             self.texture.index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,
         );
-        render_pass
-            .set_bind_group(1, &self.texture.bind_group, &[]);
-        render_pass
-            .set_vertex_buffer(1, self.instance_buffer.slice(..));
+        render_pass.set_bind_group(1, &self.texture.bind_group, &[]);
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.draw_indexed(0..6 as _, 0, 0..1);
     }
 }

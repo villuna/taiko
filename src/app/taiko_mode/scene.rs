@@ -6,6 +6,7 @@ use kira::tween::Tween;
 use winit::event::VirtualKeyCode;
 
 use crate::app::taiko_mode::note::x_position_of_note;
+use crate::render::texture::SpriteBuilder;
 use crate::settings::SETTINGS;
 use crate::{
     beatmap_parser::Song,
@@ -27,7 +28,7 @@ pub struct TaikoMode {
     header: Header,
     note_field: NoteField,
 
-    // Song data
+    // Song audio controller
     song_handle: StaticSoundHandle,
     // Record the global offset so we dont need to keep querying the settings
     // This is fine bc the settings will never change mid-song but if that's ever possible, we'd
@@ -56,12 +57,8 @@ impl TaikoMode {
         renderer: &mut Renderer,
         textures: &mut TextureCache,
     ) -> anyhow::Result<Self> {
-        let background = Sprite::new(
-            textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?,
-            [0.0; 3],
-            &renderer.device,
-            false,
-        );
+        let bg_texture = textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?;
+        let background = SpriteBuilder::new(bg_texture).build(renderer);
 
         let background_dim = ShapeBuilder::new()
             .filled_rectangle(
@@ -125,12 +122,7 @@ impl GameState for TaikoMode {
         let time = self.note_time();
 
         let on_screen_notes = self.notes.iter_mut()
-            .filter(|note| {
-                let pos = x_position_of_note(time, note.time(), note.scroll_speed());
-                // TODO: replace this with a more sophisticated culling check which takes into
-                // account e.g. the length of drumrolls 
-                pos >= 0. && pos <= 1920.
-            });
+            .filter(|note| note.visible(time));
 
         for note in on_screen_notes {
             note.update_position(ctx.renderer, time);
@@ -151,18 +143,12 @@ impl GameState for TaikoMode {
         self.header.render(ctx);
 
         let notes = self.notes.iter()
-            .filter(|note| {
-                let pos = x_position_of_note(time, note.time(), note.scroll_speed());
-                // TODO: replace this with a more sophisticated culling check which takes into
-                // account e.g. the length of drumrolls 
-                pos >= 0. && pos <= 1920.
-            });
+            .filter(|note| note.visible(time));
 
         let barlines = self.barlines.iter()
             .filter(|barline| {
                 let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
-                // TODO: replace this with a more sophisticated culling check which takes into
-                // account e.g. the length of drumrolls 
+                // TODO: another hardcoded resolution to get rid of
                 pos >= 0. && pos <= 1920.
             });
 

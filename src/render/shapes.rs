@@ -405,8 +405,8 @@ impl Default for ShapeBuilder {
 
 impl Shape {
     /// Moves the whole shape to the given position.
-    pub fn set_position(&self, position: [f32; 3], queue: &wgpu::Queue) {
-        queue.write_buffer(
+    pub fn set_position(&self, position: [f32; 3], renderer: &Renderer) {
+        renderer.queue.write_buffer(
             &self.instance,
             0,
             bytemuck::cast_slice(&[SpriteInstance { position }]),
