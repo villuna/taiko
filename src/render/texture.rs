@@ -329,9 +329,9 @@ impl SpriteBuilder {
         self.origin = origin;
         self
     }
-    
+
     /// Centres the sprite, i.e. sets the sprite's origin to the centre of the sprite.
-    /// 
+    ///
     /// See [SpriteBuilder::origin]
     pub fn centre(mut self) -> Self {
         let dimensions = self.texture.dimensions;

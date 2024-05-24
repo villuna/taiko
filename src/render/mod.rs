@@ -30,7 +30,11 @@ pub mod texture;
 /// type implements Renderable, then it is able to be rendered by the [RenderPassContext]'s render
 /// function.
 pub trait Renderable {
-    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>);
+    fn render<'pass>(
+        &'pass self,
+        renderer: &'pass Renderer,
+        render_pass: &mut wgpu::RenderPass<'pass>,
+    );
 }
 
 #[repr(C)]

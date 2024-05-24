@@ -1,6 +1,8 @@
 //! Defines structs for drawing notes and barlines to the screen
 use lyon::lyon_tessellation::TessellationError;
+use winit::event::VirtualKeyCode;
 
+use crate::app::taiko_mode::scene::NoteJudgement;
 use crate::beatmap_parser::track::NoteType;
 use crate::beatmap_parser::{Barline, Note};
 use crate::render::texture::SpriteBuilder;
@@ -64,17 +66,37 @@ pub fn x_position_of_note(current_time: f32, note_time: f32, scroll_speed: f32) 
     NOTE_HIT_X + VELOCITY * (note_time - current_time) * scroll_speed
 }
 
+fn drumroll_visual_length(scroll_speed: f32, length_of_time: f32) -> f32 {
+    scroll_speed * length_of_time * VELOCITY
+}
+
+/// The "Inner" taiko mode Note type is an enum containing data and behaviour specific to the note
+/// type.
 #[derive(Debug)]
-enum VisualNote {
-    Note(Sprite),
-    Roll { start: Sprite, body: Shape, length: f32 },
+enum NoteInner {
+    Note {
+        sprite: Sprite,
+    },
+    Roll {
+        start_sprite: Sprite,
+        body_sprite: Shape,
+        length_of_time: f32,
+    },
+    Balloon {
+        sprite: Sprite,
+        hits_left: u32,
+        length_of_time: f32,
+    },
 }
 
 #[derive(Debug)]
 pub struct TaikoModeNote {
-    visual_note: VisualNote,
+    note: NoteInner,
     time: f32,
     scroll_speed: f32,
+    /// Whether to display the note or not (regardless of its position on the screen).
+    /// E.g., notes that have already been hit should not be displayed.
+    on_screen: bool,
 }
 
 #[derive(Debug)]
@@ -84,7 +106,7 @@ pub struct TaikoModeBarline {
     scroll_speed: f32,
 }
 
-impl VisualNote {
+impl NoteInner {
     fn new(renderer: &Renderer, note: &Note, textures: &mut TextureCache) -> Option<Self> {
         let note_type = note.note_type;
         let pixel_vel = VELOCITY * note.scroll_speed;
@@ -127,49 +149,45 @@ impl VisualNote {
         };
 
         let result = match note_type {
-            NoteType::Don => {
-                Self::Note(
-                    SpriteBuilder::new(get_texture("don.png"))
-                        .centre()
-                        .depth(Some(0.))
-                        .build(renderer)
-                )
-            }
-            NoteType::Kat => {
-                Self::Note(
-                    SpriteBuilder::new(get_texture("kat.png"))
-                        .centre()
-                        .depth(Some(0.))
-                        .build(renderer)
-                )
-            }
-            NoteType::BigDon | NoteType::CoopDon => {
-                Self::Note(
-                    SpriteBuilder::new(get_texture("big_don.png"))
-                        .centre()
-                        .depth(Some(0.))
-                        .build(renderer)
-                )
-            }
-            NoteType::BigKat | NoteType::CoopKat => {
-                Self::Note(
-                    SpriteBuilder::new(get_texture("big_kat.png"))
-                        .centre()
-                        .depth(Some(0.))
-                        .build(renderer)
-                )
-            }
-                
+            NoteType::Don => Self::Note {
+                sprite: SpriteBuilder::new(get_texture("don.png"))
+                    .centre()
+                    .depth(Some(0.))
+                    .build(renderer),
+            },
+            NoteType::Kat => Self::Note {
+                sprite: SpriteBuilder::new(get_texture("kat.png"))
+                    .centre()
+                    .depth(Some(0.))
+                    .build(renderer),
+            },
+            NoteType::BigDon | NoteType::CoopDon => Self::Note {
+                sprite: SpriteBuilder::new(get_texture("big_don.png"))
+                    .centre()
+                    .depth(Some(0.))
+                    .build(renderer),
+            },
+            NoteType::BigKat | NoteType::CoopKat => Self::Note {
+                sprite: SpriteBuilder::new(get_texture("big_kat.png"))
+                    .centre()
+                    .depth(Some(0.))
+                    .build(renderer),
+            },
+
             NoteType::Roll(length) => {
                 let start = SpriteBuilder::new(get_texture("drumroll_start.png"))
                     .centre()
                     .depth(Some(0.))
                     .build(renderer);
-                    
+
                 let body_length = pixel_vel * length;
                 let body = create_roll_body(body_length, 100.0).ok()?;
 
-                VisualNote::Roll { start, body, length: body_length }
+                NoteInner::Roll {
+                    start_sprite: start,
+                    body_sprite: body,
+                    length_of_time: length,
+                }
             }
 
             NoteType::BigRoll(length) => {
@@ -181,17 +199,21 @@ impl VisualNote {
                 let body_length = pixel_vel * length;
                 let body = create_roll_body(body_length, 150.0).ok()?;
 
-                VisualNote::Roll { start, body, length: body_length }
+                NoteInner::Roll {
+                    start_sprite: start,
+                    body_sprite: body,
+                    length_of_time: length,
+                }
             }
 
             NoteType::BalloonRoll(_, _) => {
-                Self::Note(
-                    SpriteBuilder::new(get_texture("balloon.png"))
+                Self::Note {
+                    sprite: SpriteBuilder::new(get_texture("balloon.png"))
                         .depth(Some(0.))
                         // The balloon texture is 300x100, but the notehead is centred at [50, 50].
                         .origin([50., 50.])
-                        .build(renderer)
-                )
+                        .build(renderer),
+                }
             }
 
             _ => return None,
@@ -203,16 +225,21 @@ impl VisualNote {
     /// Sets the position of the note. The note will be centred at that position.
     fn set_position(&mut self, position: [f32; 2], depth: f32, renderer: &Renderer) {
         match self {
-            VisualNote::Note(sprite) => {
-                sprite.set_position(
-                    position,
-                    renderer,
-                );
-
+            NoteInner::Note { sprite } => {
+                sprite.set_position(position, renderer);
                 sprite.set_depth(Some(depth), renderer);
             }
 
-            VisualNote::Roll { start, body, .. } => {
+            NoteInner::Balloon { sprite, .. } => {
+                sprite.set_position(position, renderer);
+                sprite.set_depth(Some(depth), renderer);
+            }
+
+            NoteInner::Roll {
+                start_sprite: start,
+                body_sprite: body,
+                ..
+            } => {
                 start.set_position(position, renderer);
                 // TODO: do the same refactoring to shapes as I did to sprites
                 body.set_position([position[0], position[1], depth], renderer);
@@ -238,15 +265,20 @@ impl VisualNote {
     }
 }
 
-impl Renderable for VisualNote {
+impl Renderable for NoteInner {
     fn render<'pass>(
         &'pass self,
         renderer: &'pass Renderer,
         render_pass: &mut wgpu::RenderPass<'pass>,
     ) {
         match self {
-            VisualNote::Note(sprite) => sprite.render(renderer, render_pass),
-            VisualNote::Roll { start, body, .. } => {
+            NoteInner::Note { sprite } => sprite.render(renderer, render_pass),
+            NoteInner::Balloon { sprite, .. } => sprite.render(renderer, render_pass),
+            NoteInner::Roll {
+                start_sprite: start,
+                body_sprite: body,
+                ..
+            } => {
                 // If start and body both have the same depth, then start should render on top
                 // of the body, given the compare function is `LessEqual`
                 body.render(renderer, render_pass);
@@ -256,22 +288,45 @@ impl Renderable for VisualNote {
     }
 }
 
+/// Different ways a note can respond to a keypress
+/// See [TaikoModeNote::receive_input]
+pub enum NoteInputReaction {
+    /// Don was pressed but this note is Kat, or vice versa
+    /// Basically, do absolutely nothing.
+    WrongColour,
+    /// The keypress is too early, so the note is not yet able to be hit
+    ///
+    /// *This variant is more important than WrongColour*. If a keypress is both too early and the
+    /// wrong colour, this is the one you should return, since the calling code uses this variant
+    /// to determine where to stop calling [TaikoModeNote::receive_input]
+    TooEarly,
+    /// The note was hit, with the given result
+    Hit(NoteJudgement),
+    /// The note was hit, and is a drumroll.
+    /// Since drumrolls can be big or small, and can be hit with either don or kat, we return the
+    /// type of note so that we can display the correct flying note
+    Drumroll { roll_note: NoteType },
+    /// The note was hit, and is a balloon.
+    /// These notes do different things on the first hit and the last hit, so this info is
+    /// returned as well.
+    BalloonRoll { first: bool, popped: bool },
+    /// The note cannot be hit anymore.
+    TooLate,
+}
+
 impl TaikoModeNote {
     pub fn new(renderer: &Renderer, note: &Note, textures: &mut TextureCache) -> Option<Self> {
         Some(Self {
-            visual_note: VisualNote::new(renderer, note, textures)?,
+            note: NoteInner::new(renderer, note, textures)?,
             scroll_speed: note.scroll_speed,
             time: note.time,
+            on_screen: true,
         })
     }
 
     pub fn update_position(&mut self, renderer: &Renderer, note_adjusted_time: f32) {
-        self.visual_note.set_position_for_time(
-            note_adjusted_time,
-            self.time,
-            self.scroll_speed,
-            renderer,
-        )
+        self.note
+            .set_position_for_time(note_adjusted_time, self.time, self.scroll_speed, renderer)
     }
 
     pub fn time(&self) -> f32 {
@@ -282,21 +337,11 @@ impl TaikoModeNote {
         self.scroll_speed
     }
 
-    fn relative_bounding_box(&self) -> ([f32; 2], [f32; 2]) {
-        match &self.visual_note {
-            VisualNote::Note(sprite) => sprite.relative_bounding_box(),
-            VisualNote::Roll { start, length, .. } => {
-                let (head_start, head_fin) = start.relative_bounding_box();
-
-                let start = head_start;
-                let end = [head_fin[0] + *length, head_fin[1]];
-
-                (start, end)
-            }
-        }
-    }
-
     pub fn visible(&self, note_adjusted_time: f32) -> bool {
+        if !self.on_screen {
+            return false;
+        }
+
         let (rel_start, rel_end) = self.relative_bounding_box();
         let x_position = x_position_of_note(note_adjusted_time, self.time, self.scroll_speed);
 
@@ -305,6 +350,50 @@ impl TaikoModeNote {
 
         // TODO: seriously dont use hard coded resolution
         start_x < 1920. && end_x >= LEFT_PANEL_WIDTH
+    }
+
+    /// Reacts to a keypress.
+    pub fn receive_keypress(
+        &mut self,
+        key: VirtualKeyCode,
+        note_adjusted_time: f32,
+    ) -> NoteInputReaction {
+        todo!()
+    }
+
+    /// Returns whether the note is (or will at some point be) hittable
+    ///
+    /// When checking if a note has been hit by the player, we start checking from the first
+    /// hittable note. If the note can be hit now or at some point in the future, it is considered
+    /// "hittable". If it is past its time, however, it is not hittable.
+    pub fn is_hittable(&self, time: f32, timing_windows: [f32; 3]) -> bool {
+        match self.note {
+            NoteInner::Note { .. } => todo!(),
+            NoteInner::Roll { .. } => todo!(),
+            NoteInner::Balloon { .. } => todo!(),
+        }
+    }
+
+    fn relative_bounding_box(&self) -> ([f32; 2], [f32; 2]) {
+        match &self.note {
+            NoteInner::Note { sprite } => sprite.relative_bounding_box(),
+            NoteInner::Balloon { sprite, .. } => sprite.relative_bounding_box(),
+            NoteInner::Roll {
+                start_sprite,
+                length_of_time,
+                ..
+            } => {
+                let (head_start, head_fin) = start_sprite.relative_bounding_box();
+
+                let start = head_start;
+                let end = [
+                    head_fin[0] + drumroll_visual_length(self.scroll_speed, *length_of_time),
+                    head_fin[1],
+                ];
+
+                (start, end)
+            }
+        }
     }
 }
 
@@ -335,7 +424,7 @@ impl Renderable for TaikoModeNote {
         renderer: &'pass Renderer,
         render_pass: &mut wgpu::RenderPass<'pass>,
     ) {
-        self.visual_note.render(renderer, render_pass);
+        self.note.render(renderer, render_pass);
     }
 }
 

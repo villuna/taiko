@@ -1,11 +1,11 @@
+use crate::app::RenderContext;
+use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
+use crate::render::text::Text;
+use crate::render::Renderer;
 use lyon::geom::point;
 use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
 use lyon::path::Path;
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
-use crate::app::RenderContext;
-use crate::render::Renderer;
-use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
-use crate::render::text::Text;
 
 use super::note::{TaikoModeBarline, TaikoModeNote};
 
@@ -47,7 +47,7 @@ impl Header {
                     [0., 0.],
                     [0., HEADER_HEIGHT],
                 )
-                    .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
+                .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
             )?
             .build(&renderer.device);
 
@@ -132,7 +132,7 @@ impl NoteField {
                     [0.0, NOTE_FIELD_Y],
                     [0.0, NOTE_FIELD_Y + NOTE_FIELD_HEIGHT],
                 )
-                    .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
+                .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
             )?
             .filled_rectangle(
                 [LEFT_PANEL_WIDTH, NOTE_FIELD_Y],
@@ -144,9 +144,14 @@ impl NoteField {
         Ok(Self { field, left_panel })
     }
 
-    pub fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_, 'pass>, notes: impl Iterator<Item = &'pass TaikoModeNote>, barlines: impl Iterator<Item = &'pass TaikoModeBarline>) {
+    pub fn render<'pass>(
+        &'pass mut self,
+        ctx: &mut RenderContext<'_, 'pass>,
+        notes: impl Iterator<Item = &'pass TaikoModeNote>,
+        barlines: impl Iterator<Item = &'pass TaikoModeBarline>,
+    ) {
         ctx.render(&self.field);
-        
+
         // Thankfully barlines are all drawn before all the notes
         // so we don't have to worry about ordering shenanigans :D
         for b in barlines {

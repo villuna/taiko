@@ -80,8 +80,12 @@ impl MainMenu {
             renderer,
         )?;
 
-        let background = SpriteBuilder::new(textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?)
-            .build(renderer);
+        let background = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "song_select_bg.jpg",
+        )?)
+        .build(renderer);
 
         Ok(MainMenu {
             background,

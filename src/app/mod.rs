@@ -18,7 +18,7 @@ use winit::{
     event_loop::ControlFlow,
 };
 
-use crate::render::{self, Renderable, texture::Texture, Renderer};
+use crate::render::{self, texture::Texture, Renderable, Renderer};
 
 const FPS_POLL_TIME: f32 = 0.5;
 const SPRITES_PATH: &str = "assets/images";
@@ -294,7 +294,11 @@ impl App {
         }
     }
 
-    pub fn render<'pass>(&'pass mut self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+    pub fn render<'pass>(
+        &'pass mut self,
+        renderer: &'pass Renderer,
+        render_pass: &mut wgpu::RenderPass<'pass>,
+    ) {
         let mut ctx = RenderContext {
             audio: &mut self.audio_manager,
             renderer,

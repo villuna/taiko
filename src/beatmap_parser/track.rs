@@ -24,8 +24,8 @@ pub enum NoteType {
     BigKat,
     Roll(f32),
     BigRoll(f32),
-    BalloonRoll(f32, u16),
-    SpecialRoll(f32, u16),
+    BalloonRoll(f32, u32),
+    SpecialRoll(f32, u32),
     CoopDon,
     CoopKat,
 }
@@ -42,17 +42,11 @@ impl NoteType {
     }
 
     pub fn is_don(&self) -> bool {
-        matches!(
-            self,
-            NoteType::Don | NoteType::BigDon | NoteType::CoopDon
-        )
+        matches!(self, NoteType::Don | NoteType::BigDon | NoteType::CoopDon)
     }
 
     pub fn is_kat(&self) -> bool {
-        matches!(
-            self,
-            NoteType::Kat | NoteType::BigKat | NoteType::CoopKat
-        )
+        matches!(self, NoteType::Kat | NoteType::BigKat | NoteType::CoopKat)
     }
 }
 

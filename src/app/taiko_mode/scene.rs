@@ -3,9 +3,12 @@ use std::time::Instant;
 use kira::manager::AudioManager;
 use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::tween::Tween;
-use winit::event::VirtualKeyCode;
+use winit::event::{VirtualKeyCode, WindowEvent};
 
+use super::note::{create_barlines, create_notes, TaikoModeBarline, TaikoModeNote};
+use super::ui::{Header, NoteField};
 use crate::app::taiko_mode::note::x_position_of_note;
+use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
 use crate::render::texture::SpriteBuilder;
 use crate::settings::SETTINGS;
 use crate::{
@@ -16,10 +19,12 @@ use crate::{
         Renderer,
     },
 };
-use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
-use super::note::{create_barlines, create_notes, TaikoModeNote, TaikoModeBarline};
-use super::ui::{Header, NoteField};
 
+pub enum NoteJudgement {
+    Bad,
+    Ok,
+    Good,
+}
 pub struct TaikoMode {
     // UI Stuff
     background: Sprite,
@@ -28,9 +33,9 @@ pub struct TaikoMode {
     header: Header,
     note_field: NoteField,
 
-    // Song audio controller
+    /// A handle to the audio of the song
     song_handle: StaticSoundHandle,
-    // Record the global offset so we dont need to keep querying the settings
+    // Record the global offset so we don't need to keep querying the settings
     // This is fine bc the settings will never change mid-song but if that's ever possible, we'd
     // need to update this every time the setting changed.
     global_offset: f32,
@@ -43,9 +48,18 @@ pub struct TaikoMode {
     started: bool,
     difficulty: usize,
 
-    // Notes and barlines
     notes: Vec<TaikoModeNote>,
     barlines: Vec<TaikoModeBarline>,
+
+    // Scoring stuff
+    /// the index of the next note to be played
+    next_note_index: usize,
+    note_judgements: Vec<NoteJudgement>,
+    score: usize,
+    /// The percentage the soul gauge is filled
+    soul_gauge: f32,
+    // TODO: A UI element containing text displaying the judgement
+    // "Good" "Ok" "Bad" (and ideally in japanese too, "良", "可", "不可")
 }
 
 impl TaikoMode {
@@ -72,8 +86,7 @@ impl TaikoMode {
         // We want to start the song once the scene is actually loaded
         song_handle.pause(Tween::default())?;
 
-        let track = 
-            &song.difficulties[difficulty]
+        let track = &song.difficulties[difficulty]
             .as_ref()
             .expect("Difficulty doesn't exist!")
             .track;
@@ -92,6 +105,10 @@ impl TaikoMode {
             // really long it might become one
             notes: create_notes(renderer, textures, &track.notes),
             barlines: create_barlines(renderer, &track.barlines),
+            next_note_index: 0,
+            note_judgements: vec![],
+            score: 0,
+            soul_gauge: 0.0,
         })
     }
 
@@ -118,21 +135,19 @@ impl GameState for TaikoMode {
     }
 
     fn render<'pass>(&'pass mut self, ctx: &mut RenderContext<'_, 'pass>) {
-        // Update the positions of all the notes
+        // Update the positions of all the notes that are currently visible
         let time = self.note_time();
 
-        let on_screen_notes = self.notes.iter_mut()
-            .filter(|note| note.visible(time));
+        let on_screen_notes = self.notes.iter_mut().filter(|note| note.visible(time));
 
         for note in on_screen_notes {
             note.update_position(ctx.renderer, time);
         }
 
-        let on_screen_barlines = self.barlines.iter_mut()
-            .filter(|barline| {
-                let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
-                pos >= 0. && pos <= 1920.
-            });
+        let on_screen_barlines = self.barlines.iter_mut().filter(|barline| {
+            let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
+            pos >= 0. && pos <= 1920.
+        });
 
         for barline in on_screen_barlines {
             barline.update_position(ctx.renderer, time);
@@ -142,17 +157,27 @@ impl GameState for TaikoMode {
         ctx.render(&self.background_dim);
         self.header.render(ctx);
 
-        let notes = self.notes.iter()
-            .filter(|note| note.visible(time));
+        let notes = self.notes.iter().filter(|note| note.visible(time));
 
-        let barlines = self.barlines.iter()
-            .filter(|barline| {
-                let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
-                // TODO: another hardcoded resolution to get rid of
-                pos >= 0. && pos <= 1920.
-            });
+        let barlines = self.barlines.iter().filter(|barline| {
+            let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
+            // TODO: another hardcoded resolution to get rid of
+            pos >= 0. && pos <= 1920.
+        });
 
         self.note_field.render(ctx, notes, barlines);
     }
-}
 
+    fn handle_event(&mut self, _ctx: &mut Context, event: &WindowEvent<'_>) {
+        match event {
+            // Handle keyboard input events the moment they are received for extra accuracy
+            &WindowEvent::KeyboardInput { input, .. } => 'kbinput: {
+                // If there is no next note, we don't need to react to note keyboard input
+                let Some(next_note) = self.notes.get(self.next_note_index) else {
+                    break 'kbinput;
+                };
+            }
+            _ => {}
+        }
+    }
+}

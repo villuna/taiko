@@ -2,7 +2,8 @@ use std::{io, path::Path, rc::Rc};
 
 use crate::{
     app::credits::CreditsScreen,
-    beatmap_parser::{parse_tja_file, Song}, render::texture::SpriteBuilder,
+    beatmap_parser::{parse_tja_file, Song},
+    render::texture::SpriteBuilder,
 };
 
 use crate::render::{texture::Sprite, Renderer};
@@ -99,8 +100,12 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 impl SongSelect {
     pub fn new(textures: &mut TextureCache, renderer: &Renderer) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
-        let bg_sprite = SpriteBuilder::new(textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?)
-            .build(renderer);
+        let bg_sprite = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "song_select_bg.jpg",
+        )?)
+        .build(renderer);
 
         Ok(SongSelect {
             songs: test_tracks,
@@ -173,8 +178,9 @@ impl GameState for SongSelect {
                     ctx.audio,
                     difficulty,
                     ctx.renderer,
-                    ctx.textures
-                ).unwrap()
+                    ctx.textures,
+                )
+                .unwrap(),
             ))
         } else if self.exit {
             StateTransition::Pop

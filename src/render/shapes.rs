@@ -415,7 +415,11 @@ impl Shape {
 }
 
 impl Renderable for Shape {
-    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+    fn render<'pass>(
+        &'pass self,
+        renderer: &'pass Renderer,
+        render_pass: &mut wgpu::RenderPass<'pass>,
+    ) {
         let pipeline = if self.has_depth {
             "primitive_depth"
         } else {
@@ -423,14 +427,13 @@ impl Renderable for Shape {
         };
 
         render_pass.set_pipeline(
-            renderer.pipeline(pipeline)
+            renderer
+                .pipeline(pipeline)
                 .unwrap_or_else(|| panic!("{pipeline} render pipeline doesn't exist!")),
         );
         render_pass.set_vertex_buffer(0, self.vertex.slice(..));
-        render_pass
-            .set_vertex_buffer(1, self.instance.slice(..));
-        render_pass
-            .set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.set_vertex_buffer(1, self.instance.slice(..));
+        render_pass.set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
         render_pass.draw_indexed(0..self.indices, 0, 0..1);
     }
 }
