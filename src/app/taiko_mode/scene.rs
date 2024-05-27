@@ -1,4 +1,3 @@
-use std::cmp::max;
 use std::time::Instant;
 
 use kira::manager::AudioManager;
@@ -6,12 +5,15 @@ use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::tween::Tween;
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
-use super::note::{create_barlines, create_notes, EASY_NORMAL_TIMING, HARD_EXTREME_TIMING, NoteKeypressReaction, TaikoModeBarline, TaikoModeNote};
+use super::note::{
+    create_barlines, create_notes, NoteKeypressReaction, TaikoModeBarline, TaikoModeNote,
+    EASY_NORMAL_TIMING, HARD_EXTREME_TIMING,
+};
 use super::ui::{Header, NoteField};
 use crate::app::taiko_mode::note::x_position_of_note;
 use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
 use crate::render::texture::SpriteBuilder;
-use crate::settings::{SETTINGS, settings};
+use crate::settings::{settings, SETTINGS};
 use crate::{
     beatmap_parser::Song,
     render::{
@@ -167,7 +169,7 @@ impl GameState for TaikoMode {
 
         let on_screen_barlines = self.barlines.iter_mut().filter(|barline| {
             let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
-            pos >= 0. && pos <= 1920.
+            (0.0..1920.0).contains(&pos)
         });
 
         for barline in on_screen_barlines {
@@ -183,69 +185,64 @@ impl GameState for TaikoMode {
         let barlines = self.barlines.iter().filter(|barline| {
             let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
             // TODO: another hardcoded resolution to get rid of
-            pos >= 0. && pos <= 1920.
+            (0.0..190.0).contains(&pos)
         });
 
         self.note_field.render(ctx, notes, barlines);
     }
 
-
     fn handle_event(&mut self, _ctx: &mut Context, event: &WindowEvent<'_>) {
-        match event {
-            // We handle the note input keyboard events the moment they are received for extra accuracy
-            &WindowEvent::KeyboardInput { input, .. } => 'kbinput: {
-                // TODO. Goodnight.
-                let mut note_index = self.next_note_index;
-                let Some(key) = input.virtual_keycode else {
-                    break 'kbinput;
-                };
-                if settings().key_is_don_or_kat(key) && input.state == ElementState::Pressed {
-                    let time = self.note_time();
-                    dbg!(time);
-                    let timing_windows = self.timing_windows();
-                    loop {
-                        // If there's no next note, we don't need to react.
-                        let Some(mut next_note) = self.notes.get_mut(note_index) else {
-                            println!("couldnt get a note at all");
+        // We handle the note input keyboard events the moment they are received for extra accuracy
+        if let &WindowEvent::KeyboardInput { input, .. } = event {
+            let mut note_index = self.next_note_index;
+            let Some(key) = input.virtual_keycode else {
+                return;
+            };
+            if settings().key_is_don_or_kat(key) && input.state == ElementState::Pressed {
+                let time = self.note_time();
+                dbg!(time);
+                let timing_windows = self.timing_windows();
+                loop {
+                    // If there's no next note, we don't need to react.
+                    let Some(next_note) = self.notes.get_mut(note_index) else {
+                        println!("couldnt get a note at all");
+                        break;
+                    };
+
+                    let reaction = next_note.receive_keypress(key, time, timing_windows);
+                    dbg!(reaction, self.next_note_index);
+                    match reaction {
+                        // If it's the wrong colour, we'll keep checking to see if there's
+                        // a note of the wright colour in scope.
+                        NoteKeypressReaction::WrongColour => {}
+
+                        NoteKeypressReaction::TooEarly => {
+                            // Now we're only looking at notes that are unhittable, so stop here.
                             break;
-                        };
-
-                        let reaction = next_note.receive_keypress(key, time, timing_windows);
-                        dbg!(reaction, self.next_note_index);
-                        match reaction {
-                            // If it's the wrong colour, we'll keep checking to see if there's
-                            // a note of the wright colour in scope.
-                            NoteKeypressReaction::WrongColour => {}
-
-                            NoteKeypressReaction::TooEarly => {
-                                // Now we're only looking at notes that are unhittable, so stop here.
-                                break;
-                            }
-                            NoteKeypressReaction::Hit(_) => {
-                                self.next_note_index = note_index + 1;
-                                // Ensure you only ever hit one note at a time
-                                break;
-                            }
-                            NoteKeypressReaction::Drumroll { .. } => {
-                                // TODO
-                                println!("renda!");
-                            }
-                            NoteKeypressReaction::BalloonRoll { .. } => {
-                                // TODO
-                                println!("fuusen renda!")
-                            }
-                            NoteKeypressReaction::TooLate => {
-                                // If this note is too late, we need to update our next note index,
-                                // so we don't have to look through a bunch of unhittable notes.
-                                self.next_note_index = note_index + 1;
-                            }
                         }
-
-                        note_index += 1;
+                        NoteKeypressReaction::Hit(_) => {
+                            self.next_note_index = note_index + 1;
+                            // Ensure you only ever hit one note at a time
+                            break;
+                        }
+                        NoteKeypressReaction::Drumroll { .. } => {
+                            // TODO
+                            println!("renda!");
+                        }
+                        NoteKeypressReaction::BalloonRoll { .. } => {
+                            // TODO
+                            println!("fuusen renda!")
+                        }
+                        NoteKeypressReaction::TooLate => {
+                            // If this note is too late, we need to update our next note index,
+                            // so we don't have to look through a bunch of unhittable notes.
+                            self.next_note_index = note_index + 1;
+                        }
                     }
+
+                    note_index += 1;
                 }
             }
-            _ => {}
         }
     }
 }

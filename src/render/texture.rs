@@ -385,7 +385,7 @@ impl Sprite {
         let (dx, dy) = (dimensions.0 as f32, dimensions.1 as f32);
 
         let start = [-self.origin[0], -self.origin[1]];
-        let end = [start[0] + dx as f32, start[1] + dy as f32];
+        let end = [start[0] + dx, start[1] + dy];
         (start, end)
     }
 

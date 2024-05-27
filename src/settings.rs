@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
-use winit::event::{ScanCode, VirtualKeyCode};
+use winit::event::VirtualKeyCode;
 
 /// The path to the settings file
 pub const SETTINGS_PATH: &str = "taiko_settings.toml";

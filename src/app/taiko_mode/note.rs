@@ -14,7 +14,7 @@ use crate::render::{
     texture::Sprite,
     Renderable,
 };
-use crate::settings::{SETTINGS, settings};
+use crate::settings::{settings, SETTINGS};
 
 use super::ui::{LEFT_PANEL_WIDTH, NOTE_FIELD_HEIGHT, NOTE_FIELD_Y, NOTE_HIT_X, NOTE_Y};
 
@@ -91,7 +91,7 @@ enum NoteColour {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-struct BasicNoteType {
+pub(crate) struct BasicNoteType {
     colour: NoteColour,
     big: bool,
 }

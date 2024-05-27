@@ -13,7 +13,7 @@ use super::note::{TaikoModeBarline, TaikoModeNote};
 pub const HEADER_TOP_COL: [f32; 4] = [30. / 255., 67. / 255., 198. / 255., 0.94];
 pub const HEADER_BOTTOM_COL: [f32; 4] = [150. / 255., 90. / 255., 225. / 255., 1.];
 pub const NOTE_FIELD_COL: [f32; 4] = [45. / 255., 45. / 255., 45. / 255., 1.];
-pub const CREAM: [f32; 4] = [255. / 255., 235. / 255., 206. / 255., 1.];
+pub const CREAM: [f32; 4] = [1., 235. / 255., 206. / 255., 1.];
 pub const RECEPTICLE_COL: [f32; 4] = [0.26, 0.26, 0.26, 1.0];
 pub const LEFT_PANEL_TOP_COL: [f32; 4] = [1., 73. / 255., 73. / 255., 1.];
 pub const LEFT_PANEL_BOTTOM_COL: [f32; 4] = [229. / 255., 41. / 255., 41. / 255., 1.];
@@ -47,7 +47,7 @@ impl Header {
                     [0., 0.],
                     [0., HEADER_HEIGHT],
                 )
-                .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
+                    .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
             )?
             .build(&renderer.device);
 
@@ -132,7 +132,7 @@ impl NoteField {
                     [0.0, NOTE_FIELD_Y],
                     [0.0, NOTE_FIELD_Y + NOTE_FIELD_HEIGHT],
                 )
-                .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
+                    .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
             )?
             .filled_rectangle(
                 [LEFT_PANEL_WIDTH, NOTE_FIELD_Y],
@@ -147,8 +147,8 @@ impl NoteField {
     pub fn render<'pass>(
         &'pass mut self,
         ctx: &mut RenderContext<'_, 'pass>,
-        notes: impl Iterator<Item = &'pass TaikoModeNote>,
-        barlines: impl Iterator<Item = &'pass TaikoModeBarline>,
+        notes: impl Iterator<Item=&'pass TaikoModeNote>,
+        barlines: impl Iterator<Item=&'pass TaikoModeBarline>,
     ) {
         ctx.render(&self.field);
 
