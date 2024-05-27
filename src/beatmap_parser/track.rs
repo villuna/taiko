@@ -7,13 +7,13 @@
 //! tracks for different players etc).
 //!
 //! Note that times are generally represented in seconds. Unless specified,
-//! that is the unit that time values will be in.
+//! that is the unit the time values will be in.
 
 use std::collections::HashMap;
 
 const DEFAULT_BPM: f32 = 120.0;
 
-/// The type of a note (e.g., Don, Ka, Balloon etc)
+/// The type of note (e.g., Don, Ka, Balloon etc)
 ///
 /// Drumroll variants also contain a float value indicating how long the drumroll continues for.
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -2,6 +2,7 @@
 //!
 //! The settings for lunataiko are stored in a toml file (by default `taiko_settings.toml`). Use
 //! the function [read_settings] to read this config from file.
+use std::ops::Deref;
 use std::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,12 @@ pub static SETTINGS: RwLock<Settings> = RwLock::new(Settings {
     },
 });
 
+/// Convenience function that returns an immutable reference to [settings::SETTINGS].
+/// Panics if the settings haven't been initialised yet.
+pub fn settings() -> impl Deref<Target=Settings> {
+    SETTINGS.read().unwrap()
+}
+
 /// All the settings for the game
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
@@ -29,12 +36,16 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn is_don(&self, key: VirtualKeyCode) -> bool {
+    pub fn key_is_don(&self, key: VirtualKeyCode) -> bool {
         key == self.game.key_mappings.left_don || key == self.game.key_mappings.right_don
     }
 
-    pub fn is_kat(&self, key: VirtualKeyCode) -> bool {
+    pub fn key_is_kat(&self, key: VirtualKeyCode) -> bool {
         key == self.game.key_mappings.left_kat || key == self.game.key_mappings.right_kat
+    }
+
+    pub fn key_is_don_or_kat(&self, key: VirtualKeyCode) -> bool {
+        self.key_is_don(key) || self.key_is_kat(key)
     }
 }
 
