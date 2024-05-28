@@ -33,7 +33,7 @@ pub enum StateTransition {
 
 pub struct Context<'ctx> {
     pub audio: &'ctx mut AudioManager,
-    pub renderer: &'ctx mut render::Renderer,
+    pub renderer: &'ctx mut Renderer,
     pub keyboard: &'ctx KeyboardState,
     pub textures: &'ctx mut TextureCache,
     pub mouse: &'ctx MouseState,

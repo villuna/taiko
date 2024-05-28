@@ -23,7 +23,7 @@ pub static SETTINGS: RwLock<Settings> = RwLock::new(Settings {
 
 /// Convenience function that returns an immutable reference to [settings::SETTINGS].
 /// Panics if the settings haven't been initialised yet.
-pub fn settings() -> impl Deref<Target=Settings> {
+pub fn settings() -> impl Deref<Target = Settings> {
     SETTINGS.read().unwrap()
 }
 

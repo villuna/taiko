@@ -6,10 +6,10 @@ use kira::tween::Tween;
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
 use super::note::{
-    create_barlines, create_notes, NoteKeypressReaction, TaikoModeBarline, TaikoModeNote,
-    EASY_NORMAL_TIMING, HARD_EXTREME_TIMING,
+    create_barlines, create_notes, NoteKeypressReaction, TaikoModeBarline, TaikoModeNote, BAD,
+    EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
 };
-use super::ui::{Header, NoteField};
+use super::ui::{Header, JudgementText, NoteField};
 use crate::app::taiko_mode::note::x_position_of_note;
 use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
 use crate::render::texture::SpriteBuilder;
@@ -28,6 +28,16 @@ pub enum NoteJudgement {
     Bad,
     Ok,
     Good,
+}
+
+impl NoteJudgement {
+    pub fn index(&self) -> usize {
+        match self {
+            NoteJudgement::Bad => BAD,
+            NoteJudgement::Ok => OK,
+            NoteJudgement::Good => GOOD,
+        }
+    }
 }
 
 pub struct TaikoMode {
@@ -57,14 +67,13 @@ pub struct TaikoMode {
     barlines: Vec<TaikoModeBarline>,
 
     // Scoring stuff
-    /// the index of the next note to be played
+    /// The index of the next note to be played
     next_note_index: usize,
     note_judgements: Vec<NoteJudgement>,
     score: usize,
     /// The percentage the soul gauge is filled
     soul_gauge: f32,
-    // TODO: A UI element containing text displaying the judgement
-    // "Good" "Ok" "Bad" (and ideally in japanese too, "良", "可", "不可")
+    note_judgement_text: JudgementText,
 }
 
 impl TaikoMode {
@@ -114,6 +123,7 @@ impl TaikoMode {
             note_judgements: vec![],
             score: 0,
             soul_gauge: 0.0,
+            note_judgement_text: JudgementText::new(renderer),
         })
     }
 
@@ -138,6 +148,8 @@ impl GameState for TaikoMode {
             self.started = true;
             self.start_time = Instant::now();
         }
+
+        self.note_judgement_text.update(ctx.renderer);
 
         let time = self.note_time();
         // Advance our position in the list of notes as far as we can go
@@ -189,6 +201,7 @@ impl GameState for TaikoMode {
         });
 
         self.note_field.render(ctx, notes, barlines);
+        ctx.render(&self.note_judgement_text);
     }
 
     fn handle_event(&mut self, _ctx: &mut Context, event: &WindowEvent<'_>) {
@@ -200,17 +213,14 @@ impl GameState for TaikoMode {
             };
             if settings().key_is_don_or_kat(key) && input.state == ElementState::Pressed {
                 let time = self.note_time();
-                dbg!(time);
                 let timing_windows = self.timing_windows();
                 loop {
                     // If there's no next note, we don't need to react.
                     let Some(next_note) = self.notes.get_mut(note_index) else {
-                        println!("couldnt get a note at all");
                         break;
                     };
 
                     let reaction = next_note.receive_keypress(key, time, timing_windows);
-                    dbg!(reaction, self.next_note_index);
                     match reaction {
                         // If it's the wrong colour, we'll keep checking to see if there's
                         // a note of the wright colour in scope.
@@ -220,7 +230,8 @@ impl GameState for TaikoMode {
                             // Now we're only looking at notes that are unhittable, so stop here.
                             break;
                         }
-                        NoteKeypressReaction::Hit(_) => {
+                        NoteKeypressReaction::Hit(judgement) => {
+                            self.note_judgement_text.display_judgement(judgement);
                             self.next_note_index = note_index + 1;
                             // Ensure you only ever hit one note at a time
                             break;

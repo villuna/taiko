@@ -22,9 +22,9 @@ const VELOCITY: f32 = (1920. - NOTE_HIT_X) / 2.;
 const ROLL_COLOUR: [f32; 4] = [1., 195. / 255., 44. / 255., 1.];
 
 // Nice expressive aliases for the indices we'll use for note judgements
-const GOOD: usize = 0;
-const OK: usize = 1;
-const BAD: usize = 2;
+pub const GOOD: usize = 0;
+pub const OK: usize = 1;
+pub const BAD: usize = 2;
 
 // I have to credit OpenTaiko as that's where I got these values.
 // (and also for inspiring me to give making my own simulator a red-hot go)
@@ -221,7 +221,7 @@ impl NoteInner {
                     NoteType::Don => "don.png",
                     NoteType::Kat => "kat.png",
                     NoteType::BigDon | NoteType::CoopDon => "big_don.png",
-                    NoteType::BigKat | NoteType::CoopKat => "big_don.png",
+                    NoteType::BigKat | NoteType::CoopKat => "big_kat.png",
                     _ => unreachable!(),
                 };
 
@@ -428,9 +428,9 @@ impl TaikoModeNote {
 
         match &mut self.note {
             NoteInner::Note { kind, is_hit, .. } => {
-                // If the earliest the note could ever be hit is later (greater than) the current
-                // time, then we are too early.
                 if self.time - timing_windows[BAD] > time {
+                    // If the earliest the note could ever be hit is later (greater than) the current
+                    // time, then we are too early.
                     NoteKeypressReaction::TooEarly
                 } else if kind.is_hit_by(key) {
                     // Otherwise we check to see exactly how close the times are.
