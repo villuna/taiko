@@ -2,7 +2,6 @@
 use lyon::lyon_tessellation::TessellationError;
 use winit::event::VirtualKeyCode;
 
-use crate::app::taiko_mode::scene::NoteJudgement;
 use crate::beatmap_parser::track::NoteType;
 use crate::beatmap_parser::{Barline, Note};
 use crate::render::texture::SpriteBuilder;
@@ -312,6 +311,11 @@ impl NoteInner {
             renderer,
         );
     }
+
+    /// Whether this note is a don/kat note that awards judgement and must be hit.
+    fn is_don_or_kat(&self) -> bool {
+        matches!(self, NoteInner::Note { .. },)
+    }
 }
 
 impl Renderable for NoteInner {
@@ -343,7 +347,7 @@ impl Renderable for NoteInner {
 
 /// Different ways a note can respond to a keypress
 /// See [TaikoModeNote::receive_keypress]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone)]
 pub enum NoteKeypressReaction {
     /// Don was pressed but this note is Kat, or vice versa
     /// Basically, do absolutely nothing.
@@ -354,8 +358,12 @@ pub enum NoteKeypressReaction {
     /// wrong colour, this is the one you should return, since the calling code uses this variant
     /// to determine where to stop calling [TaikoModeNote::receive_keypress]
     TooEarly,
-    /// The note was hit, with the given result
-    Hit(NoteJudgement),
+    /// The note was hit, with the given time offset
+    ///
+    /// The offset is calculated as input_time - note_time. That is to say, it is *relative to the
+    /// note time*. For example, if you hit 15ms before you should have, the offset will be -0.015,
+    /// that is to say, 0.015 seconds *early*.
+    Hit { offset: f32 },
     /// The note was hit, and is a drumroll.
     /// Since drumrolls can be big or small, and can be hit with either don or kat, we return the
     /// note type so that we can display the correct flying note.
@@ -382,12 +390,9 @@ impl TaikoModeNote {
             .set_position_for_time(note_adjusted_time, self.time, self.scroll_speed, renderer)
     }
 
-    pub fn time(&self) -> f32 {
-        self.time
-    }
-
-    pub fn scroll_speed(&self) -> f32 {
-        self.scroll_speed
+    /// Whether this note is a don/kat note that awards judgement and must be hit.
+    pub fn is_don_or_kat(&self) -> bool {
+        self.note.is_don_or_kat()
     }
 
     pub fn visible(&self, note_adjusted_time: f32) -> bool {
@@ -433,16 +438,11 @@ impl TaikoModeNote {
                     // time, then we are too early.
                     NoteKeypressReaction::TooEarly
                 } else if kind.is_hit_by(key) {
-                    // Otherwise we check to see exactly how close the times are.
-                    if (time - self.time).abs() < timing_windows[GOOD] {
-                        *is_hit = true;
-                        NoteKeypressReaction::Hit(NoteJudgement::Good)
-                    } else if (time - self.time).abs() < timing_windows[OK] {
-                        *is_hit = true;
-                        NoteKeypressReaction::Hit(NoteJudgement::Ok)
-                    } else {
-                        *is_hit = true;
-                        NoteKeypressReaction::Hit(NoteJudgement::Bad)
+                    // We know the note is not too late (hittable), we know the note is not
+                    // too early, so this means the note is hit! Return the timing difference.
+                    *is_hit = true;
+                    NoteKeypressReaction::Hit {
+                        offset: time - self.time,
                     }
                 } else {
                     NoteKeypressReaction::WrongColour
