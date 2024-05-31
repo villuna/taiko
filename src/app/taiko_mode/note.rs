@@ -150,6 +150,7 @@ pub(crate) enum NoteInner {
         sprite: Sprite,
         hits_left: u32,
         duration: f32,
+        has_been_started: bool,
     },
 }
 
@@ -260,6 +261,7 @@ impl NoteInner {
                         .build(renderer),
                     hits_left,
                     duration,
+                    has_been_started: false,
                 }
             }
 
@@ -270,14 +272,10 @@ impl NoteInner {
     }
 
     /// Sets the position of the note. The note will be centred at that position.
-    fn set_position(&mut self, position: [f32; 2], depth: f32, renderer: &Renderer) {
+    fn set_x_position(&mut self, x: f32, depth: f32, renderer: &Renderer) {
+        let position = [x, NOTE_Y];
         match self {
-            NoteInner::Note { sprite, .. } => {
-                sprite.set_position(position, renderer);
-                sprite.set_depth(Some(depth), renderer);
-            }
-
-            NoteInner::Balloon { sprite, .. } => {
+            NoteInner::Note { sprite, .. } | NoteInner::Balloon { sprite, .. } => {
                 sprite.set_position(position, renderer);
                 sprite.set_depth(Some(depth), renderer);
             }
@@ -294,6 +292,47 @@ impl NoteInner {
         }
     }
 
+    fn x_position_for_time(
+        &self,
+        current_time: f32,
+        note_time: f32,
+        scroll_speed: f32,
+    ) -> Option<f32> {
+        match &self {
+            NoteInner::Note { is_hit, .. } if *is_hit => None,
+
+            NoteInner::Roll { .. } | NoteInner::Note { .. } => {
+                Some(x_position_of_note(current_time, note_time, scroll_speed))
+            }
+
+            NoteInner::Balloon {
+                hits_left,
+                duration,
+                has_been_started,
+                ..
+            } => {
+                if *hits_left <= 0 {
+                    // The balloon is popped so we won't display it anyway.
+                    None
+                } else if current_time < note_time {
+                    // Before it is active, draw it like any other note
+                    Some(x_position_of_note(current_time, note_time, scroll_speed))
+                } else if current_time > note_time + *duration {
+                    // After it is active, if it hasn't been started, draw it
+                    // if it was started, it will disappear, so don't do anything
+                    (!*has_been_started).then_some(x_position_of_note(
+                        current_time,
+                        note_time + *duration,
+                        scroll_speed,
+                    ))
+                } else {
+                    // The balloon is currently active so draw it on the receptacle
+                    Some(NOTE_HIT_X)
+                }
+            }
+        }
+    }
+
     fn set_position_for_time(
         &mut self,
         current_time: f32,
@@ -301,15 +340,12 @@ impl NoteInner {
         scroll_speed: f32,
         renderer: &Renderer,
     ) {
-        // TODO: Specialise this so that balloons do their weird behaviour
-        self.set_position(
-            [
-                x_position_of_note(current_time, note_time, scroll_speed),
-                NOTE_Y,
-            ],
-            note_time,
-            renderer,
-        );
+        let Some(x_position) = self.x_position_for_time(current_time, note_time, scroll_speed)
+        else {
+            return;
+        };
+
+        self.set_x_position(x_position, note_time, renderer);
     }
 
     /// Whether this note is a don/kat note that awards judgement and must be hit.
@@ -330,7 +366,13 @@ impl Renderable for NoteInner {
                     sprite.render(renderer, render_pass)
                 }
             }
-            NoteInner::Balloon { sprite, .. } => sprite.render(renderer, render_pass),
+            NoteInner::Balloon {
+                sprite, hits_left, ..
+            } => {
+                if *hits_left > 0 {
+                    sprite.render(renderer, render_pass)
+                }
+            }
             NoteInner::Roll {
                 start_sprite: start,
                 body_sprite: body,
@@ -396,14 +438,14 @@ impl TaikoModeNote {
     }
 
     pub fn visible(&self, note_adjusted_time: f32) -> bool {
-        if let NoteInner::Note { is_hit, .. } = self.note {
-            if is_hit {
-                return false;
-            }
-        }
-
+        let Some(x_position) =
+            self.note
+                .x_position_for_time(note_adjusted_time, self.time, self.scroll_speed)
+        else {
+            // If there is no possible x position, we're not going to display it anyway.
+            return false;
+        };
         let (rel_start, rel_end) = self.relative_bounding_box();
-        let x_position = x_position_of_note(note_adjusted_time, self.time, self.scroll_speed);
 
         let start_x = rel_start[0] + x_position;
         let end_x = rel_end[0] + x_position;
@@ -473,13 +515,25 @@ impl TaikoModeNote {
                 }
             }
 
-            NoteInner::Balloon { duration, .. } => {
-                // TODO: Finish this implementation.
-                // Goodnight!
+            NoteInner::Balloon {
+                duration,
+                has_been_started,
+                hits_left,
+                ..
+            } => {
+                // TODO: Display different sprites depending on balloon state
                 if self.time > time {
                     NoteKeypressReaction::TooEarly
-                } else if self.time + *duration < time {
+                } else if self.time + *duration < time || *hits_left <= 0 {
                     NoteKeypressReaction::TooLate
+                } else if settings().key_is_don(key) {
+                    *hits_left -= 1;
+                    let first = !*has_been_started;
+                    *has_been_started = true;
+                    NoteKeypressReaction::BalloonRoll {
+                        first,
+                        popped: *hits_left == 0,
+                    }
                 } else {
                     NoteKeypressReaction::WrongColour
                 }

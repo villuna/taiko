@@ -307,9 +307,15 @@ impl GameState for TaikoMode {
                         }
                         NoteKeypressReaction::Drumroll { .. } => {
                             self.result.drumrolls += 1;
+                            break;
                         }
-                        NoteKeypressReaction::BalloonRoll { .. } => {
+                        NoteKeypressReaction::BalloonRoll { popped, .. } => {
                             self.result.drumrolls += 1;
+
+                            if popped {
+                                self.next_note_index = note_index + 1;
+                            }
+                            break;
                         }
                         NoteKeypressReaction::TooLate => {
                             self.skip_next_note();
