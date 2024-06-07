@@ -150,7 +150,7 @@ pub(crate) enum NoteInner {
         sprite: Sprite,
         hits_left: u32,
         duration: f32,
-        has_been_started: bool,
+        started: bool,
     },
 }
 
@@ -254,14 +254,14 @@ impl NoteInner {
 
             NoteType::BalloonRoll(duration, hits_left) => {
                 Self::Balloon {
-                    sprite: SpriteBuilder::new(get_texture("balloon.png"))
+                    sprite: SpriteBuilder::new(get_texture("balloon 1.png"))
                         .depth(Some(0.))
                         // The balloon texture is 300x100, but the notehead is centred at [50, 50].
                         .origin([50., 50.])
                         .build(renderer),
                     hits_left,
                     duration,
-                    has_been_started: false,
+                    started: false,
                 }
             }
 
@@ -308,7 +308,7 @@ impl NoteInner {
             NoteInner::Balloon {
                 hits_left,
                 duration,
-                has_been_started,
+                started: has_been_started,
                 ..
             } => {
                 if *hits_left <= 0 {
@@ -517,7 +517,7 @@ impl TaikoModeNote {
 
             NoteInner::Balloon {
                 duration,
-                has_been_started,
+                started: has_been_started,
                 hits_left,
                 ..
             } => {

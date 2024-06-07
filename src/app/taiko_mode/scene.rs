@@ -97,10 +97,11 @@ pub struct TaikoMode {
     // need to update this every time the setting changed.
     global_offset: f32,
 
-    // The instant the song started.
-    // Even though the song handle keeps track of the position through the song, that value is
-    // choppy and using it for the position of the notes will cause the notes to stutter. So we
-    // need to keep track of the time ourselves.
+    /// The instant the song started.
+    ///
+    /// Even though the song handle keeps track of the position through the song, that value is
+    /// choppy and using it for the position of the notes will cause the notes to stutter. So we
+    /// need to keep track of the time ourselves.
     start_time: Instant,
     started: bool,
     difficulty: usize,
@@ -115,7 +116,9 @@ pub struct TaikoMode {
     soul_gauge: f32,
     note_judgement_text: JudgementText,
 
-    result: PlayResult,
+    /// An ongoing record of the player's performance.
+    /// At the end of the song, this will be passed to the score screen.
+    results: PlayResult,
 }
 
 impl TaikoMode {
@@ -164,7 +167,7 @@ impl TaikoMode {
             next_note_index: 0,
             soul_gauge: 0.0,
             note_judgement_text: JudgementText::new(renderer),
-            result: PlayResult::new(),
+            results: PlayResult::new(),
         })
     }
 
@@ -188,7 +191,7 @@ impl TaikoMode {
             self.next_note_index += 1;
 
             if note.is_don_or_kat() {
-                self.result.judgements.push(None);
+                self.results.judgements.push(None);
             }
         }
     }
@@ -297,8 +300,8 @@ impl GameState for TaikoMode {
                                 NoteJudgement::from_offset(offset, self.timing_windows()).unwrap();
                             self.note_judgement_text.display_judgement(judgement);
 
-                            self.result.judgements.push(Some(judgement));
-                            self.result.hit_errors.push(offset);
+                            self.results.judgements.push(Some(judgement));
+                            self.results.hit_errors.push(offset);
 
                             self.next_note_index = note_index + 1;
 
@@ -306,11 +309,11 @@ impl GameState for TaikoMode {
                             break;
                         }
                         NoteKeypressReaction::Drumroll { .. } => {
-                            self.result.drumrolls += 1;
+                            self.results.drumrolls += 1;
                             break;
                         }
                         NoteKeypressReaction::BalloonRoll { popped, .. } => {
-                            self.result.drumrolls += 1;
+                            self.results.drumrolls += 1;
 
                             if popped {
                                 self.next_note_index = note_index + 1;
