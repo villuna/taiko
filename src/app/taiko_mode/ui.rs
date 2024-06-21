@@ -51,7 +51,7 @@ impl Header {
                     [0., 0.],
                     [0., HEADER_HEIGHT],
                 )
-                    .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
+                .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
             )?
             .build(&renderer.device);
 
@@ -136,7 +136,7 @@ impl NoteField {
                     [0.0, NOTE_FIELD_Y],
                     [0.0, NOTE_FIELD_Y + NOTE_FIELD_HEIGHT],
                 )
-                    .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
+                .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
             )?
             .filled_rectangle(
                 [LEFT_PANEL_WIDTH, NOTE_FIELD_Y],
@@ -151,8 +151,8 @@ impl NoteField {
     pub fn render<'pass>(
         &'pass mut self,
         ctx: &mut RenderContext<'_, 'pass>,
-        notes: impl Iterator<Item=&'pass TaikoModeNote>,
-        barlines: impl Iterator<Item=&'pass TaikoModeBarline>,
+        notes: impl Iterator<Item = &'pass TaikoModeNote>,
+        barlines: impl Iterator<Item = &'pass TaikoModeBarline>,
     ) {
         ctx.render(&self.field);
 
@@ -268,8 +268,8 @@ impl BalloonDisplay {
             &renderer.queue,
             "balloon speech bubble.png",
         )?)
-            .position([575., 130.])
-            .build(renderer);
+        .position([575., 130.])
+        .build(renderer);
 
         let section = SectionBuilder::default()
             .with_screen_position((765., 190.))
@@ -298,8 +298,8 @@ impl BalloonDisplay {
                 [50., 150.],
             ),
         ])
-            .position([NOTE_HIT_X, NOTE_Y])
-            .build(renderer);
+        .position([NOTE_HIT_X, NOTE_Y])
+        .build(renderer);
 
         Ok(Self {
             bg_bubble,
