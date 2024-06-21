@@ -1,14 +1,17 @@
-use std::mem;
 use std::time::Instant;
 
 use kira::manager::AudioManager;
-use kira::sound::PlaybackState;
 use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
+use kira::sound::PlaybackState;
 use kira::tween::Tween;
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
-use super::note::{create_barlines, create_notes, NoteKeypressReaction, TaikoModeBarline, TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK, NoteInner};
+use super::note::{
+    create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
+    TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
+};
 use super::ui::{BalloonDisplay, Header, JudgementText, NoteField};
+use crate::app::score_screen::ScoreScreen;
 use crate::app::taiko_mode::note::x_position_of_note;
 use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
 use crate::render::texture::SpriteBuilder;
@@ -21,7 +24,6 @@ use crate::{
         Renderer,
     },
 };
-use crate::app::score_screen::ScoreScreen;
 
 pub type ScoreInt = u64;
 
@@ -90,7 +92,10 @@ impl PlayResult {
     fn push_judgement(&mut self, judgement: Option<NoteJudgement>) {
         self.judgements.push(judgement);
 
-        if matches!(judgement, Some(NoteJudgement::Good) | Some(NoteJudgement::Ok)) {
+        if matches!(
+            judgement,
+            Some(NoteJudgement::Good) | Some(NoteJudgement::Ok)
+        ) {
             self.current_combo += 1;
             self.max_combo = std::cmp::max(self.current_combo, self.max_combo);
         } else {
@@ -253,9 +258,11 @@ impl GameState for TaikoMode {
             self.started = true;
             self.start_time = Instant::now();
         } else if self.song_handle.state() == PlaybackState::Stopped {
-            return StateTransition::Swap(Box::new(
-                ScoreScreen::new(ctx, self.song_name.clone(), self.results.clone())
-            ));
+            return StateTransition::Swap(Box::new(ScoreScreen::new(
+                ctx,
+                self.song_name.clone(),
+                self.results.clone(),
+            )));
         }
 
         self.note_judgement_text.update(ctx.renderer);
@@ -367,7 +374,10 @@ impl GameState for TaikoMode {
                             self.results.drumrolls += 1;
                             break;
                         }
-                        NoteKeypressReaction::BalloonRoll { hits_left, hit_target } => {
+                        NoteKeypressReaction::BalloonRoll {
+                            hits_left,
+                            hit_target,
+                        } => {
                             self.results.drumrolls += 1;
                             self.balloon_display.hit(hits_left, hit_target);
 

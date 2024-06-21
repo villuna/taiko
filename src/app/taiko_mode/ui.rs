@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use crate::app::taiko_mode::scene::NoteJudgement;
 use crate::app::{RenderContext, TextureCache};
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
@@ -9,7 +8,6 @@ use lyon::geom::point;
 use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
 use lyon::path::Path;
 use std::time::Instant;
-use log::warn;
 use wgpu::RenderPass;
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
 
@@ -252,13 +250,6 @@ impl Renderable for JudgementText {
     }
 }
 
-#[derive(Eq, PartialEq)]
-enum BalloonDisplayState {
-    None,
-    Displaying,
-    Popping,
-}
-
 /// Displays the progress of a balloon roll as it is being played
 /// visually, it appears to blow up a balloon, while showing how many hits are left
 pub struct BalloonDisplay {
@@ -276,7 +267,8 @@ impl BalloonDisplay {
             &renderer.device,
             &renderer.queue,
             "balloon speech bubble.png",
-        )?).position([575., 130.])
+        )?)
+            .position([575., 130.])
             .build(renderer);
 
         let section = SectionBuilder::default()
@@ -290,16 +282,23 @@ impl BalloonDisplay {
                 .with_color([1.0; 4])
                 .with_scale(32.0)]);
 
-        let drumroll_message = Text::new_outlined(
-            renderer,
-            &section,
-        )?;
+        let drumroll_message = Text::new_outlined(renderer, &section)?;
 
         let balloon_sprite = AnimatedSpriteBuilder::new(vec![
-            Frame::new(textures.get(&renderer.device, &renderer.queue, "balloon 1.png")?, [50., 50.]),
-            Frame::new(textures.get(&renderer.device, &renderer.queue, "balloon 3.png")?, [50., 100.]),
-            Frame::new(textures.get(&renderer.device, &renderer.queue, "balloon 5.png")?, [50., 150.]),
-        ]).position([NOTE_HIT_X, NOTE_Y])
+            Frame::new(
+                textures.get(&renderer.device, &renderer.queue, "balloon 1.png")?,
+                [50., 50.],
+            ),
+            Frame::new(
+                textures.get(&renderer.device, &renderer.queue, "balloon 3.png")?,
+                [50., 100.],
+            ),
+            Frame::new(
+                textures.get(&renderer.device, &renderer.queue, "balloon 5.png")?,
+                [50., 150.],
+            ),
+        ])
+            .position([NOTE_HIT_X, NOTE_Y])
             .build(renderer);
 
         Ok(Self {
@@ -317,12 +316,12 @@ impl BalloonDisplay {
     }
 
     /// Displays the balloon and number of hits left
-    pub fn hit(&mut self, hits_left: u32, hit_target: u32) {
+    pub fn hit(&mut self, hits_left: u32, _hit_target: u32) {
         if !self.displaying {
             self.displaying = true;
         }
 
-        if hits_left <= 0 {
+        if hits_left == 0 {
             self.displaying = false;
         }
     }
@@ -334,7 +333,7 @@ impl BalloonDisplay {
     }
 
     /// Updates the animated sprites
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self, _delta_time: f32) {
         // TODO
     }
 }

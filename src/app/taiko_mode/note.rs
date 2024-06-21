@@ -313,7 +313,7 @@ impl NoteInner {
                 started: has_been_started,
                 ..
             } => {
-                if *hits_left <= 0 {
+                if *hits_left == 0 {
                     // The balloon is popped so we won't display it anyway.
                     None
                 } else if current_time < note_time {
@@ -524,11 +524,10 @@ impl TaikoModeNote {
             } => {
                 if self.time > time {
                     NoteKeypressReaction::TooEarly
-                } else if self.time + *duration < time || *hits_left <= 0 {
+                } else if self.time + *duration < time || *hits_left == 0 {
                     NoteKeypressReaction::TooLate
                 } else if settings().key_is_don(key) {
                     *hits_left -= 1;
-                    let first = !*has_been_started;
                     *has_been_started = true;
                     NoteKeypressReaction::BalloonRoll {
                         hits_left: *hits_left,

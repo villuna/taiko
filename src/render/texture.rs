@@ -1,8 +1,6 @@
 //! Various types used for drawing textures
 
-use anyhow::anyhow;
 use image::GenericImageView;
-use std::time::Instant;
 use std::{path::Path, rc::Rc, sync::OnceLock};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
@@ -460,10 +458,8 @@ impl AnimatedSprite {
 
             if self.looping {
                 self.set_index((self.index + 1) % self.frames.len(), renderer);
-            } else {
-                if self.index < self.frames.len() - 1 {
-                    self.set_index(self.index + 1, renderer);
-                }
+            } else if self.index < self.frames.len() - 1 {
+                self.set_index(self.index + 1, renderer);
             }
         }
     }

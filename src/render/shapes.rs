@@ -132,7 +132,7 @@ impl FillVertexConstructor<ShapeVertex> for LinearGradient {
 
         let t = self.d
             * ((position[0] - self.from[0]) * (-self.th).cos()
-            - (position[1] - self.from[1]) * (-self.th).sin());
+                - (position[1] - self.from[1]) * (-self.th).sin());
 
         let colour = lerp_colour(self.colour1, self.colour2, t);
 
@@ -146,7 +146,7 @@ impl StrokeVertexConstructor<ShapeVertex> for LinearGradient {
 
         let t = self.d
             * ((position[0] - self.from[0]) * (-self.th).cos()
-            - (position[1] - self.from[1]) * (-self.th).sin());
+                - (position[1] - self.from[1]) * (-self.th).sin());
 
         let colour = lerp_colour(self.colour1, self.colour2, t);
 

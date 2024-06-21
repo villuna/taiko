@@ -1,7 +1,7 @@
 use kira::manager::AudioManager;
 
-use crate::app::{Context, GameState, StateTransition};
 use crate::app::taiko_mode::PlayResult;
+use crate::app::{Context, GameState, StateTransition};
 
 struct Score {
     // Some precomputed values to display
@@ -31,11 +31,7 @@ pub struct ScoreScreen {
 }
 
 impl ScoreScreen {
-    pub fn new(
-        _ctx: &mut Context,
-        song_name: String,
-        result: PlayResult,
-    ) -> Self {
+    pub fn new(_ctx: &mut Context, song_name: String, result: PlayResult) -> Self {
         Self {
             score: Score::from_result(&result),
             song_name,

@@ -2,4 +2,4 @@ mod note;
 mod scene;
 mod ui;
 
-pub use scene::{TaikoMode, PlayResult};
+pub use scene::{PlayResult, TaikoMode};
