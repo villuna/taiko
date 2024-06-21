@@ -5,14 +5,13 @@ use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::tween::Tween;
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
 
-use super::note::{
-    create_barlines, create_notes, NoteKeypressReaction, TaikoModeBarline, TaikoModeNote, BAD,
-    EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
-};
-use super::ui::{Header, JudgementText, NoteField};
+use super::note::{create_barlines, create_notes, NoteKeypressReaction, TaikoModeBarline, TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK, NoteInner};
+use super::ui::{BalloonDisplay, Header, JudgementText, NoteField};
 use crate::app::taiko_mode::note::x_position_of_note;
 use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
-use crate::render::texture::SpriteBuilder;
+use crate::render::texture::{
+    AnimatedSprite, AnimatedSpriteBuilder, Frame, PlaybackState, SpriteBuilder,
+};
 use crate::settings::{settings, SETTINGS};
 use crate::{
     beatmap_parser::Song,
@@ -89,6 +88,7 @@ pub struct TaikoMode {
     background_dim: Shape,
     header: Header,
     note_field: NoteField,
+    balloon_display: BalloonDisplay,
 
     /// A handle to the audio of the song
     song_handle: StaticSoundHandle,
@@ -155,13 +155,12 @@ impl TaikoMode {
             background_dim,
             header: Header::new(renderer, &song.title)?,
             note_field: NoteField::new(renderer)?,
+            balloon_display: BalloonDisplay::new(textures, renderer)?,
             song_handle,
             started: false,
             start_time: Instant::now(),
             global_offset: SETTINGS.read().unwrap().game.global_note_offset / 1000.0,
             difficulty,
-            // Possible performance problem: Cloning shouldn't be too big a deal but if the song is
-            // really long it might become one.
             notes: create_notes(renderer, textures, &track.notes),
             barlines: create_barlines(renderer, &track.barlines),
             next_note_index: 0,
@@ -192,13 +191,15 @@ impl TaikoMode {
 
             if note.is_don_or_kat() {
                 self.results.judgements.push(None);
+            } else if matches!(note.note, NoteInner::Balloon { .. }) {
+                self.balloon_display.discard();
             }
         }
     }
 }
 
 impl GameState for TaikoMode {
-    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> StateTransition {
+    fn update(&mut self, ctx: &mut Context, delta_time: f32) -> StateTransition {
         if !self.started {
             self.song_handle.resume(Default::default()).unwrap();
             self.started = true;
@@ -206,6 +207,7 @@ impl GameState for TaikoMode {
         }
 
         self.note_judgement_text.update(ctx.renderer);
+        self.balloon_display.update(delta_time);
 
         let time = self.note_time();
         // Advance our position in the list of notes as far as we can go
@@ -258,6 +260,7 @@ impl GameState for TaikoMode {
 
         self.note_field.render(ctx, notes, barlines);
         ctx.render(&self.note_judgement_text);
+        ctx.render(&self.balloon_display);
     }
 
     fn handle_event(&mut self, ctx: &mut Context, event: &WindowEvent<'_>) {
@@ -312,10 +315,11 @@ impl GameState for TaikoMode {
                             self.results.drumrolls += 1;
                             break;
                         }
-                        NoteKeypressReaction::BalloonRoll { popped, .. } => {
+                        NoteKeypressReaction::BalloonRoll { hits_left, hit_target } => {
                             self.results.drumrolls += 1;
+                            self.balloon_display.hit(hits_left, hit_target);
 
-                            if popped {
+                            if hits_left == 0 {
                                 self.next_note_index = note_index + 1;
                             }
                             break;

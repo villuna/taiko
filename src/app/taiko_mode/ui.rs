@@ -1,12 +1,15 @@
+use std::ops::Deref;
 use crate::app::taiko_mode::scene::NoteJudgement;
-use crate::app::RenderContext;
+use crate::app::{RenderContext, TextureCache};
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
 use crate::render::text::Text;
+use crate::render::texture::{AnimatedSprite, AnimatedSpriteBuilder, Frame, Sprite, SpriteBuilder};
 use crate::render::{Renderable, Renderer};
 use lyon::geom::point;
 use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
 use lyon::path::Path;
 use std::time::Instant;
+use log::warn;
 use wgpu::RenderPass;
 use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
 
@@ -50,7 +53,7 @@ impl Header {
                     [0., 0.],
                     [0., HEADER_HEIGHT],
                 )
-                .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
+                    .ok_or(anyhow::format_err!("cant construct linear gradient"))?,
             )?
             .build(&renderer.device);
 
@@ -135,7 +138,7 @@ impl NoteField {
                     [0.0, NOTE_FIELD_Y],
                     [0.0, NOTE_FIELD_Y + NOTE_FIELD_HEIGHT],
                 )
-                .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
+                    .ok_or(anyhow::format_err!("couldnt construct linear gradient"))?,
             )?
             .filled_rectangle(
                 [LEFT_PANEL_WIDTH, NOTE_FIELD_Y],
@@ -150,8 +153,8 @@ impl NoteField {
     pub fn render<'pass>(
         &'pass mut self,
         ctx: &mut RenderContext<'_, 'pass>,
-        notes: impl Iterator<Item = &'pass TaikoModeNote>,
-        barlines: impl Iterator<Item = &'pass TaikoModeBarline>,
+        notes: impl Iterator<Item=&'pass TaikoModeNote>,
+        barlines: impl Iterator<Item=&'pass TaikoModeBarline>,
     ) {
         ctx.render(&self.field);
 
@@ -245,6 +248,103 @@ impl Renderable for JudgementText {
     fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut RenderPass<'pass>) {
         if let Some((index, _)) = self.current_sprite {
             self.judgement_sprites[index].render(renderer, render_pass);
+        }
+    }
+}
+
+#[derive(Eq, PartialEq)]
+enum BalloonDisplayState {
+    None,
+    Displaying,
+    Popping,
+}
+
+/// Displays the progress of a balloon roll as it is being played
+/// visually, it appears to blow up a balloon, while showing how many hits are left
+pub struct BalloonDisplay {
+    bg_bubble: Sprite,
+    drumroll_message: Text,
+    balloon_sprite: AnimatedSprite,
+    displaying: bool,
+    // TODO: Text indicating the number of rolls left
+}
+
+impl BalloonDisplay {
+    pub fn new(textures: &mut TextureCache, renderer: &mut Renderer) -> anyhow::Result<Self> {
+        // TODO: These are hard coded positions! Bad!
+        let bg_bubble = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "balloon speech bubble.png",
+        )?).position([575., 130.])
+            .build(renderer);
+
+        let section = SectionBuilder::default()
+            .with_screen_position((765., 190.))
+            .with_layout(
+                Layout::default()
+                    .h_align(HorizontalAlign::Center)
+                    .v_align(VerticalAlign::Bottom),
+            )
+            .with_text(vec![wgpu_text::glyph_brush::Text::new("Drumroll!")
+                .with_color([1.0; 4])
+                .with_scale(32.0)]);
+
+        let drumroll_message = Text::new_outlined(
+            renderer,
+            &section,
+        )?;
+
+        let balloon_sprite = AnimatedSpriteBuilder::new(vec![
+            Frame::new(textures.get(&renderer.device, &renderer.queue, "balloon 1.png")?, [50., 50.]),
+            Frame::new(textures.get(&renderer.device, &renderer.queue, "balloon 3.png")?, [50., 100.]),
+            Frame::new(textures.get(&renderer.device, &renderer.queue, "balloon 5.png")?, [50., 150.]),
+        ]).position([NOTE_HIT_X, NOTE_Y])
+            .build(renderer);
+
+        Ok(Self {
+            bg_bubble,
+            drumroll_message,
+            balloon_sprite,
+            displaying: false,
+        })
+    }
+
+    /// Plays the animation for when the drumroll is over but the balloon hasn't been popped
+    pub fn discard(&mut self) {
+        // TODO
+        self.displaying = false;
+    }
+
+    /// Displays the balloon and number of hits left
+    pub fn hit(&mut self, hits_left: u32, hit_target: u32) {
+        if !self.displaying {
+            self.displaying = true;
+        }
+
+        if hits_left <= 0 {
+            self.displaying = false;
+        }
+    }
+
+    /// Plays the animation for popping the balloon
+    fn pop(&mut self) {
+        // TODO
+        self.displaying = false;
+    }
+
+    /// Updates the animated sprites
+    pub fn update(&mut self, delta_time: f32) {
+        // TODO
+    }
+}
+
+impl Renderable for BalloonDisplay {
+    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut RenderPass<'pass>) {
+        if self.displaying {
+            self.balloon_sprite.render(renderer, render_pass);
+            self.bg_bubble.render(renderer, render_pass);
+            self.drumroll_message.render(renderer, render_pass);
         }
     }
 }

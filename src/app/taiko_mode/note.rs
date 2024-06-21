@@ -148,6 +148,7 @@ pub(crate) enum NoteInner {
     },
     Balloon {
         sprite: Sprite,
+        hit_target: u32,
         hits_left: u32,
         duration: f32,
         started: bool,
@@ -252,14 +253,15 @@ impl NoteInner {
                 }
             }
 
-            NoteType::BalloonRoll(duration, hits_left) => {
+            NoteType::BalloonRoll(duration, hit_target) => {
                 Self::Balloon {
                     sprite: SpriteBuilder::new(get_texture("balloon 1.png"))
                         .depth(Some(0.))
-                        // The balloon texture is 300x100, but the notehead is centred at [50, 50].
+                        // The notehead is centred at [50, 50].
                         .origin([50., 50.])
                         .build(renderer),
-                    hits_left,
+                    hit_target,
+                    hits_left: hit_target,
                     duration,
                     started: false,
                 }
@@ -367,9 +369,9 @@ impl Renderable for NoteInner {
                 }
             }
             NoteInner::Balloon {
-                sprite, hits_left, ..
+                sprite, started, ..
             } => {
-                if *hits_left > 0 {
+                if !started {
                     sprite.render(renderer, render_pass)
                 }
             }
@@ -411,9 +413,7 @@ pub enum NoteKeypressReaction {
     /// note type so that we can display the correct flying note.
     Drumroll { roll_note: BasicNoteType },
     /// The note was hit, and is a balloon.
-    /// These notes do different things on the first hit and the last hit, so this info is
-    /// returned as well.
-    BalloonRoll { first: bool, popped: bool },
+    BalloonRoll { hits_left: u32, hit_target: u32 },
     /// The note cannot be hit anymore.
     TooLate,
 }
@@ -519,9 +519,9 @@ impl TaikoModeNote {
                 duration,
                 started: has_been_started,
                 hits_left,
+                hit_target,
                 ..
             } => {
-                // TODO: Display different sprites depending on balloon state
                 if self.time > time {
                     NoteKeypressReaction::TooEarly
                 } else if self.time + *duration < time || *hits_left <= 0 {
@@ -531,8 +531,8 @@ impl TaikoModeNote {
                     let first = !*has_been_started;
                     *has_been_started = true;
                     NoteKeypressReaction::BalloonRoll {
-                        first,
-                        popped: *hits_left == 0,
+                        hits_left: *hits_left,
+                        hit_target: *hit_target,
                     }
                 } else {
                     NoteKeypressReaction::WrongColour

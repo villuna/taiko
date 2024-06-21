@@ -1,9 +1,9 @@
 //! Various types used for drawing textures
 
-use image::GenericImageView;
-use std::{path::Path, rc::Rc, sync::OnceLock};
-use std::time::Instant;
 use anyhow::anyhow;
+use image::GenericImageView;
+use std::time::Instant;
+use std::{path::Path, rc::Rc, sync::OnceLock};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     vertex_attr_array, RenderPass,
@@ -353,7 +353,6 @@ impl SpriteInstanceController {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Sprite {
     frame: Frame,
@@ -449,7 +448,9 @@ impl AnimatedSprite {
     }
 
     pub fn update(&mut self, delta_time: f32, renderer: &Renderer) {
-        let PlaybackState::Playing { frame_time } = self.playback_state else { return };
+        let PlaybackState::Playing { frame_time } = self.playback_state else {
+            return;
+        };
         self.progress += delta_time;
 
         if self.progress >= frame_time {
@@ -575,7 +576,10 @@ pub struct AnimatedSpriteBuilder {
 
 impl AnimatedSpriteBuilder {
     pub fn new(frames: Vec<Frame>) -> Self {
-        assert!(!frames.is_empty(), "Animated sprite must have at least one frame");
+        assert!(
+            !frames.is_empty(),
+            "Animated sprite must have at least one frame"
+        );
 
         Self {
             frames,

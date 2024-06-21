@@ -5,6 +5,9 @@
 //! so when constructing more complicated shapes you may need to interface with it (for example, in
 //! the `ShapeBuilder`'s `filled_shape` and `stroke_shape` methods)
 
+use lyon::geom::vector;
+use lyon::math::Angle;
+use lyon::path::Winding;
 use lyon::{
     geom::{point, Box2D},
     lyon_tessellation::{
@@ -129,7 +132,7 @@ impl FillVertexConstructor<ShapeVertex> for LinearGradient {
 
         let t = self.d
             * ((position[0] - self.from[0]) * (-self.th).cos()
-                - (position[1] - self.from[1]) * (-self.th).sin());
+            - (position[1] - self.from[1]) * (-self.th).sin());
 
         let colour = lerp_colour(self.colour1, self.colour2, t);
 
@@ -143,7 +146,7 @@ impl StrokeVertexConstructor<ShapeVertex> for LinearGradient {
 
         let t = self.d
             * ((position[0] - self.from[0]) * (-self.th).cos()
-                - (position[1] - self.from[1]) * (-self.th).sin());
+            - (position[1] - self.from[1]) * (-self.th).sin());
 
         let colour = lerp_colour(self.colour1, self.colour2, t);
 
@@ -293,6 +296,47 @@ impl ShapeBuilder {
 
         self.stroke_tesselator.tessellate_rectangle(
             &Box2D::new(min, max),
+            &StrokeOptions::DEFAULT.with_line_width(line_width),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
+        )?;
+
+        Ok(self)
+    }
+
+    /// Constructs a filled ellipse, with given centre point, radii and rotation.
+    pub fn filled_ellipse<C: FillVertexConstructor<ShapeVertex> + Clone>(
+        mut self,
+        centre: [f32; 2],
+        radii: [f32; 2],
+        x_rotation: Angle,
+        colour: C,
+    ) -> Result<Self, TessellationError> {
+        self.fill_tesselator.tessellate_ellipse(
+            point(centre[0], centre[1]),
+            vector(radii[0], radii[1]),
+            x_rotation,
+            Winding::Positive,
+            &FillOptions::DEFAULT,
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
+        )?;
+
+        Ok(self)
+    }
+
+    /// Constructs an ellipse outline, with given centre point, radii and rotation.
+    pub fn stroke_ellipse<C: StrokeVertexConstructor<ShapeVertex> + Clone>(
+        mut self,
+        centre: [f32; 2],
+        radii: [f32; 2],
+        x_rotation: Angle,
+        colour: C,
+        line_width: f32,
+    ) -> Result<Self, TessellationError> {
+        self.stroke_tesselator.tessellate_ellipse(
+            point(centre[0], centre[1]),
+            vector(radii[0], radii[1]),
+            x_rotation,
+            Winding::Positive,
             &StrokeOptions::DEFAULT.with_line_width(line_width),
             &mut BuffersBuilder::new(&mut self.output, colour.clone()),
         )?;
