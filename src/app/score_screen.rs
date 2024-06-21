@@ -1,13 +1,27 @@
 use kira::manager::AudioManager;
 
 use crate::app::{Context, GameState, StateTransition};
+use crate::app::taiko_mode::PlayResult;
+
 struct Score {
-    goods: u32,
-    okays: u32,
-    bads: u32,
-    drumrolls: u32,
-    max_combo: u32,
-    // TODO: score, soul gauge
+    // Some precomputed values to display
+    goods: usize,
+    okays: usize,
+    bads: usize,
+    max_combo: usize,
+    drumrolls: u64,
+}
+
+impl Score {
+    fn from_result(result: &PlayResult) -> Self {
+        Self {
+            goods: result.goods(),
+            okays: result.okays(),
+            bads: result.bads() + result.misses(),
+            drumrolls: result.drumrolls(),
+            max_combo: result.max_combo(),
+        }
+    }
 }
 
 pub struct ScoreScreen {
@@ -19,23 +33,12 @@ pub struct ScoreScreen {
 impl ScoreScreen {
     pub fn new(
         _ctx: &mut Context,
-        goods: u32,
-        okays: u32,
-        bads: u32,
-        drumrolls: u32,
-        max_combo: u32,
-        song_name: &str,
+        song_name: String,
+        result: PlayResult,
     ) -> Self {
         Self {
-            score: Score {
-                goods,
-                okays,
-                bads,
-                drumrolls,
-                max_combo,
-            },
-
-            song_name: song_name.to_string(),
+            score: Score::from_result(&result),
+            song_name,
             exit: false,
         }
     }
@@ -51,13 +54,13 @@ impl GameState for ScoreScreen {
     }
 
     fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
-        egui::Window::new("Seiseki happyou!").show(&ctx, |ui| {
+        egui::Window::new("Let's see your results!").show(&ctx, |ui| {
             ui.label(egui::RichText::new(&self.song_name).size(20.0).strong());
             ui.add_space(10.0);
             ui.label(format!("Good: {}", self.score.goods));
             ui.label(format!("Ok: {}", self.score.okays));
             ui.label(format!("Bad: {}", self.score.bads));
-            ui.label("Drumroll: Not yet implemented :P");
+            ui.label(format!("Drumrolls: {}", self.score.drumrolls));
             ui.label(format!("Max Combo: {}", self.score.max_combo));
 
             self.exit = ui.button("Back to menu").clicked();

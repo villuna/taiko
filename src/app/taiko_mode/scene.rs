@@ -1,6 +1,8 @@
+use std::mem;
 use std::time::Instant;
 
 use kira::manager::AudioManager;
+use kira::sound::PlaybackState;
 use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::tween::Tween;
 use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
@@ -9,9 +11,7 @@ use super::note::{create_barlines, create_notes, NoteKeypressReaction, TaikoMode
 use super::ui::{BalloonDisplay, Header, JudgementText, NoteField};
 use crate::app::taiko_mode::note::x_position_of_note;
 use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
-use crate::render::texture::{
-    AnimatedSprite, AnimatedSpriteBuilder, Frame, PlaybackState, SpriteBuilder,
-};
+use crate::render::texture::SpriteBuilder;
 use crate::settings::{settings, SETTINGS};
 use crate::{
     beatmap_parser::Song,
@@ -21,6 +21,7 @@ use crate::{
         Renderer,
     },
 };
+use crate::app::score_screen::ScoreScreen;
 
 pub type ScoreInt = u64;
 
@@ -70,18 +71,64 @@ pub struct PlayResult {
     judgements: Vec<Option<NoteJudgement>>,
     drumrolls: u64,
     score: ScoreInt,
+    current_combo: usize,
+    max_combo: usize,
     /// For all the notes that were hit (good, okay, or bad), records the difference between when
     /// the note was hit and when the note should have been hit.
     hit_errors: Vec<f32>,
 }
 
 impl PlayResult {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self::default()
+    }
+
+    fn current_combo(&self) -> usize {
+        self.current_combo
+    }
+
+    fn push_judgement(&mut self, judgement: Option<NoteJudgement>) {
+        self.judgements.push(judgement);
+
+        if matches!(judgement, Some(NoteJudgement::Good) | Some(NoteJudgement::Ok)) {
+            self.current_combo += 1;
+            self.max_combo = std::cmp::max(self.current_combo, self.max_combo);
+        } else {
+            self.current_combo = 0;
+        }
+    }
+
+    fn count_for_judgement(&self, judgement: Option<NoteJudgement>) -> usize {
+        self.judgements.iter().filter(|j| **j == judgement).count()
+    }
+
+    pub fn goods(&self) -> usize {
+        self.count_for_judgement(Some(NoteJudgement::Good))
+    }
+
+    pub fn okays(&self) -> usize {
+        self.count_for_judgement(Some(NoteJudgement::Ok))
+    }
+
+    pub fn bads(&self) -> usize {
+        self.count_for_judgement(Some(NoteJudgement::Bad))
+    }
+
+    pub fn misses(&self) -> usize {
+        self.count_for_judgement(None)
+    }
+
+    pub fn drumrolls(&self) -> u64 {
+        self.drumrolls
+    }
+
+    pub fn max_combo(&self) -> usize {
+        self.max_combo
     }
 }
 
 pub struct TaikoMode {
+    song_name: String,
     // UI Stuff
     background: Sprite,
     // TODO: Give sprites a colour tint
@@ -151,6 +198,7 @@ impl TaikoMode {
             .track;
 
         Ok(Self {
+            song_name: song.title.clone(),
             background,
             background_dim,
             header: Header::new(renderer, &song.title)?,
@@ -190,7 +238,7 @@ impl TaikoMode {
             self.next_note_index += 1;
 
             if note.is_don_or_kat() {
-                self.results.judgements.push(None);
+                self.results.push_judgement(None);
             } else if matches!(note.note, NoteInner::Balloon { .. }) {
                 self.balloon_display.discard();
             }
@@ -204,6 +252,10 @@ impl GameState for TaikoMode {
             self.song_handle.resume(Default::default()).unwrap();
             self.started = true;
             self.start_time = Instant::now();
+        } else if self.song_handle.state() == PlaybackState::Stopped {
+            return StateTransition::Swap(Box::new(
+                ScoreScreen::new(ctx, self.song_name.clone(), self.results.clone())
+            ));
         }
 
         self.note_judgement_text.update(ctx.renderer);
@@ -303,7 +355,7 @@ impl GameState for TaikoMode {
                                 NoteJudgement::from_offset(offset, self.timing_windows()).unwrap();
                             self.note_judgement_text.display_judgement(judgement);
 
-                            self.results.judgements.push(Some(judgement));
+                            self.results.push_judgement(Some(judgement));
                             self.results.hit_errors.push(offset);
 
                             self.next_note_index = note_index + 1;
