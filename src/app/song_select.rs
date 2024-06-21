@@ -3,6 +3,7 @@ use std::{io, path::Path, rc::Rc};
 use crate::{
     app::credits::CreditsScreen,
     beatmap_parser::{parse_tja_file, Song},
+    render::texture::SpriteBuilder,
 };
 
 use crate::render::{texture::Sprite, Renderer};
@@ -45,7 +46,7 @@ pub struct SongSelect {
     songs: Vec<Song>,
     selected: Option<usize>,
     difficulty: usize,
-    song_handle: Option<SongHandle>,
+    song_preview_handle: Option<SongHandle>,
     bg_sprite: Rc<Sprite>,
     go_to_credits: bool,
     exit: bool,
@@ -99,19 +100,19 @@ fn read_song_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Song> {
 impl SongSelect {
     pub fn new(textures: &mut TextureCache, renderer: &Renderer) -> anyhow::Result<Self> {
         let test_tracks = read_song_list_dir(SONGS_DIR)?;
-        let bg_sprite = Sprite::new(
-            textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?,
-            [0.0; 3],
+        let bg_sprite = SpriteBuilder::new(textures.get(
             &renderer.device,
-            false,
-        );
+            &renderer.queue,
+            "song_select_bg.jpg",
+        )?)
+        .build(renderer);
 
         Ok(SongSelect {
             songs: test_tracks,
             bg_sprite: Rc::new(bg_sprite),
             selected: None,
             difficulty: 0,
-            song_handle: None,
+            song_preview_handle: None,
             go_to_credits: false,
             exit: false,
             go_to_song: None,
@@ -139,7 +140,7 @@ impl SongSelect {
 impl GameState for SongSelect {
     fn update(&mut self, ctx: &mut app::Context, _dt: f32) -> StateTransition {
         if self.go_to_credits {
-            if let Some(handle) = self.song_handle.as_mut() {
+            if let Some(handle) = self.song_preview_handle.as_mut() {
                 handle.stop(*OUT_TWEEN).unwrap();
             }
 
@@ -154,11 +155,12 @@ impl GameState for SongSelect {
 
             self.go_to_song = None;
 
-            if let Some(handle) = self.song_handle.as_mut() {
+            if let Some(handle) = self.song_preview_handle.as_mut() {
                 handle.stop(Default::default()).unwrap();
             }
 
             StateTransition::Push(Box::new(
+                /*
                 TaikoMode::new(
                     &self.songs[song_id],
                     difficulty,
@@ -169,6 +171,16 @@ impl GameState for SongSelect {
                     &self.bg_sprite,
                 )
                 .expect("error going to taiko mode: song was invalid"),
+                */
+                TaikoMode::new(
+                    &self.songs[song_id],
+                    sound_data,
+                    ctx.audio,
+                    difficulty,
+                    ctx.renderer,
+                    ctx.textures,
+                )
+                .unwrap(),
             ))
         } else if self.exit {
             StateTransition::Pop
@@ -222,11 +234,11 @@ impl GameState for SongSelect {
                     });
 
                 if self.selected != old_song {
-                    if let Some(handle) = self.song_handle.as_mut() {
+                    if let Some(handle) = self.song_preview_handle.as_mut() {
                         handle.stop(*OUT_TWEEN).unwrap();
                     }
 
-                    self.song_handle = self
+                    self.song_preview_handle = self
                         .selected
                         .map(|id| self.play_preview(audio, id).unwrap());
                 }

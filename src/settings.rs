@@ -2,6 +2,7 @@
 //!
 //! The settings for lunataiko are stored in a toml file (by default `taiko_settings.toml`). Use
 //! the function [read_settings] to read this config from file.
+use std::ops::Deref;
 use std::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
@@ -20,12 +21,32 @@ pub static SETTINGS: RwLock<Settings> = RwLock::new(Settings {
     },
 });
 
+/// Convenience function that returns an immutable reference to [settings::SETTINGS].
+/// Panics if the settings haven't been initialised yet.
+pub fn settings() -> impl Deref<Target = Settings> {
+    SETTINGS.read().unwrap()
+}
+
 /// All the settings for the game
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct Settings {
     pub visual: VisualSettings,
     pub game: GameSettings,
+}
+
+impl Settings {
+    pub fn key_is_don(&self, key: VirtualKeyCode) -> bool {
+        key == self.game.key_mappings.left_don || key == self.game.key_mappings.right_don
+    }
+
+    pub fn key_is_kat(&self, key: VirtualKeyCode) -> bool {
+        key == self.game.key_mappings.left_kat || key == self.game.key_mappings.right_kat
+    }
+
+    pub fn key_is_don_or_kat(&self, key: VirtualKeyCode) -> bool {
+        self.key_is_don(key) || self.key_is_kat(key)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -55,8 +76,8 @@ pub struct GameSettings {
 pub struct KeyMap {
     pub left_don: VirtualKeyCode,
     pub right_don: VirtualKeyCode,
-    pub left_ka: VirtualKeyCode,
-    pub right_ka: VirtualKeyCode,
+    pub left_kat: VirtualKeyCode,
+    pub right_kat: VirtualKeyCode,
 }
 
 impl Default for GameSettings {
@@ -73,8 +94,8 @@ impl KeyMap {
         Self {
             left_don: VirtualKeyCode::F,
             right_don: VirtualKeyCode::J,
-            left_ka: VirtualKeyCode::D,
-            right_ka: VirtualKeyCode::K,
+            left_kat: VirtualKeyCode::D,
+            right_kat: VirtualKeyCode::K,
         }
     }
 }
@@ -91,38 +112,35 @@ impl Default for KeyMap {
 /// contents are in error, it will also return the default settings. Panics if it encounters any
 /// other errors.
 pub fn read_settings() {
-    let settings = match try_read_settings() {
-        Ok(s) => s,
-        Err(e) => match e {
-            SettingsError::InvalidSettings => {
-                eprintln!(
-                    "Couldn't read settings file due to invalid contents. \
+    let settings = try_read_settings().unwrap_or_else(|e| match e {
+        SettingsError::InvalidSettings => {
+            eprintln!(
+                "Couldn't read settings file due to invalid contents. \
                           Please fix the settings file at \"{}\". \
                           Continuing with default settings...",
+                SETTINGS_PATH
+            );
+
+            Settings::default()
+        }
+
+        SettingsError::FileError(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                eprintln!(
+                    "Settings file not found. Creating it at \"{}\"",
                     SETTINGS_PATH
                 );
 
-                Settings::default()
+                let settings = Settings::default();
+
+                std::fs::write(SETTINGS_PATH, toml::to_string(&settings).unwrap())
+                    .unwrap_or_else(|_| panic!("couldnt write to file \"{}\"", SETTINGS_PATH));
+                settings
+            } else {
+                panic!("unexpected error reading settings!: {e}");
             }
-
-            SettingsError::FileError(e) => {
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    eprintln!(
-                        "Settings file not found. Creating it at \"{}\"",
-                        SETTINGS_PATH
-                    );
-
-                    let settings = Settings::default();
-
-                    std::fs::write(SETTINGS_PATH, toml::to_string(&settings).unwrap())
-                        .unwrap_or_else(|_| panic!("couldnt write to file \"{}\"", SETTINGS_PATH));
-                    settings
-                } else {
-                    panic!("unexpected error reading settings!: {e}");
-                }
-            }
-        },
-    };
+        }
+    });
 
     *SETTINGS.write().unwrap() = settings;
 }

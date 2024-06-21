@@ -7,13 +7,13 @@
 //! tracks for different players etc).
 //!
 //! Note that times are generally represented in seconds. Unless specified,
-//! that is the unit that time values will be in.
+//! that is the unit the time values will be in.
 
 use std::collections::HashMap;
 
 const DEFAULT_BPM: f32 = 120.0;
 
-/// The type of a note (e.g., Don, Ka, Balloon etc)
+/// The type of note (e.g., Don, Ka, Balloon etc)
 ///
 /// Drumroll variants also contain a float value indicating how long the drumroll continues for.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -24,8 +24,8 @@ pub enum NoteType {
     BigKat,
     Roll(f32),
     BigRoll(f32),
-    BalloonRoll(f32, u16),
-    SpecialRoll(f32, u16),
+    BalloonRoll(f32, u32),
+    SpecialRoll(f32, u32),
     CoopDon,
     CoopKat,
 }
@@ -39,6 +39,14 @@ impl NoteType {
                 | NoteType::BalloonRoll(_, _)
                 | NoteType::SpecialRoll(_, _)
         )
+    }
+
+    pub fn is_don(&self) -> bool {
+        matches!(self, NoteType::Don | NoteType::BigDon | NoteType::CoopDon)
+    }
+
+    pub fn is_kat(&self) -> bool {
+        matches!(self, NoteType::Kat | NoteType::BigKat | NoteType::CoopKat)
     }
 }
 
@@ -71,8 +79,9 @@ pub struct Song {
     pub subtitle: Option<String>,
     pub audio_filename: String,
     pub bpm: f32,
-    /// The amount of time between the beginning of the track and the first measure,
-    /// note timing will be relative to this offset
+    /// The offset of the notes in seconds.
+    /// This is the number of seconds earlier notes should appear relative to the song. i.e., if the
+    /// offset is positive, notes will appear earlier. If it is negative, they will appear later.
     pub offset: f32,
     /// The time that the song preview should start from.
     pub demostart: f32,

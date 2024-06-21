@@ -5,6 +5,9 @@
 //! so when constructing more complicated shapes you may need to interface with it (for example, in
 //! the `ShapeBuilder`'s `filled_shape` and `stroke_shape` methods)
 
+use lyon::geom::vector;
+use lyon::math::Angle;
+use lyon::path::Winding;
 use lyon::{
     geom::{point, Box2D},
     lyon_tessellation::{
@@ -300,6 +303,47 @@ impl ShapeBuilder {
         Ok(self)
     }
 
+    /// Constructs a filled ellipse, with given centre point, radii and rotation.
+    pub fn filled_ellipse<C: FillVertexConstructor<ShapeVertex> + Clone>(
+        mut self,
+        centre: [f32; 2],
+        radii: [f32; 2],
+        x_rotation: Angle,
+        colour: C,
+    ) -> Result<Self, TessellationError> {
+        self.fill_tesselator.tessellate_ellipse(
+            point(centre[0], centre[1]),
+            vector(radii[0], radii[1]),
+            x_rotation,
+            Winding::Positive,
+            &FillOptions::DEFAULT,
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
+        )?;
+
+        Ok(self)
+    }
+
+    /// Constructs an ellipse outline, with given centre point, radii and rotation.
+    pub fn stroke_ellipse<C: StrokeVertexConstructor<ShapeVertex> + Clone>(
+        mut self,
+        centre: [f32; 2],
+        radii: [f32; 2],
+        x_rotation: Angle,
+        colour: C,
+        line_width: f32,
+    ) -> Result<Self, TessellationError> {
+        self.stroke_tesselator.tessellate_ellipse(
+            point(centre[0], centre[1]),
+            vector(radii[0], radii[1]),
+            x_rotation,
+            Winding::Positive,
+            &StrokeOptions::DEFAULT.with_line_width(line_width),
+            &mut BuffersBuilder::new(&mut self.output, colour.clone()),
+        )?;
+
+        Ok(self)
+    }
+
     /// Constructs a filled circle, with given centre and radius
     pub fn filled_circle<C: FillVertexConstructor<ShapeVertex> + Clone>(
         mut self,
@@ -405,8 +449,8 @@ impl Default for ShapeBuilder {
 
 impl Shape {
     /// Moves the whole shape to the given position.
-    pub fn set_position(&self, position: [f32; 3], queue: &wgpu::Queue) {
-        queue.write_buffer(
+    pub fn set_position(&self, position: [f32; 3], renderer: &Renderer) {
+        renderer.queue.write_buffer(
             &self.instance,
             0,
             bytemuck::cast_slice(&[SpriteInstance { position }]),
@@ -415,7 +459,11 @@ impl Shape {
 }
 
 impl Renderable for Shape {
-    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+    fn render<'pass>(
+        &'pass self,
+        renderer: &'pass Renderer,
+        render_pass: &mut wgpu::RenderPass<'pass>,
+    ) {
         let pipeline = if self.has_depth {
             "primitive_depth"
         } else {
@@ -423,14 +471,13 @@ impl Renderable for Shape {
         };
 
         render_pass.set_pipeline(
-            renderer.pipeline(pipeline)
+            renderer
+                .pipeline(pipeline)
                 .unwrap_or_else(|| panic!("{pipeline} render pipeline doesn't exist!")),
         );
         render_pass.set_vertex_buffer(0, self.vertex.slice(..));
-        render_pass
-            .set_vertex_buffer(1, self.instance.slice(..));
-        render_pass
-            .set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.set_vertex_buffer(1, self.instance.slice(..));
+        render_pass.set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
         render_pass.draw_indexed(0..self.indices, 0, 0..1);
     }
 }

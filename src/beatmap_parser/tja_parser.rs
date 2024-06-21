@@ -179,9 +179,9 @@ enum TJANoteType {
     BigKat,
     Roll,
     BigRoll,
-    BalloonRoll(u16),
+    BalloonRoll(u32),
     RollEnd,
-    SpecialRoll(u16),
+    SpecialRoll(u32),
     CoopDon,
     CoopKat,
 }
@@ -285,8 +285,8 @@ fn course_command(input: &str) -> IResult<&str, CourseCommand, TJAParseErrorKind
     Ok((input, command))
 }
 
-fn balloon_list(input: &str) -> IResult<&str, Vec<u16>, TJAParseErrorKind> {
-    terminated(separated_list0(tag(","), integer::<u16>), opt(tag(",")))(input)
+fn balloon_list(input: &str) -> IResult<&str, Vec<u32>, TJAParseErrorKind> {
+    terminated(separated_list0(tag(","), integer::<u32>), opt(tag(",")))(input)
 }
 
 fn note(i: &str) -> IResult<&str, Option<TJANoteType>, TJAParseErrorKind> {
@@ -415,16 +415,16 @@ fn get_metadata_owned<'a>(
         match default {
             Some(s) => s.to_string(),
             None => {
-                if let Some(course_line) = course_line {
-                    return Err(TJAParseError {
+                return if let Some(course_line) = course_line {
+                    Err(TJAParseError {
                         kind: TJAParseErrorKind::MissingMetadataForCourse(key.to_string()),
                         line: course_line,
-                    });
+                    })
                 } else {
-                    return Err(TJAParseError {
+                    Err(TJAParseError {
                         kind: TJAParseErrorKind::MissingMetadataForSong(key.to_string()),
                         line: 0,
-                    });
+                    })
                 }
             }
         }

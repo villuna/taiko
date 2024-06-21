@@ -3,7 +3,7 @@ use crate::{
     render::{
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
         text::Text,
-        texture::Sprite,
+        texture::{Sprite, SpriteBuilder},
         Renderer,
     },
 };
@@ -80,13 +80,15 @@ impl MainMenu {
             renderer,
         )?;
 
+        let background = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "song_select_bg.jpg",
+        )?)
+        .build(renderer);
+
         Ok(MainMenu {
-            background: Sprite::new(
-                textures.get(&renderer.device, &renderer.queue, "song_select_bg.jpg")?,
-                [0.0; 3],
-                &renderer.device,
-                false,
-            ),
+            background,
             gradient,
             menu_frame,
             title,

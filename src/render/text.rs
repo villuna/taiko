@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use wgpu_text::glyph_brush::Section;
 
-use crate::render::{Renderable, texture, Renderer};
+use crate::render::{texture, Renderable, Renderer};
 
 #[derive(Debug)]
 pub struct Text {
@@ -13,7 +13,7 @@ impl Text {
     pub fn new(renderer: &mut Renderer, section: &Section) -> anyhow::Result<Text> {
         let texture = Self::create_texture(renderer, section, false)?;
 
-        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], &renderer.device, false);
+        let sprite = texture::SpriteBuilder::new(Rc::new(texture)).build(renderer);
 
         Ok(Self { sprite })
     }
@@ -21,7 +21,7 @@ impl Text {
     pub fn new_outlined(renderer: &mut Renderer, section: &Section) -> anyhow::Result<Text> {
         let texture = Self::create_texture(renderer, section, true)?;
 
-        let sprite = texture::Sprite::new(Rc::new(texture), [0.0; 3], &renderer.device, false);
+        let sprite = texture::SpriteBuilder::new(Rc::new(texture)).build(renderer);
 
         Ok(Self { sprite })
     }
@@ -105,7 +105,11 @@ impl Text {
 }
 
 impl Renderable for Text {
-    fn render<'pass>(&'pass self, renderer: &'pass Renderer, render_pass: &mut wgpu::RenderPass<'pass>) {
+    fn render<'pass>(
+        &'pass self,
+        renderer: &'pass Renderer,
+        render_pass: &mut wgpu::RenderPass<'pass>,
+    ) {
         self.sprite.render(renderer, render_pass);
     }
 }

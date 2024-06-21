@@ -2,9 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="300"
+   width="250"
    height="100.00001"
-   viewBox="0 0 79.374999 26.458335"
+   viewBox="0 0 66.145833 26.458335"
    version="1.1"
    id="svg1"
    inkscape:export-filename="../assets/images/balloon gradient.png"
@@ -23,25 +23,27 @@
   <defs
      id="defs1">
     <linearGradient
-       id="linearGradient12"
+       id="linearGradient4"
        inkscape:collect="always">
       <stop
-         style="stop-color:#ff9c62;stop-opacity:1;"
+         style="stop-color:#ffa16a;stop-opacity:1;"
          offset="0"
-         id="stop13" />
+         id="stop4" />
       <stop
-         style="stop-color:#ff5414;stop-opacity:1;"
+         style="stop-color:#ff6710;stop-opacity:1;"
          offset="1"
-         id="stop14" />
+         id="stop5" />
     </linearGradient>
-    <linearGradient
+    <radialGradient
        inkscape:collect="always"
-       xlink:href="#linearGradient12"
-       id="linearGradient14"
-       x1="58.649746"
-       y1="2.1934595"
-       x2="68.054649"
-       y2="17.357071"
+       xlink:href="#linearGradient4"
+       id="radialGradient5"
+       cx="45.930126"
+       cy="3.5497029"
+       fx="45.930126"
+       fy="3.5497029"
+       r="15.246119"
+       gradientTransform="matrix(0.05135703,0.89123044,-2.3122239,0.13324156,51.778998,-34.058031)"
        gradientUnits="userSpaceOnUse" />
   </defs>
   <sodipodi:namedview
@@ -52,16 +54,16 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.8"
-     inkscape:cx="136.96429"
-     inkscape:cy="28.928571"
+     inkscape:cx="88.75"
+     inkscape:cy="22.857143"
      inkscape:document-units="px"
      inkscape:showpageshadow="2"
      inkscape:pagecheckerboard="true"
      inkscape:deskcolor="#d1d1d1"
      inkscape:window-width="1920"
-     inkscape:window-height="1012"
+     inkscape:window-height="1007"
      inkscape:window-x="0"
-     inkscape:window-y="32"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg1"
      showguides="false" />
@@ -77,17 +79,17 @@
     </rdf:RDF>
   </metadata>
   <path
-     style="fill:url(#linearGradient14);fill-opacity:1;stroke:#000000;stroke-width:0.79375;stroke-dasharray:none;stroke-opacity:1"
-     d="m 27.949402,15.359512 9.475173,0.179392 c 0,0 7.082642,-0.334087 10.022608,1.737252 2.939965,2.071339 7.444404,5.223221 12.722979,4.822316 5.278573,-0.400904 9.660842,-5.624124 9.958098,-9.150673 C 69.757345,9.4212507 65.280582,4.1966402 60.002009,3.7957359 54.723434,3.3948315 50.313489,6.5481032 47.373524,8.6194423 44.433558,10.690781 37.350916,10.356694 37.350916,10.356694 l -9.475173,0.179392"
-     id="path3-0"
-     sodipodi:nodetypes="ccsscsscc" />
+     style="fill:url(#radialGradient5);fill-opacity:1;stroke:#000000;stroke-width:0.79374999;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     d="m 28.045833,16.196279 9.789583,0.207888 c 2.696314,3.607513 5.479614,5.755747 9.950137,5.755747 5.662926,0 10.253635,-3.998419 10.253635,-8.930719 0,-4.9323001 -4.590709,-8.9307194 -10.253635,-8.9307194 -4.615579,0 -7.128307,2.0598527 -9.950137,5.7027744 l -9.936048,0.652984"
+     id="path4-7"
+     sodipodi:nodetypes="ccssscc" />
   <path
-     style="fill:#ff8e4b;fill-opacity:1;stroke:#000000;stroke-width:0.84529;stroke-dasharray:none;stroke-opacity:1"
+     style="fill:#ff8e4b;fill-opacity:1;stroke:#000000;stroke-width:0.84534374;stroke-dasharray:none;stroke-opacity:1"
      d="m 25.472618,9.5122637 h 1.41294 c 0,0 0.525582,0.056974 0.897405,0.7789483 0.433317,0.841378 0.749582,4.43111 0.136875,5.940198 -0.244534,0.602283 -0.52093,0.705107 -0.911952,0.71582 l -1.293529,0.03544"
      id="path2"
      sodipodi:nodetypes="ccsssc" />
   <circle
-     style="fill:#000000;fill-opacity:1;stroke-width:0.2651125;stroke-dasharray:none"
+     style="fill:#000000;fill-opacity:1;stroke-width:0.265112;stroke-dasharray:none"
      id="path1"
      cx="13.229167"
      cy="13.229167"
