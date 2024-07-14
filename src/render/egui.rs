@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use egui_wgpu::renderer::ScreenDescriptor;
+use egui_wgpu::ScreenDescriptor;
 use winit::window::Window;
 
 pub struct Egui {
@@ -42,7 +42,7 @@ impl Egui {
     ///
     /// Returns true if the event is "captured", which means it should not be handled by anything
     /// else (for example, clicking on an egui element should not also click behind it).
-    pub fn handle_event<T>(&mut self, event: &winit::event::Event<'_, T>) -> bool {
+    pub fn handle_event<T>(&mut self, event: &winit::event::Event<T>) -> bool {
         self.platform.handle_event(event);
         self.platform.captures_event(event)
     }
@@ -66,7 +66,7 @@ impl Egui {
         window: &Window,
     ) -> Vec<egui::ClippedPrimitive> {
         let full_output = self.platform.end_frame(Some(window));
-        let paint_jobs = self.platform.context().tessellate(full_output.shapes);
+        let paint_jobs = self.platform.context().tessellate(full_output.shapes, full_output.pixels_per_point);
         let textures_delta = full_output.textures_delta;
 
         for texture in textures_delta.free.iter() {

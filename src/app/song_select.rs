@@ -160,18 +160,6 @@ impl GameState for SongSelect {
             }
 
             StateTransition::Push(Box::new(
-                /*
-                TaikoMode::new(
-                    &self.songs[song_id],
-                    difficulty,
-                    sound_data,
-                    ctx.audio,
-                    ctx.textures,
-                    ctx.renderer,
-                    &self.bg_sprite,
-                )
-                .expect("error going to taiko mode: song was invalid"),
-                */
                 TaikoMode::new(
                     &self.songs[song_id],
                     sound_data,
@@ -180,7 +168,7 @@ impl GameState for SongSelect {
                     ctx.renderer,
                     ctx.textures,
                 )
-                .unwrap(),
+                .expect("error creating taiko mode scene"),
             ))
         } else if self.exit {
             StateTransition::Pop
@@ -296,7 +284,7 @@ impl GameState for SongSelect {
         #[cfg(not(debug_assertions))]
         let build = "release";
 
-        egui::Area::new("version")
+        egui::Area::new("version".into())
             .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
             .show(&ctx, |ui| {
                 ui.with_layout(

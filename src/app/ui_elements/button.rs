@@ -1,11 +1,10 @@
 use crate::app::Context;
 use crate::render::shapes::{Shape, ShapeBuilder, ShapeVertex, SolidColour};
-use crate::render::text::Text;
+use crate::render::text::BuildTextWithRenderer;
+use kaku::{Text, TextBuilder};
 use crate::render::Renderable;
 use crate::render::Renderer;
 use lyon::tessellation::FillVertexConstructor;
-use wgpu_text::glyph_brush;
-use wgpu_text::glyph_brush::{HorizontalAlign, Layout, Section, VerticalAlign};
 use winit::event::MouseButton;
 
 pub struct Button {
@@ -31,22 +30,15 @@ impl Button {
     where
         C: FillVertexConstructor<ShapeVertex> + Clone,
     {
-        let text = Text::new(
-            renderer,
-            &Section::new()
-                .add_text(
-                    glyph_brush::Text::new(text)
-                        .with_color([1.; 4])
-                        .with_scale(font_size)
-                        .with_font_id(*renderer.font("MPLUSRounded1c-Regular.ttf").unwrap()),
-                )
-                .with_screen_position((pos[0] + size[0] / 2., pos[1] + size[1] / 2.))
-                .with_layout(
-                    Layout::default()
-                        .h_align(HorizontalAlign::Center)
-                        .v_align(VerticalAlign::Center),
-                ),
-        )?;
+        let text_position = [
+            pos[0] + size[0] / 2.,
+            pos[1] + size[1] / 2.,
+        ];
+        let text = TextBuilder::new(text, renderer.font("mplus regular"), text_position)
+            .color([1.; 4])
+            .font_size(Some(font_size))
+            .horizontal_align(kaku::HorizontalAlign::Center)
+            .build_text(renderer);
 
         let bg = ShapeBuilder::new()
             .position([pos[0], pos[1], 0.])

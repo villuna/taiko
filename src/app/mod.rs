@@ -14,8 +14,8 @@ use kira::manager::{backend::DefaultBackend, AudioManager};
 use std::collections::HashMap;
 
 use winit::{
-    event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
-    event_loop::ControlFlow,
+    event::{ElementState, KeyEvent, MouseButton, WindowEvent},
+    event_loop::EventLoopWindowTarget, keyboard::{KeyCode, PhysicalKey},
 };
 
 use crate::render::{self, texture::Texture, Renderable, Renderer};
@@ -65,32 +65,29 @@ pub trait GameState {
 
     fn render<'pass>(&'pass mut self, _ctx: &mut RenderContext<'_, 'pass>) {}
 
-    fn handle_event(&mut self, _ctx: &mut Context, _event: &WindowEvent<'_>) {}
+    fn handle_event(&mut self, _ctx: &mut Context, _event: &WindowEvent) {}
 }
 
 /// A struct that keeps track of the state of the keyboard at each frame.
 ///
 /// Each keycode is mapped to a tuple containing two booleans; the first indicates whether the key
 /// was pressed last frame, the second indicates whether the key is pressed this frame.
-pub struct KeyboardState(HashMap<VirtualKeyCode, (bool, bool)>);
+pub struct KeyboardState(HashMap<PhysicalKey, (bool, bool)>);
 
 impl KeyboardState {
-    fn handle_input(&mut self, event: &KeyboardInput) {
-        if let Some(code) = event.virtual_keycode {
-            let pressed = event.state == ElementState::Pressed;
-
-            self.0.entry(code).or_insert((false, false)).1 = pressed;
-        }
+    fn handle_input(&mut self, event: &KeyEvent) {
+        let pressed = event.state == ElementState::Pressed;
+        self.0.entry(event.physical_key).or_insert((false, false)).1 = pressed;
     }
 
     /// Returns whether or not the given key is pressed this frame.
-    pub fn is_pressed(&self, key: VirtualKeyCode) -> bool {
+    pub fn is_pressed(&self, key: PhysicalKey) -> bool {
         self.0.get(&key).is_some_and(|&(_, pressed)| pressed)
     }
 
     /// Returns whether or not the given key was just pressed this frame (i.e: pressed this frame
     /// but not last frame)
-    pub fn is_just_pressed(&self, key: VirtualKeyCode) -> bool {
+    pub fn is_just_pressed(&self, key: PhysicalKey) -> bool {
         self.0
             .get(&key)
             .is_some_and(|(last_frame, this_frame)| !(*last_frame) && *this_frame)
@@ -98,7 +95,7 @@ impl KeyboardState {
 
     /// Returns whether or not the given key was just released this frame (i.e: released this frame
     /// but not last frame)
-    pub fn is_just_released(&self, key: VirtualKeyCode) -> bool {
+    pub fn is_just_released(&self, key: PhysicalKey) -> bool {
         self.0
             .get(&key)
             .is_some_and(|(last_frame, this_frame)| *last_frame && !*this_frame)
@@ -111,7 +108,7 @@ pub struct MouseState {
 }
 
 impl MouseState {
-    fn handle_input(&mut self, event: &WindowEvent<'_>) {
+    fn handle_input(&mut self, event: &WindowEvent) {
         match *event {
             WindowEvent::CursorMoved { position, .. } => {
                 self.position = Some((position.x as f32, position.y as f32));
@@ -243,7 +240,7 @@ impl App {
         &mut self,
         delta: f32,
         renderer: &mut render::Renderer,
-        control_flow: &mut ControlFlow,
+        event_loop: &EventLoopWindowTarget<()>,
     ) {
         self.fps_timer += delta;
         self.frames_counted += 1;
@@ -270,7 +267,7 @@ impl App {
                     .expect("found no previous state to return to!");
             }
             StateTransition::Swap(state) => *self.state.last_mut().unwrap() = state,
-            StateTransition::Exit => control_flow.set_exit(),
+            StateTransition::Exit => event_loop.exit(),
             StateTransition::Continue => {}
         }
     }
@@ -282,7 +279,7 @@ impl App {
             .debug_ui(ctx.clone(), &mut self.audio_manager);
 
         if self.show_fps_counter {
-            egui::Area::new("fps counter")
+            egui::Area::new("fps counter".into())
                 .fixed_pos(egui::pos2(1800.0, 0.0))
                 .show(&ctx, |ui| {
                     ui.label(
@@ -311,7 +308,7 @@ impl App {
         self.state.last_mut().unwrap().render(&mut ctx)
     }
 
-    pub fn handle_event(&mut self, event: &WindowEvent<'_>, renderer: &mut render::Renderer) {
+    pub fn handle_event(&mut self, event: &WindowEvent, renderer: &mut render::Renderer) {
         // We make the current state handle input before the keyboard can update state,
         // so that the event is able to know what the state of the keyboard was before
         // the new input.
@@ -326,14 +323,14 @@ impl App {
         self.state.last_mut().unwrap().handle_event(&mut ctx, event);
 
         if let WindowEvent::KeyboardInput {
-            input,
+            event,
             is_synthetic: false,
             ..
         } = event
         {
-            self.keyboard.handle_input(input);
+            self.keyboard.handle_input(event);
 
-            if self.keyboard.is_just_pressed(VirtualKeyCode::F1) {
+            if self.keyboard.is_just_pressed(PhysicalKey::Code(KeyCode::F1)) {
                 self.show_fps_counter = !self.show_fps_counter;
             }
         }

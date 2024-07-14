@@ -1,13 +1,13 @@
+use kaku::{Text, TextBuilder};
+
 use crate::{
     app::{ui_elements::Button, Context, GameState, RenderContext, StateTransition, TextureCache},
     render::{
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
-        text::Text,
         texture::{Sprite, SpriteBuilder},
         Renderer,
     },
 };
-use wgpu_text::glyph_brush::{self, Section};
 
 use super::SongSelect;
 
@@ -41,24 +41,16 @@ impl MainMenu {
             )?
             .build(&renderer.device);
 
-        let title = Text::new(
-            renderer,
-            &Section::new()
-                .add_text(
-                    glyph_brush::Text::new("Unnamed Taiko\nSimulator!")
-                        .with_color([141. / 255., 64. / 255., 1., 1.])
-                        .with_font_id(*renderer.font("MPLUSRounded1c-Bold.ttf").unwrap())
-                        .with_scale(70.0),
-                )
-                .with_screen_position((100., 95.)),
-        )?;
+        let title = TextBuilder::new("Unnamed Taiko\nSimulator!", renderer.font("mplus bold"), [100., 95.])
+            .color([141. / 255., 64. / 255., 1., 1.])
+            .build(&renderer.device, &renderer.queue, &mut renderer.text_renderer);
 
         let taiko_mode_button = Button::new(
             "Taiko Mode",
             [100., 290.],
             [290., 65.],
             SolidColour::new([120. / 255., 29. / 255., 29. / 255., 1.]),
-            40.,
+            30.,
             renderer,
         )?;
 
@@ -67,7 +59,7 @@ impl MainMenu {
             [100., 370.],
             [290., 65.],
             SolidColour::new([43. / 255., 111. / 255., 27. / 255., 1.]),
-            40.,
+            30.,
             renderer,
         )?;
 
@@ -76,7 +68,7 @@ impl MainMenu {
             [100., 930.],
             [150., 50.],
             SolidColour::new([72. / 255., 72. / 255., 72. / 255., 1.]),
-            30.,
+            20.,
             renderer,
         )?;
 

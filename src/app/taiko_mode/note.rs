@@ -1,6 +1,6 @@
 //! Defines structs for drawing notes and barlines to the screen
 use lyon::lyon_tessellation::TessellationError;
-use winit::event::VirtualKeyCode;
+use winit::keyboard::PhysicalKey;
 
 use crate::beatmap_parser::track::NoteType;
 use crate::beatmap_parser::{Barline, Note};
@@ -96,7 +96,7 @@ pub(crate) struct BasicNoteType {
 }
 
 impl BasicNoteType {
-    fn is_hit_by(&self, key: VirtualKeyCode) -> bool {
+    fn is_hit_by(&self, key: PhysicalKey) -> bool {
         let settings = SETTINGS.read().unwrap();
         match self.colour {
             NoteColour::Don => settings.key_is_don(key),
@@ -457,7 +457,7 @@ impl TaikoModeNote {
     /// Reacts to a keypress.
     pub fn receive_keypress(
         &mut self,
-        key: VirtualKeyCode,
+        key: PhysicalKey,
         time: f32,
         timing_windows: &[f32; 3],
     ) -> NoteKeypressReaction {

@@ -1,134 +1,112 @@
-use std::time::Instant;
+use std::{borrow::Borrow, ops::Deref, time::Instant};
 
 use taiko::{
     app::{App, MainMenu},
     render::Renderer,
 };
 
-use taiko::settings::{self, ResolutionState, SETTINGS};
+use taiko::settings::{self, SETTINGS};
 
 use winit::{
-    dpi::PhysicalSize,
-    event::{Event, WindowEvent},
-    event_loop::EventLoop,
-    window::{Fullscreen, Window, WindowBuilder},
+    dpi::PhysicalSize, event::{Event, WindowEvent}, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Fullscreen, Window, WindowBuilder}
 };
 
-fn set_window_mode(window: &Window, settings: &mut settings::Settings) {
-    match settings.visual.resolution {
+fn build_window(event_loop: &EventLoopWindowTarget<()>, settings: impl Deref<Target = settings::Settings>) -> Window {
+    let settings = settings.borrow();
+    let (resolution, fullscreen) = match settings.visual.resolution {
         settings::ResolutionState::BorderlessFullscreen => {
-            let default_resolution = window.current_monitor().and_then(|monitor| {
-                let size = monitor.size();
-
-                if size.width != 0 && size.height != 0 {
-                    Some((size.width, size.height))
-                } else {
-                    None
-                }
-            });
-
-            match default_resolution {
-                Some((width, height)) => {
-                    window.set_inner_size(PhysicalSize::new(width, height));
-                    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-                }
-
-                None => {
-                    // Use default window resolution
-                    let current_resolution = window.inner_size();
-                    settings.visual.resolution = ResolutionState::Windowed(
-                        current_resolution.width,
-                        current_resolution.height,
-                    );
-                    log::error!("Couldn't set window to borderless fullscreen");
-                }
-            }
-        }
+            (None, Some(Fullscreen::Borderless(None)))
+        },
         settings::ResolutionState::Windowed(width, height) => {
-            window.set_fullscreen(None);
-            window.set_inner_size(PhysicalSize::new(width, height));
-        }
+            (Some(PhysicalSize::new(width, height)), None)
+        },
         settings::ResolutionState::Fullscreen { .. } => {
-            let video_mode = window
-                .current_monitor()
-                .and_then(|monitor| monitor.video_modes().next());
+            // TODO: support this i guess? I dunno 
+            todo!()
+        },
+    };
 
-            match video_mode {
-                Some(mode) => {
-                    window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
-                }
+    let mut builder = WindowBuilder::new()
+        .with_title("Unnamed taiko simulator!!")
+        .with_fullscreen(fullscreen);
 
-                None => {
-                    // Use default window resolution
-                    let current_resolution = window.inner_size();
-                    settings.visual.resolution = ResolutionState::Windowed(
-                        current_resolution.width,
-                        current_resolution.height,
-                    );
-                    log::error!("Couldn't set window to exclusive fullscreen");
-                }
-            }
-        }
-    }
+    if let Some(resolution) = resolution {
+        builder = builder.with_inner_size(resolution);
+    };
+
+    builder.build(event_loop).unwrap()
 }
 
 fn main() {
     env_logger::init();
 
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title("LunaTaiko!!")
-        .with_inner_size(PhysicalSize::new(1920, 1080))
-        .build(&event_loop)
-        .unwrap();
-
     settings::read_settings();
 
-    set_window_mode(&window, &mut SETTINGS.write().unwrap());
+    let event_loop = EventLoop::new().unwrap();
+    event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
 
+    // To be replaced when I update winit
+    struct Everything {
+        renderer: Renderer,
+        app: App,
+    }
+    
     let mut frame_time = Instant::now();
     let mut delta = 1.0 / 60.0;
+    let mut everything = None;
+    
+    event_loop.run(move |event, event_loop| {
+        if everything.is_none() && matches!(event, Event::Resumed) {
+            let window = build_window(event_loop, SETTINGS.read().unwrap());
 
-    let mut renderer = Renderer::new(window).unwrap();
+            let window: &'static Window = Box::leak(Box::new(window));
+            let mut renderer = Renderer::new(window).unwrap();
+            let app = App::new(&mut renderer, |renderer, textures| {
+                Box::new(MainMenu::new(textures, renderer).unwrap())
+            })
+            .unwrap();
 
-    let mut app = App::new(&mut renderer, |renderer, textures| {
-        Box::new(MainMenu::new(textures, renderer).unwrap())
-    })
-    .unwrap();
+            everything = Some(Everything {
+                renderer,
+                app,
+            });
 
-    event_loop.run(move |event, _, control_flow| {
+            return;
+        }
+
+        let Some(Everything { ref mut renderer, ref mut app }) = everything.as_mut() else { return; };
+
         if !renderer.handle_event(&event) {
             match event {
+                Event::Resumed => {
+                    
+                },
                 Event::WindowEvent { window_id, event } if window_id == renderer.window().id() => {
-                    app.handle_event(&event, &mut renderer);
+                    app.handle_event(&event, renderer);
 
                     match event {
                         WindowEvent::CloseRequested => {
-                            control_flow.set_exit();
+                            event_loop.exit();
                         }
 
                         WindowEvent::Resized(size) => {
                             renderer.resize(size);
                         }
 
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            renderer.resize(*new_inner_size);
-                        }
-
                         _ => {}
                     }
                 }
 
-                Event::RedrawRequested(window_id) if window_id == renderer.window().id() => {
-                    app.update(delta, &mut renderer, control_flow);
-                    match renderer.render(&mut app) {
+                Event::AboutToWait => {
+                    app.update(delta, renderer, event_loop);
+                    match renderer.render(app) {
                         Ok(_) => {}
 
                         Err(wgpu::SurfaceError::Lost) | Err(wgpu::SurfaceError::Outdated) => {
                             let size = renderer.size();
                             renderer.resize(*size);
                         }
-                        Err(wgpu::SurfaceError::OutOfMemory) => control_flow.set_exit(),
+                        Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
                         Err(e) => log::error!("error while rendering: {e:?}"),
                     }
 
@@ -137,10 +115,8 @@ fn main() {
                     frame_time = time;
                 }
 
-                Event::MainEventsCleared => renderer.window().request_redraw(),
-
                 _ => {}
             }
         }
-    });
+    }).unwrap();
 }

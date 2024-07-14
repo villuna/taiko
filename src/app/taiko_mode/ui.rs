@@ -1,7 +1,7 @@
+use crate::render::text::BuildTextWithRenderer;
 use crate::app::taiko_mode::scene::NoteJudgement;
 use crate::app::{RenderContext, TextureCache};
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
-use crate::render::text::Text;
 use crate::render::texture::{AnimatedSprite, AnimatedSpriteBuilder, Frame, Sprite, SpriteBuilder};
 use crate::render::{Renderable, Renderer};
 use lyon::geom::point;
@@ -9,7 +9,7 @@ use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
 use lyon::path::Path;
 use std::time::Instant;
 use wgpu::RenderPass;
-use wgpu_text::glyph_brush::{HorizontalAlign, Layout, SectionBuilder, VerticalAlign};
+use kaku::{HorizontalAlign, Text, TextBuilder};
 
 use super::note::{TaikoModeBarline, TaikoModeNote};
 
@@ -55,18 +55,12 @@ impl Header {
             )?
             .build(&renderer.device);
 
-        let title = SectionBuilder::default()
-            .with_screen_position((1840.0, 20.0))
-            .with_layout(
-                Layout::default()
-                    .h_align(HorizontalAlign::Right)
-                    .v_align(VerticalAlign::Top),
-            )
-            .with_text(vec![wgpu_text::glyph_brush::Text::new(title)
-                .with_color([1.0, 1.0, 1.0, 1.0])
-                .with_scale(120.0)]);
-
-        let title = Text::new_outlined(renderer, &title)?;
+        let title = TextBuilder::new(title, renderer.font("mochiy pop one"), [1880., 20.])
+            .horizontal_align(HorizontalAlign::Right)
+            .font_size(Some(80.))
+            .color([1.0; 4])
+            .outlined([0., 0., 0., 1.], 5.)
+            .build_text(renderer);
 
         Ok(Self { background, title })
     }
@@ -171,11 +165,14 @@ impl NoteField {
 }
 
 const JUDGEMENT_TEXT_DISPLAY_TIME: f32 = 0.5;
-const JUDGEMENT_TEXT_Y: f32 = NOTE_Y - 50.0;
-const JUDGEMENT_TEXT_FLOAT_DIST: f32 = -20.0;
-const JUDGEMENT_TEXT_GOOD_COLOUR: [f32; 4] = [1.0, 198.0 / 255.0, 41.0 / 255.0, 1.0];
-const JUDGEMENT_TEXT_OK_COLOUR: [f32; 4] = [1.0; 4];
-const JUDGEMENT_TEXT_BAD_COLOUR: [f32; 4] = [46.0 / 255.0, 103.0 / 255.0, 209.0 / 255.0, 1.0];
+const JUDGEMENT_TEXT_Y: f32 = NOTE_Y - 50.;
+const JUDGEMENT_TEXT_FLOAT_DIST: f32 = -20.;
+const JUDGEMENT_TEXT_GOOD_COLOUR: [f32; 4] = [1., 202. / 255., 14. / 255., 1.];
+const JUDGEMENT_TEXT_GOOD_OUTLINE_COLOUR: [f32; 4] = [37. / 255., 29./255., 0., 1.];
+const JUDGEMENT_TEXT_OK_COLOUR: [f32; 4] = [1.; 4];
+const JUDGEMENT_TEXT_OK_OUTLINE_COLOUR: [f32; 4] = [21. / 255., 21. / 255., 21. / 255., 1.];
+const JUDGEMENT_TEXT_BAD_COLOUR: [f32; 4] = [46. / 255., 103. / 255., 209. / 255., 1.];
+const JUDGEMENT_TEXT_BAD_OUTLINE_COLOUR: [f32; 4] = [0., 0., 0., 1.];
 
 // TODO: Japanese localisation
 /// A UI element that displays some text indicating how well the player hit the last note.
@@ -189,25 +186,19 @@ pub struct JudgementText {
 
 impl JudgementText {
     pub fn new(renderer: &mut Renderer) -> Self {
-        let mut build_judgement_text = |text, colour| {
-            let section = SectionBuilder::default()
-                .with_screen_position((NOTE_HIT_X, JUDGEMENT_TEXT_Y))
-                .with_layout(
-                    Layout::default()
-                        .h_align(HorizontalAlign::Center)
-                        .v_align(VerticalAlign::Bottom),
-                )
-                .with_text(vec![wgpu_text::glyph_brush::Text::new(text)
-                    .with_color(colour)
-                    .with_scale(50.0)]);
-
-            Text::new_outlined(renderer, &section).unwrap()
+        let mut build_judgement_text = |text, colour, outline_colour| {
+            TextBuilder::new(text, renderer.font("mochiy pop one"), [NOTE_HIT_X, JUDGEMENT_TEXT_Y])
+                .font_size(Some(30.))
+                .horizontal_align(HorizontalAlign::Center)
+                .color(colour)
+                .outlined(outline_colour, 3.)
+                .build_text(renderer)
         };
 
         let judgement_sprites = [
-            build_judgement_text("Good", JUDGEMENT_TEXT_GOOD_COLOUR),
-            build_judgement_text("Ok", JUDGEMENT_TEXT_OK_COLOUR),
-            build_judgement_text("Bad", JUDGEMENT_TEXT_BAD_COLOUR),
+            build_judgement_text("Good", JUDGEMENT_TEXT_GOOD_COLOUR, JUDGEMENT_TEXT_GOOD_OUTLINE_COLOUR),
+            build_judgement_text("Ok", JUDGEMENT_TEXT_OK_COLOUR, JUDGEMENT_TEXT_OK_OUTLINE_COLOUR),
+            build_judgement_text("Bad", JUDGEMENT_TEXT_BAD_COLOUR, JUDGEMENT_TEXT_BAD_OUTLINE_COLOUR),
         ];
 
         Self {
@@ -231,12 +222,9 @@ impl JudgementText {
             }
 
             let progress = elapsed / JUDGEMENT_TEXT_DISPLAY_TIME;
-            let y = JUDGEMENT_TEXT_FLOAT_DIST * progress;
+            let y = JUDGEMENT_TEXT_Y + JUDGEMENT_TEXT_FLOAT_DIST * progress;
             // This sets the position of the text relative to the starting position
-            // TODO: Refactor the text system to not be so jank
-            self.judgement_sprites[index]
-                .sprite
-                .set_position([0.0, y], renderer);
+            self.judgement_sprites[index].set_position([NOTE_HIT_X, y], &renderer.queue);
             // TODO: set transparency using a colour tint
         }
     }
@@ -271,18 +259,11 @@ impl BalloonDisplay {
         .position([575., 130.])
         .build(renderer);
 
-        let section = SectionBuilder::default()
-            .with_screen_position((765., 190.))
-            .with_layout(
-                Layout::default()
-                    .h_align(HorizontalAlign::Center)
-                    .v_align(VerticalAlign::Bottom),
-            )
-            .with_text(vec![wgpu_text::glyph_brush::Text::new("Drumroll!")
-                .with_color([1.0; 4])
-                .with_scale(32.0)]);
-
-        let drumroll_message = Text::new_outlined(renderer, &section)?;
+        let drumroll_message = TextBuilder::new("Drumroll!", renderer.font("mplus bold"), [765., 190.])
+            .color([1.; 4])
+            .font_size(Some(32.))
+            .outlined([0., 0., 0., 1.], 3.)
+            .build_text(renderer);
 
         let balloon_sprite = AnimatedSpriteBuilder::new(vec![
             Frame::new(

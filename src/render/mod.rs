@@ -1,14 +1,10 @@
-use ab_glyph::FontArc;
+use egui_wgpu::ScreenDescriptor;
+use kaku::{ab_glyph::FontVec, FontId, SdfSettings, TextRendererBuilder};
 use anyhow::anyhow;
-use egui_wgpu::renderer::ScreenDescriptor;
 #[cfg(not(debug_assertions))]
 use wgpu::include_wgsl;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu_text::{
-    glyph_brush::{FontId, Section},
-    BrushBuilder,
-};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::App;
@@ -23,8 +19,8 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 mod egui;
 pub mod shapes;
-pub mod text;
 pub mod texture;
+pub mod text;
 
 /// A trait that allows objects to render themselves to the screen in any given render pass. If a
 /// type implements Renderable, then it is able to be rendered by the [RenderPassContext]'s render
@@ -46,9 +42,9 @@ struct ScreenUniform {
 pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub window: Window,
+    pub window: &'static Window,
     size: PhysicalSize<u32>,
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     msaa_view: Option<wgpu::TextureView>,
     depth_view: wgpu::TextureView,
@@ -57,7 +53,7 @@ pub struct Renderer {
     pipeline_cache: Vec<(&'static str, wgpu::RenderPipeline)>,
     font_cache: Vec<(&'static str, FontId)>,
 
-    pub text_brush: wgpu_text::TextBrush,
+    pub text_renderer: kaku::TextRenderer,
     egui_handler: egui::Egui,
 }
 
@@ -148,6 +144,7 @@ fn create_render_pipeline(
             module: shader,
             entry_point: "vs_main",
             buffers: vertex_layouts,
+            compilation_options: Default::default(),
         },
         fragment: Some(wgpu::FragmentState {
             module: shader,
@@ -157,6 +154,7 @@ fn create_render_pipeline(
                 blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
+            compilation_options: Default::default(),
         }),
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
@@ -209,19 +207,19 @@ macro_rules! include_shader {
 }
 
 impl Renderer {
-    pub fn new(window: Window) -> anyhow::Result<Self> {
+    pub fn new(window: &'static Window) -> anyhow::Result<Self> {
         pollster::block_on(Self::new_async(window))
     }
 
-    async fn new_async(window: Window) -> anyhow::Result<Self> {
+    async fn new_async(window: &'static Window) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
 
-        let surface = unsafe { instance.create_surface(&window) }?;
+        let surface = instance.create_surface(window)?;
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -236,8 +234,8 @@ impl Renderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
                 },
                 /*trace_path: */ None,
             )
@@ -260,6 +258,7 @@ impl Renderer {
             present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: surface_capabilities.alpha_modes[0],
             view_formats: vec![],
+            desired_maximum_frame_latency: 2, 
         };
 
         surface.configure(&device, &config);
@@ -392,51 +391,21 @@ impl Renderer {
         let egui_handler = egui::Egui::new(&device, &config, window.scale_factor());
 
         let mut font_cache = Vec::new();
-        let mut text_brush = BrushBuilder::using_fonts(vec![]);
-
-        for font in std::fs::read_dir("assets/fonts")? {
-            let Some(font) = font
-                .ok()
-                .and_then(|f| f.file_name().into_string().ok())
-                .filter(|f| f.ends_with(".ttf"))
-            else {
-                continue;
-            };
-
-            let id = text_brush.add_font(FontArc::try_from_vec(std::fs::read(format!(
-                "assets/fonts/{}",
-                font
-            ))?)?);
-            font_cache.push((font.leak() as &'static str, id));
+        let mut text_renderer = TextRendererBuilder::new(config.format, (config.width, config.height))
+            .with_msaa_sample_count(SAMPLE_COUNT)
+            .with_depth(DEPTH_FORMAT)
+            .build(&device);
+                
+        for (font, filename, size) in [
+            ("mplus bold", "MPLUSRounded1c-Bold.ttf", 50.),
+            ("mplus regular", "MPLUSRounded1c-Regular.ttf", 50.),
+            ("mochiy pop one", "MochiyPopOne-Regular.ttf", 80.)
+        ] {
+            let font_data = FontVec::try_from_vec(std::fs::read(format!("assets/fonts/{filename}"))?)?;
+            let id = text_renderer.load_font_with_sdf(font_data, size, SdfSettings { radius: 10. });
+            font_cache.push((font.to_string().leak() as &'static str, id));
         }
-
-        let text_brush = text_brush.build(&device, config.width, config.height, format);
-
-        let outline_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("outline pipeline layout"),
-                bind_group_layouts: &[
-                    &screen_bind_group_layout,
-                    texture::Texture::bind_group_layout(&device),
-                ],
-                push_constant_ranges: &[],
-            });
-
-        let outline_shader =
-            device.create_shader_module(include_shader!("shaders/outline_shader.wgsl"));
-
-        let outline_pipeline = create_render_pipeline(
-            &device,
-            "outline pipeline",
-            &outline_pipeline_layout,
-            format,
-            None,
-            false,
-            &[texture::TextureVertex::vertex_layout()],
-            &outline_shader,
-            1,
-        );
-
+        
         Ok(Self {
             size,
             surface,
@@ -453,10 +422,9 @@ impl Renderer {
                 ("texture_depth", texture_pipeline_depth),
                 ("primitive", primitive_pipeline),
                 ("primitive_depth", primitive_pipeline_depth),
-                ("outline", outline_pipeline),
             ],
             font_cache,
-            text_brush,
+            text_renderer,
             egui_handler,
         })
     }
@@ -499,24 +467,20 @@ impl Renderer {
                 resolve_target: if SAMPLE_COUNT == 1 { None } else { Some(&view) },
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(CLEAR_COLOUR),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.depth_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
-
-        self.text_brush
-            .queue(&self.device, &self.queue, Vec::<Section>::new())
-            .unwrap();
-
-        render_pass.set_bind_group(0, &self.screen_bind_group, &[]);
 
         // Rendering goes here...
         app.render(self, &mut render_pass);
@@ -558,8 +522,7 @@ impl Renderer {
                 bytemuck::cast_slice(&[screen_uniform]),
             );
 
-            self.text_brush
-                .resize_view(size.width as f32, size.height as f32, &self.queue);
+            self.text_renderer.resize((size.width, size.height), &self.queue);
         }
     }
 
@@ -567,7 +530,7 @@ impl Renderer {
     ///
     /// Returns a bool indicating whether the event was 'captured' by the renderer.
     /// That is, if this returns true, the event should not be processed further.
-    pub fn handle_event<T>(&mut self, event: &winit::event::Event<'_, T>) -> bool {
+    pub fn handle_event<T>(&mut self, event: &winit::event::Event<T>) -> bool {
         self.egui_handler.handle_event(event)
     }
 
@@ -591,16 +554,8 @@ impl Renderer {
         )
     }
 
-    pub fn font(&self, name: &str) -> Option<&FontId> {
-        self.font_cache.iter().find_map(
-            |(n, pipeline)| {
-                if name == *n {
-                    Some(pipeline)
-                } else {
-                    None
-                }
-            },
-        )
+    pub fn font(&self, name: &str) -> FontId {
+        self.font_cache.iter().find(|(n, _)| *n == name).expect("Font does not exist").1
     }
 
     pub fn config(&self) -> &wgpu::SurfaceConfiguration {

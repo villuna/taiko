@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
-use winit::event::VirtualKeyCode;
+use winit::keyboard::{KeyCode, PhysicalKey};
 
 /// The path to the settings file
 pub const SETTINGS_PATH: &str = "taiko_settings.toml";
@@ -36,20 +36,20 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn key_is_don(&self, key: VirtualKeyCode) -> bool {
+    pub fn key_is_don(&self, key: PhysicalKey) -> bool {
         key == self.game.key_mappings.left_don || key == self.game.key_mappings.right_don
     }
 
-    pub fn key_is_kat(&self, key: VirtualKeyCode) -> bool {
+    pub fn key_is_kat(&self, key: PhysicalKey) -> bool {
         key == self.game.key_mappings.left_kat || key == self.game.key_mappings.right_kat
     }
 
-    pub fn key_is_don_or_kat(&self, key: VirtualKeyCode) -> bool {
+    pub fn key_is_don_or_kat(&self, key: PhysicalKey) -> bool {
         self.key_is_don(key) || self.key_is_kat(key)
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(tag = "mode", content = "resolution")]
 pub enum ResolutionState {
     #[default]
@@ -74,10 +74,10 @@ pub struct GameSettings {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct KeyMap {
-    pub left_don: VirtualKeyCode,
-    pub right_don: VirtualKeyCode,
-    pub left_kat: VirtualKeyCode,
-    pub right_kat: VirtualKeyCode,
+    pub left_don: PhysicalKey,
+    pub right_don: PhysicalKey,
+    pub left_kat: PhysicalKey,
+    pub right_kat: PhysicalKey,
 }
 
 impl Default for GameSettings {
@@ -92,10 +92,10 @@ impl Default for GameSettings {
 impl KeyMap {
     const fn default_mapping() -> Self {
         Self {
-            left_don: VirtualKeyCode::F,
-            right_don: VirtualKeyCode::J,
-            left_kat: VirtualKeyCode::D,
-            right_kat: VirtualKeyCode::K,
+            left_don: PhysicalKey::Code(KeyCode::KeyF),
+            right_don: PhysicalKey::Code(KeyCode::KeyJ),
+            left_kat: PhysicalKey::Code(KeyCode::KeyD),
+            right_kat: PhysicalKey::Code(KeyCode::KeyK),
         }
     }
 }

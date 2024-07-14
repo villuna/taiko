@@ -323,6 +323,7 @@ impl SpriteInstanceController {
             frame.texture.index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,
         );
+        render_pass.set_bind_group(0, &renderer.screen_bind_group, &[]);
         render_pass.set_bind_group(1, &frame.texture.bind_group, &[]);
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.draw_indexed(0..6 as _, 0, 0..1);

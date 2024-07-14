@@ -22,7 +22,7 @@ impl GameState for CreditsScreen {
         }
     }
     fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
-        egui::Area::new("Credits")
+        egui::Area::new("Credits".into())
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(&ctx, |ui| {
                 // Main credits

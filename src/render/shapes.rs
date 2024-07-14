@@ -475,6 +475,7 @@ impl Renderable for Shape {
                 .pipeline(pipeline)
                 .unwrap_or_else(|| panic!("{pipeline} render pipeline doesn't exist!")),
         );
+        render_pass.set_bind_group(0, &renderer.screen_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.vertex.slice(..));
         render_pass.set_vertex_buffer(1, self.instance.slice(..));
         render_pass.set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);

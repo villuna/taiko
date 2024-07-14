@@ -4,7 +4,8 @@ use kira::manager::AudioManager;
 use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::sound::PlaybackState;
 use kira::tween::Tween;
-use winit::event::{ElementState, VirtualKeyCode, WindowEvent};
+use winit::event::{ElementState, WindowEvent};
+use winit::keyboard::{KeyCode, PhysicalKey};
 
 use super::note::{
     create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
@@ -278,7 +279,7 @@ impl GameState for TaikoMode {
             self.skip_next_note();
         }
 
-        if ctx.keyboard.is_pressed(VirtualKeyCode::Escape) {
+        if ctx.keyboard.is_pressed(PhysicalKey::Code(KeyCode::Escape)) {
             self.song_handle.stop(Default::default()).unwrap();
             StateTransition::Pop
         } else {
@@ -322,17 +323,15 @@ impl GameState for TaikoMode {
         ctx.render(&self.balloon_display);
     }
 
-    fn handle_event(&mut self, ctx: &mut Context, event: &WindowEvent<'_>) {
+    fn handle_event(&mut self, ctx: &mut Context, event: &WindowEvent) {
         // We handle the note input keyboard events the moment they are received for extra accuracy
-        if let &WindowEvent::KeyboardInput { input, .. } = event {
+        if let &WindowEvent::KeyboardInput { event, .. } = &event {
             let mut note_index = self.next_note_index;
-            let Some(key) = input.virtual_keycode else {
-                return;
-            };
+            let key = event.physical_key;
 
             // Keys have this annoying tendency to repeat presses when held down,
             // so we gotta ensure it's not being held down.
-            let pressed = input.state == ElementState::Pressed && !ctx.keyboard.is_pressed(key);
+            let pressed = event.state == ElementState::Pressed && !ctx.keyboard.is_pressed(key);
 
             if settings().key_is_don_or_kat(key) && pressed {
                 let time = self.note_time();
