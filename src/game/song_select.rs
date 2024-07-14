@@ -1,8 +1,8 @@
 use std::{io, path::Path, rc::Rc};
 
 use crate::{
-    app::credits::CreditsScreen,
     beatmap_parser::{parse_tja_file, Song},
+    game::credits::CreditsScreen,
     render::texture::SpriteBuilder,
 };
 
@@ -20,9 +20,9 @@ use kira::{
 };
 use lazy_static::lazy_static;
 
-use super::taiko_mode::TaikoMode;
-
-use crate::app::{self, GameState, RenderContext, StateTransition, TextureCache};
+use crate::game::{
+    taiko_mode::TaikoMode, Context, GameState, RenderContext, StateTransition, TextureCache,
+};
 
 type SongHandle = StreamingSoundHandle<FromFileError>;
 
@@ -138,7 +138,7 @@ impl SongSelect {
 }
 
 impl GameState for SongSelect {
-    fn update(&mut self, ctx: &mut app::Context, _dt: f32) -> StateTransition {
+    fn update(&mut self, ctx: &mut Context, _dt: f32) -> StateTransition {
         if self.go_to_credits {
             if let Some(handle) = self.song_preview_handle.as_mut() {
                 handle.stop(*OUT_TWEEN).unwrap();

@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use winit::{
     event::{ElementState, KeyEvent, MouseButton, WindowEvent},
-    event_loop::EventLoopWindowTarget, keyboard::{KeyCode, PhysicalKey},
+    event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey},
 };
 
 use crate::render::{self, texture::Texture, Renderable, Renderer};
@@ -183,7 +183,7 @@ impl TextureCache {
     }
 }
 
-pub struct App {
+pub struct Game {
     audio_manager: AudioManager,
     state: Vec<Box<dyn GameState>>,
     keyboard: KeyboardState,
@@ -196,7 +196,7 @@ pub struct App {
     show_fps_counter: bool,
 }
 
-impl App {
+impl Game {
     pub fn new<F>(renderer: &mut render::Renderer, create_state: F) -> anyhow::Result<Self>
     where
         F: FnOnce(&mut render::Renderer, &mut TextureCache) -> Box<dyn GameState>,
@@ -219,7 +219,7 @@ impl App {
 
         let state = create_state(renderer, &mut textures);
 
-        Ok(App {
+        Ok(Game {
             audio_manager,
             state: vec![state],
             keyboard: KeyboardState(HashMap::new()),
@@ -240,7 +240,7 @@ impl App {
         &mut self,
         delta: f32,
         renderer: &mut render::Renderer,
-        event_loop: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
     ) {
         self.fps_timer += delta;
         self.frames_counted += 1;

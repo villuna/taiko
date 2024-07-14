@@ -1,7 +1,7 @@
 use kira::manager::AudioManager;
 
-use crate::app::taiko_mode::PlayResult;
-use crate::app::{Context, GameState, StateTransition};
+use crate::game::taiko_mode::PlayResult;
+use crate::game::{Context, GameState, StateTransition};
 
 struct Score {
     // Some precomputed values to display

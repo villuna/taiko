@@ -7,7 +7,7 @@ use wgpu::include_wgsl;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::app::App;
+use crate::game::Game;
 use shapes::ShapeVertex;
 use texture::TextureVertex;
 
@@ -402,7 +402,7 @@ impl Renderer {
             ("mochiy pop one", "MochiyPopOne-Regular.ttf", 80.)
         ] {
             let font_data = FontVec::try_from_vec(std::fs::read(format!("assets/fonts/{filename}"))?)?;
-            let id = text_renderer.load_font_with_sdf(font_data, size, SdfSettings { radius: 10. });
+            let id = text_renderer.load_font_with_sdf(font_data, size, SdfSettings { radius: 20. });
             font_cache.push((font.to_string().leak() as &'static str, id));
         }
         
@@ -429,7 +429,7 @@ impl Renderer {
         })
     }
 
-    pub fn render(&mut self, app: &mut App) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, app: &mut Game) -> Result<(), wgpu::SurfaceError> {
         let texture = self.surface.get_current_texture()?;
         let view = texture.texture.create_view(&Default::default());
 
@@ -530,12 +530,8 @@ impl Renderer {
     ///
     /// Returns a bool indicating whether the event was 'captured' by the renderer.
     /// That is, if this returns true, the event should not be processed further.
-    pub fn handle_event<T>(&mut self, event: &winit::event::Event<T>) -> bool {
+    pub fn handle_event(&mut self, event: &winit::event::WindowEvent) -> bool {
         self.egui_handler.handle_event(event)
-    }
-
-    pub fn window(&self) -> &Window {
-        &self.window
     }
 
     pub fn size(&self) -> &PhysicalSize<u32> {
@@ -556,13 +552,5 @@ impl Renderer {
 
     pub fn font(&self, name: &str) -> FontId {
         self.font_cache.iter().find(|(n, _)| *n == name).expect("Font does not exist").1
-    }
-
-    pub fn config(&self) -> &wgpu::SurfaceConfiguration {
-        &self.config
-    }
-
-    pub fn screen_bind_group(&self) -> &wgpu::BindGroup {
-        &self.screen_bind_group
     }
 }

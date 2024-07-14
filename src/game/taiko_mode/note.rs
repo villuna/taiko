@@ -6,7 +6,7 @@ use crate::beatmap_parser::track::NoteType;
 use crate::beatmap_parser::{Barline, Note};
 use crate::render::texture::SpriteBuilder;
 use crate::render::Renderer;
-use crate::{app::TextureCache, render::shapes::ShapeBuilder};
+use crate::{game::TextureCache, render::shapes::ShapeBuilder};
 
 use crate::render::{
     shapes::{Shape, SolidColour},

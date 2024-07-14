@@ -1,7 +1,7 @@
 use egui::RichText;
 use kira::manager::AudioManager;
 
-use crate::app::{self, GameState, StateTransition};
+use crate::game::{GameState, StateTransition, Context};
 
 pub struct CreditsScreen {
     exit: bool,
@@ -14,7 +14,7 @@ impl CreditsScreen {
 }
 
 impl GameState for CreditsScreen {
-    fn update(&mut self, _ctx: &mut app::Context, _dt: f32) -> StateTransition {
+    fn update(&mut self, _ctx: &mut Context, _dt: f32) -> StateTransition {
         if self.exit {
             StateTransition::Pop
         } else {

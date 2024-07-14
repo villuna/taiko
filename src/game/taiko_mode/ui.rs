@@ -1,6 +1,6 @@
 use crate::render::text::BuildTextWithRenderer;
-use crate::app::taiko_mode::scene::NoteJudgement;
-use crate::app::{RenderContext, TextureCache};
+use crate::game::taiko_mode::scene::NoteJudgement;
+use crate::game::{RenderContext, TextureCache};
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
 use crate::render::texture::{AnimatedSprite, AnimatedSpriteBuilder, Frame, Sprite, SpriteBuilder};
 use crate::render::{Renderable, Renderer};

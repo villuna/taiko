@@ -1,7 +1,7 @@
 use kaku::{Text, TextBuilder};
 
 use crate::{
-    app::{ui_elements::Button, Context, GameState, RenderContext, StateTransition, TextureCache},
+    game::{ui_elements::Button, Context, GameState, RenderContext, StateTransition, TextureCache},
     render::{
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
         texture::{Sprite, SpriteBuilder},

@@ -12,9 +12,9 @@ use super::note::{
     TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
 };
 use super::ui::{BalloonDisplay, Header, JudgementText, NoteField};
-use crate::app::score_screen::ScoreScreen;
-use crate::app::taiko_mode::note::x_position_of_note;
-use crate::app::{Context, GameState, RenderContext, StateTransition, TextureCache};
+use crate::game::score_screen::ScoreScreen;
+use crate::game::taiko_mode::note::x_position_of_note;
+use crate::game::{Context, GameState, RenderContext, StateTransition, TextureCache};
 use crate::render::texture::SpriteBuilder;
 use crate::settings::{settings, SETTINGS};
 use crate::{
