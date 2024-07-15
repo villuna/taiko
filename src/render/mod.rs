@@ -1,5 +1,5 @@
 use egui_wgpu::ScreenDescriptor;
-use kaku::{ab_glyph::FontVec, FontId, SdfSettings, TextRendererBuilder};
+use kaku::{ab_glyph::FontVec, FontId, SdfSettings, TextRendererBuilder, FontSize};
 use anyhow::anyhow;
 #[cfg(not(debug_assertions))]
 use wgpu::include_wgsl;
@@ -402,7 +402,7 @@ impl Renderer {
             ("mochiy pop one", "MochiyPopOne-Regular.ttf", 80.)
         ] {
             let font_data = FontVec::try_from_vec(std::fs::read(format!("assets/fonts/{filename}"))?)?;
-            let id = text_renderer.load_font_with_sdf(font_data, size, SdfSettings { radius: 20. });
+            let id = text_renderer.load_font_with_sdf(font_data, FontSize::Px(size), SdfSettings { radius: 20. });
             font_cache.push((font.to_string().leak() as &'static str, id));
         }
         

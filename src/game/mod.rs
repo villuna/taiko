@@ -5,6 +5,7 @@ mod song_select;
 mod taiko_mode;
 mod ui_elements;
 
+use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 pub use main_menu::MainMenu;
 pub use song_select::SongSelect;
 
@@ -194,6 +195,8 @@ pub struct Game {
     frames_counted: u32,
     fps: f32,
     show_fps_counter: bool,
+
+    version_text: Text,
 }
 
 impl Game {
@@ -219,6 +222,25 @@ impl Game {
 
         let state = create_state(renderer, &mut textures);
 
+        #[cfg(debug_assertions)]
+        let build = "debug";
+        #[cfg(not(debug_assertions))]
+        let build = "release";
+
+        let version_text = format!(
+            "luna's taiko sim - version {} ({})",
+            env!("CARGO_PKG_VERSION"),
+            build
+        );
+
+        let version_text = TextBuilder::new(version_text, renderer.font("mplus regular"), [1910., 1070.])
+            .horizontal_align(HorizontalAlignment::Right)
+            .vertical_align(VerticalAlignment::Bottom)
+            .font_size(Some(FontSize::Px(16.)))
+            .color([1.; 4])
+            .outlined([0., 0., 0., 1.], 3.5)
+            .build(&renderer.device, &renderer.queue, &mut renderer.text_renderer);
+
         Ok(Game {
             audio_manager,
             state: vec![state],
@@ -233,6 +255,7 @@ impl Game {
             frames_counted: 0,
             fps: 0.0,
             show_fps_counter: false,
+            version_text,
         })
     }
 
@@ -305,7 +328,8 @@ impl Game {
             render_pass,
         };
 
-        self.state.last_mut().unwrap().render(&mut ctx)
+        self.state.last_mut().unwrap().render(&mut ctx);
+        ctx.render(&self.version_text);
     }
 
     pub fn handle_event(&mut self, event: &WindowEvent, renderer: &mut render::Renderer) {

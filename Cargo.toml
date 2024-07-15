@@ -12,7 +12,7 @@ kira = "0.8.5"
 winit = { version = "0.30.3", features = ["serde"] }
 lyon = "1.0.1"
 wgpu = "0.20.1"
-kaku = { git = "https://github.com/villuna/kaku" }
+kaku = "0.1.0"
 bytemuck = { version = "1.13.1", features = ["derive"] }
 env_logger = "0.10.0"
 lazy_static = "1.4.0"
@@ -29,5 +29,5 @@ anyhow = "1.0.79"
 toml = "0.8.10"
 egui = "0.28.1"
 egui-wgpu = "0.28.1"
-egui_winit_platform = { path = "../egui_winit_platform" }
+egui_winit_platform = { git = "https://github.com/hasenbanck/egui_winit_platform" }
 

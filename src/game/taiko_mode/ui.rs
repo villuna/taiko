@@ -9,7 +9,7 @@ use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
 use lyon::path::Path;
 use std::time::Instant;
 use wgpu::RenderPass;
-use kaku::{HorizontalAlign, Text, TextBuilder};
+use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 
 use super::note::{TaikoModeBarline, TaikoModeNote};
 
@@ -56,8 +56,9 @@ impl Header {
             .build(&renderer.device);
 
         let title = TextBuilder::new(title, renderer.font("mochiy pop one"), [1880., 20.])
-            .horizontal_align(HorizontalAlign::Right)
-            .font_size(Some(80.))
+            .horizontal_align(HorizontalAlignment::Right)
+            .vertical_align(VerticalAlignment::Top)
+            .font_size(Some(FontSize::Px(80.)))
             .color([1.0; 4])
             .outlined([0., 0., 0., 1.], 5.)
             .build_text(renderer);
@@ -188,8 +189,8 @@ impl JudgementText {
     pub fn new(renderer: &mut Renderer) -> Self {
         let mut build_judgement_text = |text, colour, outline_colour| {
             TextBuilder::new(text, renderer.font("mochiy pop one"), [NOTE_HIT_X, JUDGEMENT_TEXT_Y])
-                .font_size(Some(30.))
-                .horizontal_align(HorizontalAlign::Center)
+                .font_size(Some(FontSize::Px(30.)))
+                .horizontal_align(HorizontalAlignment::Center)
                 .color(colour)
                 .outlined(outline_colour, 3.)
                 .build_text(renderer)
@@ -261,7 +262,9 @@ impl BalloonDisplay {
 
         let drumroll_message = TextBuilder::new("Drumroll!", renderer.font("mplus bold"), [765., 190.])
             .color([1.; 4])
-            .font_size(Some(32.))
+            .font_size(Some(FontSize::Px(40.)))
+            .horizontal_align(HorizontalAlignment::Center)
+            .vertical_align(VerticalAlignment::Top)
             .outlined([0., 0., 0., 1.], 3.)
             .build_text(renderer);
 

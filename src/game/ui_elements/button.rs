@@ -1,7 +1,7 @@
 use crate::game::Context;
 use crate::render::shapes::{Shape, ShapeBuilder, ShapeVertex, SolidColour};
 use crate::render::text::BuildTextWithRenderer;
-use kaku::{Text, TextBuilder};
+use kaku::{FontSize, Text, TextBuilder};
 use crate::render::Renderable;
 use crate::render::Renderer;
 use lyon::tessellation::FillVertexConstructor;
@@ -24,7 +24,7 @@ impl Button {
         pos: [f32; 2],
         size: [f32; 2],
         col: C,
-        font_size: f32,
+        font_size: FontSize,
         renderer: &mut Renderer,
     ) -> anyhow::Result<Self>
     where
@@ -37,7 +37,8 @@ impl Button {
         let text = TextBuilder::new(text, renderer.font("mplus regular"), text_position)
             .color([1.; 4])
             .font_size(Some(font_size))
-            .horizontal_align(kaku::HorizontalAlign::Center)
+            .horizontal_align(kaku::HorizontalAlignment::Center)
+            .vertical_align(kaku::VerticalAlignment::Middle)
             .build_text(renderer);
 
         let bg = ShapeBuilder::new()

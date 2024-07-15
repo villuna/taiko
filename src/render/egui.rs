@@ -43,8 +43,8 @@ impl Egui {
     /// Returns true if the event is "captured", which means it should not be handled by anything
     /// else (for example, clicking on an egui element should not also click behind it).
     pub fn handle_event(&mut self, event: &WindowEvent) -> bool {
-        self.platform.handle_window_event(event);
-        self.platform.captures_window_event(event)
+        self.platform.handle_event(event);
+        self.platform.captures_event(event)
     }
 
     pub fn begin_render(&mut self) {

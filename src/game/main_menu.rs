@@ -1,4 +1,4 @@
-use kaku::{Text, TextBuilder};
+use kaku::{FontSize, Text, TextBuilder};
 
 use crate::{
     game::{ui_elements::Button, Context, GameState, RenderContext, StateTransition, TextureCache},
@@ -37,38 +37,40 @@ impl MainMenu {
                 [40., 40.],
                 [640., 1040.],
                 12.,
-                SolidColour::new([40. / 255., 40. / 255., 40. / 255., 0.95]),
+                SolidColour::new([51. / 255., 44. / 255., 56. / 255., 0.95]),
             )?
             .build(&renderer.device);
 
-        let title = TextBuilder::new("Unnamed Taiko\nSimulator!", renderer.font("mplus bold"), [100., 95.])
+        let title = TextBuilder::new("Unnamed Taiko\nSimulator Demo!", renderer.font("mplus bold"), [130., 90.])
+            .font_size(Some(FontSize::Px(50.)))
+            .vertical_align(kaku::VerticalAlignment::Top)
             .color([141. / 255., 64. / 255., 1., 1.])
             .build(&renderer.device, &renderer.queue, &mut renderer.text_renderer);
 
         let taiko_mode_button = Button::new(
             "Taiko Mode",
-            [100., 290.],
-            [290., 65.],
-            SolidColour::new([120. / 255., 29. / 255., 29. / 255., 1.]),
-            30.,
+            [120., 290.],
+            [420., 80.],
+            SolidColour::new([236. / 255., 69. / 255., 32. / 255., 1.]),
+            FontSize::Px(30.),
             renderer,
         )?;
 
         let settings_button = Button::new(
             "Settings",
-            [100., 370.],
-            [290., 65.],
-            SolidColour::new([43. / 255., 111. / 255., 27. / 255., 1.]),
-            30.,
+            [120., 400.],
+            [420., 80.],
+            SolidColour::new([4. / 255., 223. / 255., 0., 1.]),
+            FontSize::Px(30.),
             renderer,
         )?;
 
         let exit_button = Button::new(
             "Exit",
-            [100., 930.],
-            [150., 50.],
-            SolidColour::new([72. / 255., 72. / 255., 72. / 255., 1.]),
-            20.,
+            [120., 950.],
+            [170., 50.],
+            SolidColour::new([40. / 255., 40. / 255., 40. / 255., 1.]),
+            FontSize::Px(20.),
             renderer,
         )?;
 

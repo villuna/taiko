@@ -277,30 +277,5 @@ impl GameState for SongSelect {
                 }
             });
         }
-
-        #[cfg(debug_assertions)]
-        let build = "debug";
-
-        #[cfg(not(debug_assertions))]
-        let build = "release";
-
-        egui::Area::new("version".into())
-            .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
-            .show(&ctx, |ui| {
-                ui.with_layout(
-                    egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(false),
-                    |ui| {
-                        ui.label(
-                            egui::RichText::new(format!(
-                                "luna's taiko sim - version {} ({})",
-                                env!("CARGO_PKG_VERSION"),
-                                build,
-                            ))
-                            .color(egui::Color32::from_rgb(255, 255, 255))
-                            .size(15.0),
-                        );
-                    },
-                );
-            });
     }
 }
