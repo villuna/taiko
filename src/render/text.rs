@@ -18,6 +18,10 @@ pub(crate) trait BuildTextWithRenderer {
 
 impl BuildTextWithRenderer for TextBuilder {
     fn build_text(&self, renderer: &mut Renderer) -> Text {
-        self.build(&renderer.device, &renderer.queue, &mut renderer.text_renderer)
+        self.build(
+            &renderer.device,
+            &renderer.queue,
+            &mut renderer.text_renderer,
+        )
     }
 }

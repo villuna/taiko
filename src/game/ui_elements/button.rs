@@ -1,9 +1,9 @@
 use crate::game::Context;
 use crate::render::shapes::{Shape, ShapeBuilder, ShapeVertex, SolidColour};
 use crate::render::text::BuildTextWithRenderer;
-use kaku::{FontSize, Text, TextBuilder};
 use crate::render::Renderable;
 use crate::render::Renderer;
+use kaku::{FontSize, Text, TextBuilder};
 use lyon::tessellation::FillVertexConstructor;
 use winit::event::MouseButton;
 
@@ -30,10 +30,7 @@ impl Button {
     where
         C: FillVertexConstructor<ShapeVertex> + Clone,
     {
-        let text_position = [
-            pos[0] + size[0] / 2.,
-            pos[1] + size[1] / 2.,
-        ];
+        let text_position = [pos[0] + size[0] / 2., pos[1] + size[1] / 2.];
         let text = TextBuilder::new(text, renderer.font("mplus regular"), text_position)
             .color([1.; 4])
             .font_size(Some(font_size))

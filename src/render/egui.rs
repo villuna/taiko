@@ -66,7 +66,10 @@ impl Egui {
         window: &Window,
     ) -> Vec<egui::ClippedPrimitive> {
         let full_output = self.platform.end_frame(Some(window));
-        let paint_jobs = self.platform.context().tessellate(full_output.shapes, full_output.pixels_per_point);
+        let paint_jobs = self
+            .platform
+            .context()
+            .tessellate(full_output.shapes, full_output.pixels_per_point);
         let textures_delta = full_output.textures_delta;
 
         for texture in textures_delta.free.iter() {

@@ -20,7 +20,7 @@ struct TaikoAppInner {
 }
 
 pub struct TaikoApp {
-    inner: Option<TaikoAppInner>,    
+    inner: Option<TaikoAppInner>,
     frame_time: Instant,
     delta: f32,
 }
@@ -35,18 +35,21 @@ impl TaikoApp {
     }
 }
 
-fn create_window(event_loop: &ActiveEventLoop, settings: impl Deref<Target = settings::Settings>) -> Result<Window, OsError> {
+fn create_window(
+    event_loop: &ActiveEventLoop,
+    settings: impl Deref<Target = settings::Settings>,
+) -> Result<Window, OsError> {
     let (resolution, fullscreen) = match settings.visual.resolution {
         settings::ResolutionState::BorderlessFullscreen => {
             (None, Some(Fullscreen::Borderless(None)))
-        },
+        }
         settings::ResolutionState::Windowed(width, height) => {
             (Some(PhysicalSize::new(width, height)), None)
-        },
+        }
         settings::ResolutionState::Fullscreen { .. } => {
-            // TODO: support this i guess? I dunno 
+            // TODO: support this i guess? I dunno
             todo!()
-        },
+        }
     };
 
     let mut attributes = Window::default_attributes()
@@ -63,19 +66,18 @@ fn create_window(event_loop: &ActiveEventLoop, settings: impl Deref<Target = set
 impl ApplicationHandler for TaikoApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if self.inner.is_none() {
-            let window = create_window(event_loop, settings::settings()).expect("Couldn't create window");
+            let window =
+                create_window(event_loop, settings::settings()).expect("Couldn't create window");
             // The window has to stay for the entire duration of the program so this is fine
             // just lets us get around wgpu's surface lifetime limitation
             let window = Box::leak(Box::new(window));
             let mut renderer = Renderer::new(window).expect("Couldn't construct renderer");
             let game = Game::new(&mut renderer, |renderer, textures| {
                 Box::new(MainMenu::new(textures, renderer).unwrap())
-            }).expect("Couldn't initialise game");
+            })
+            .expect("Couldn't initialise game");
 
-            self.inner = Some(TaikoAppInner {
-                renderer,
-                game,
-            });
+            self.inner = Some(TaikoAppInner { renderer, game });
         }
     }
 
@@ -85,7 +87,11 @@ impl ApplicationHandler for TaikoApp {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        let Some(TaikoAppInner { ref mut game, ref mut renderer }) = self.inner else {
+        let Some(TaikoAppInner {
+            ref mut game,
+            ref mut renderer,
+        }) = self.inner
+        else {
             return;
         };
 
@@ -107,7 +113,11 @@ impl ApplicationHandler for TaikoApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let Some(TaikoAppInner { ref mut game, ref mut renderer }) = self.inner else {
+        let Some(TaikoAppInner {
+            ref mut game,
+            ref mut renderer,
+        }) = self.inner
+        else {
             return;
         };
 
@@ -125,6 +135,6 @@ impl ApplicationHandler for TaikoApp {
 
         let time = Instant::now();
         self.delta = time.duration_since(self.frame_time).as_secs_f32();
-        self.frame_time = time;       
+        self.frame_time = time;
     }
 }

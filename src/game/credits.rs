@@ -1,7 +1,7 @@
 use egui::RichText;
 use kira::manager::AudioManager;
 
-use crate::game::{GameState, StateTransition, Context};
+use crate::game::{Context, GameState, StateTransition};
 
 pub struct CreditsScreen {
     exit: bool,

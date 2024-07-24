@@ -1,6 +1,6 @@
-use egui_wgpu::ScreenDescriptor;
-use kaku::{ab_glyph::FontVec, FontId, SdfSettings, TextRendererBuilder, FontSize};
 use anyhow::anyhow;
+use egui_wgpu::ScreenDescriptor;
+use kaku::{ab_glyph::FontVec, FontId, FontSize, SdfSettings, TextRendererBuilder};
 #[cfg(not(debug_assertions))]
 use wgpu::include_wgsl;
 
@@ -19,8 +19,8 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 mod egui;
 pub mod shapes;
-pub mod texture;
 pub mod text;
+pub mod texture;
 
 /// A trait that allows objects to render themselves to the screen in any given render pass. If a
 /// type implements Renderable, then it is able to be rendered by the [RenderPassContext]'s render
@@ -258,7 +258,7 @@ impl Renderer {
             present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: surface_capabilities.alpha_modes[0],
             view_formats: vec![],
-            desired_maximum_frame_latency: 2, 
+            desired_maximum_frame_latency: 2,
         };
 
         surface.configure(&device, &config);
@@ -391,21 +391,27 @@ impl Renderer {
         let egui_handler = egui::Egui::new(&device, &config, window.scale_factor());
 
         let mut font_cache = Vec::new();
-        let mut text_renderer = TextRendererBuilder::new(config.format, (config.width, config.height))
-            .with_msaa_sample_count(SAMPLE_COUNT)
-            .with_depth(DEPTH_FORMAT)
-            .build(&device);
-                
+        let mut text_renderer =
+            TextRendererBuilder::new(config.format, (config.width, config.height))
+                .with_msaa_sample_count(SAMPLE_COUNT)
+                .with_depth(DEPTH_FORMAT)
+                .build(&device);
+
         for (font, filename, size) in [
             ("mplus bold", "MPLUSRounded1c-Bold.ttf", 50.),
             ("mplus regular", "MPLUSRounded1c-Regular.ttf", 50.),
-            ("mochiy pop one", "MochiyPopOne-Regular.ttf", 80.)
+            ("mochiy pop one", "MochiyPopOne-Regular.ttf", 80.),
         ] {
-            let font_data = FontVec::try_from_vec(std::fs::read(format!("assets/fonts/{filename}"))?)?;
-            let id = text_renderer.load_font_with_sdf(font_data, FontSize::Px(size), SdfSettings { radius: 20. });
+            let font_data =
+                FontVec::try_from_vec(std::fs::read(format!("assets/fonts/{filename}"))?)?;
+            let id = text_renderer.load_font_with_sdf(
+                font_data,
+                FontSize::Px(size),
+                SdfSettings { radius: 20. },
+            );
             font_cache.push((font.to_string().leak() as &'static str, id));
         }
-        
+
         Ok(Self {
             size,
             surface,
@@ -522,7 +528,8 @@ impl Renderer {
                 bytemuck::cast_slice(&[screen_uniform]),
             );
 
-            self.text_renderer.resize((size.width, size.height), &self.queue);
+            self.text_renderer
+                .resize((size.width, size.height), &self.queue);
         }
     }
 
@@ -551,6 +558,10 @@ impl Renderer {
     }
 
     pub fn font(&self, name: &str) -> FontId {
-        self.font_cache.iter().find(|(n, _)| *n == name).expect("Font does not exist").1
+        self.font_cache
+            .iter()
+            .find(|(n, _)| *n == name)
+            .expect("Font does not exist")
+            .1
     }
 }

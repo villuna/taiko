@@ -1,15 +1,15 @@
-use crate::render::text::BuildTextWithRenderer;
 use crate::game::taiko_mode::scene::NoteJudgement;
 use crate::game::{RenderContext, TextureCache};
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
+use crate::render::text::BuildTextWithRenderer;
 use crate::render::texture::{AnimatedSprite, AnimatedSpriteBuilder, Frame, Sprite, SpriteBuilder};
 use crate::render::{Renderable, Renderer};
+use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 use lyon::geom::point;
 use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
 use lyon::path::Path;
 use std::time::Instant;
 use wgpu::RenderPass;
-use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 
 use super::note::{TaikoModeBarline, TaikoModeNote};
 
@@ -169,7 +169,7 @@ const JUDGEMENT_TEXT_DISPLAY_TIME: f32 = 0.5;
 const JUDGEMENT_TEXT_Y: f32 = NOTE_Y - 50.;
 const JUDGEMENT_TEXT_FLOAT_DIST: f32 = -20.;
 const JUDGEMENT_TEXT_GOOD_COLOUR: [f32; 4] = [1., 202. / 255., 14. / 255., 1.];
-const JUDGEMENT_TEXT_GOOD_OUTLINE_COLOUR: [f32; 4] = [37. / 255., 29./255., 0., 1.];
+const JUDGEMENT_TEXT_GOOD_OUTLINE_COLOUR: [f32; 4] = [37. / 255., 29. / 255., 0., 1.];
 const JUDGEMENT_TEXT_OK_COLOUR: [f32; 4] = [1.; 4];
 const JUDGEMENT_TEXT_OK_OUTLINE_COLOUR: [f32; 4] = [21. / 255., 21. / 255., 21. / 255., 1.];
 const JUDGEMENT_TEXT_BAD_COLOUR: [f32; 4] = [46. / 255., 103. / 255., 209. / 255., 1.];
@@ -188,18 +188,34 @@ pub struct JudgementText {
 impl JudgementText {
     pub fn new(renderer: &mut Renderer) -> Self {
         let mut build_judgement_text = |text, colour, outline_colour| {
-            TextBuilder::new(text, renderer.font("mochiy pop one"), [NOTE_HIT_X, JUDGEMENT_TEXT_Y])
-                .font_size(Some(FontSize::Px(30.)))
-                .horizontal_align(HorizontalAlignment::Center)
-                .color(colour)
-                .outlined(outline_colour, 3.)
-                .build_text(renderer)
+            TextBuilder::new(
+                text,
+                renderer.font("mochiy pop one"),
+                [NOTE_HIT_X, JUDGEMENT_TEXT_Y],
+            )
+            .font_size(Some(FontSize::Px(30.)))
+            .horizontal_align(HorizontalAlignment::Center)
+            .color(colour)
+            .outlined(outline_colour, 3.)
+            .build_text(renderer)
         };
 
         let judgement_sprites = [
-            build_judgement_text("Good", JUDGEMENT_TEXT_GOOD_COLOUR, JUDGEMENT_TEXT_GOOD_OUTLINE_COLOUR),
-            build_judgement_text("Ok", JUDGEMENT_TEXT_OK_COLOUR, JUDGEMENT_TEXT_OK_OUTLINE_COLOUR),
-            build_judgement_text("Bad", JUDGEMENT_TEXT_BAD_COLOUR, JUDGEMENT_TEXT_BAD_OUTLINE_COLOUR),
+            build_judgement_text(
+                "Good",
+                JUDGEMENT_TEXT_GOOD_COLOUR,
+                JUDGEMENT_TEXT_GOOD_OUTLINE_COLOUR,
+            ),
+            build_judgement_text(
+                "Ok",
+                JUDGEMENT_TEXT_OK_COLOUR,
+                JUDGEMENT_TEXT_OK_OUTLINE_COLOUR,
+            ),
+            build_judgement_text(
+                "Bad",
+                JUDGEMENT_TEXT_BAD_COLOUR,
+                JUDGEMENT_TEXT_BAD_OUTLINE_COLOUR,
+            ),
         ];
 
         Self {
@@ -260,13 +276,14 @@ impl BalloonDisplay {
         .position([575., 130.])
         .build(renderer);
 
-        let drumroll_message = TextBuilder::new("Drumroll!", renderer.font("mplus bold"), [765., 190.])
-            .color([1.; 4])
-            .font_size(Some(FontSize::Px(40.)))
-            .horizontal_align(HorizontalAlignment::Center)
-            .vertical_align(VerticalAlignment::Top)
-            .outlined([0., 0., 0., 1.], 3.)
-            .build_text(renderer);
+        let drumroll_message =
+            TextBuilder::new("Drumroll!", renderer.font("mplus bold"), [765., 190.])
+                .color([1.; 4])
+                .font_size(Some(FontSize::Px(40.)))
+                .horizontal_align(HorizontalAlignment::Center)
+                .vertical_align(VerticalAlignment::Top)
+                .outlined([0., 0., 0., 1.], 3.)
+                .build_text(renderer);
 
         let balloon_sprite = AnimatedSpriteBuilder::new(vec![
             Frame::new(

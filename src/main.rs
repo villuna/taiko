@@ -1,11 +1,11 @@
-mod settings;
-mod beatmap_parser;
-mod render;
-mod game;
 mod app;
+mod beatmap_parser;
+mod game;
+mod render;
+mod settings;
 
-use winit::event_loop::EventLoop;
 use app::TaikoApp;
+use winit::event_loop::EventLoop;
 
 fn main() {
     settings::read_settings();

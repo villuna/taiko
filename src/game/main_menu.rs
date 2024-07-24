@@ -41,11 +41,19 @@ impl MainMenu {
             )?
             .build(&renderer.device);
 
-        let title = TextBuilder::new("Unnamed Taiko\nSimulator Demo!", renderer.font("mplus bold"), [130., 90.])
-            .font_size(Some(FontSize::Px(50.)))
-            .vertical_align(kaku::VerticalAlignment::Top)
-            .color([141. / 255., 64. / 255., 1., 1.])
-            .build(&renderer.device, &renderer.queue, &mut renderer.text_renderer);
+        let title = TextBuilder::new(
+            "Unnamed Taiko\nSimulator Demo!",
+            renderer.font("mplus bold"),
+            [130., 90.],
+        )
+        .font_size(Some(FontSize::Px(50.)))
+        .vertical_align(kaku::VerticalAlignment::Top)
+        .color([141. / 255., 64. / 255., 1., 1.])
+        .build(
+            &renderer.device,
+            &renderer.queue,
+            &mut renderer.text_renderer,
+        );
 
         let taiko_mode_button = Button::new(
             "Taiko Mode",

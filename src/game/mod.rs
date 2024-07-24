@@ -16,7 +16,8 @@ use std::collections::HashMap;
 
 use winit::{
     event::{ElementState, KeyEvent, MouseButton, WindowEvent},
-    event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey},
+    event_loop::ActiveEventLoop,
+    keyboard::{KeyCode, PhysicalKey},
 };
 
 use crate::render::{self, texture::Texture, Renderable, Renderer};
@@ -233,13 +234,18 @@ impl Game {
             build
         );
 
-        let version_text = TextBuilder::new(version_text, renderer.font("mplus regular"), [1910., 1070.])
-            .horizontal_align(HorizontalAlignment::Right)
-            .vertical_align(VerticalAlignment::Bottom)
-            .font_size(Some(FontSize::Px(16.)))
-            .color([1.; 4])
-            .outlined([0., 0., 0., 1.], 3.5)
-            .build(&renderer.device, &renderer.queue, &mut renderer.text_renderer);
+        let version_text =
+            TextBuilder::new(version_text, renderer.font("mplus regular"), [1910., 1070.])
+                .horizontal_align(HorizontalAlignment::Right)
+                .vertical_align(VerticalAlignment::Bottom)
+                .font_size(Some(FontSize::Px(16.)))
+                .color([1.; 4])
+                .outlined([0., 0., 0., 1.], 3.5)
+                .build(
+                    &renderer.device,
+                    &renderer.queue,
+                    &mut renderer.text_renderer,
+                );
 
         Ok(Game {
             audio_manager,
@@ -354,7 +360,10 @@ impl Game {
         {
             self.keyboard.handle_input(event);
 
-            if self.keyboard.is_just_pressed(PhysicalKey::Code(KeyCode::F1)) {
+            if self
+                .keyboard
+                .is_just_pressed(PhysicalKey::Code(KeyCode::F1))
+            {
                 self.show_fps_counter = !self.show_fps_counter;
             }
         }
