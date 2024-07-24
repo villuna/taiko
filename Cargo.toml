@@ -29,5 +29,5 @@ anyhow = "1.0.79"
 toml = "0.8.10"
 egui = "0.28.1"
 egui-wgpu = "0.28.1"
-egui_winit_platform = { git = "https://github.com/hasenbanck/egui_winit_platform" }
+egui_winit_platform = "0.23.0"
 
