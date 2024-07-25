@@ -16,17 +16,22 @@ use self::texture::SpriteInstance;
 macro_rules! rgba {
     ($r:expr, $g:expr, $b:expr, $a:expr) => {
         [
-            {$r} as f32 / 255.,
-            {$g} as f32 / 255.,
-            {$b} as f32 / 255.,
-            {$a} as f32 / 255.,
+            { $r } as f32 / 255.,
+            { $g } as f32 / 255.,
+            { $b } as f32 / 255.,
+            { $a } as f32 / 255.,
         ]
     };
 }
 
 macro_rules! rgb {
     ($r:expr, $g:expr, $b:expr) => {
-        [{$r} as f32 / 255., {$g} as f32 / 255., {$b} as f32 / 255., 1.]
+        [
+            { $r } as f32 / 255.,
+            { $g } as f32 / 255.,
+            { $b } as f32 / 255.,
+            1.,
+        ]
     };
 }
 

@@ -3,14 +3,13 @@ use crate::game::{RenderContext, TextureCache};
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
 use crate::render::text::BuildTextWithRenderer;
 use crate::render::texture::{AnimatedSprite, AnimatedSpriteBuilder, Frame, Sprite, SpriteBuilder};
-use crate::render::{Renderable, Renderer, rgb};
+use crate::render::{rgb, Renderable, Renderer};
 use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 use lyon::geom::point;
 use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
 use lyon::path::Path;
 use std::time::Instant;
 use wgpu::RenderPass;
-
 
 use super::note::{TaikoModeBarline, TaikoModeNote};
 
