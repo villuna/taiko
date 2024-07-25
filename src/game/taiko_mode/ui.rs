@@ -3,7 +3,7 @@ use crate::game::{RenderContext, TextureCache};
 use crate::render::shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour};
 use crate::render::text::BuildTextWithRenderer;
 use crate::render::texture::{AnimatedSprite, AnimatedSpriteBuilder, Frame, Sprite, SpriteBuilder};
-use crate::render::{Renderable, Renderer};
+use crate::render::{Renderable, Renderer, rgb};
 use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 use lyon::geom::point;
 use lyon::lyon_tessellation::{BuffersBuilder, StrokeOptions};
@@ -11,10 +11,11 @@ use lyon::path::Path;
 use std::time::Instant;
 use wgpu::RenderPass;
 
+
 use super::note::{TaikoModeBarline, TaikoModeNote};
 
 // Colours
-pub const HEADER_TOP_COL: [f32; 4] = [30. / 255., 67. / 255., 198. / 255., 0.94];
+pub const HEADER_TOP_COL: [f32; 4] = [30. / 255., 67. / 255., 198. / 255., 1.];
 pub const HEADER_BOTTOM_COL: [f32; 4] = [150. / 255., 90. / 255., 225. / 255., 1.];
 pub const NOTE_FIELD_COL: [f32; 4] = [45. / 255., 45. / 255., 45. / 255., 1.];
 pub const CREAM: [f32; 4] = [1., 235. / 255., 206. / 255., 1.];
@@ -260,9 +261,9 @@ impl Renderable for JudgementText {
 pub struct BalloonDisplay {
     bg_bubble: Sprite,
     drumroll_message: Text,
+    roll_number_text: Text,
     balloon_sprite: AnimatedSprite,
     displaying: bool,
-    // TODO: Text indicating the number of rolls left
 }
 
 impl BalloonDisplay {
@@ -285,6 +286,14 @@ impl BalloonDisplay {
                 .outlined([0., 0., 0., 1.], 3.)
                 .build_text(renderer);
 
+        let roll_number_text = TextBuilder::new("0", renderer.font("mochiy pop one"), [765., 240.])
+            .color(rgb!(0xFF, 0x8E, 0x4B))
+            .font_size(Some(FontSize::Px(80.)))
+            .horizontal_align(HorizontalAlignment::Center)
+            .vertical_align(VerticalAlignment::Top)
+            .outlined(rgb!(0x60, 0x2B, 0x0C), 3.)
+            .build_text(renderer);
+
         let balloon_sprite = AnimatedSpriteBuilder::new(vec![
             Frame::new(
                 textures.get(&renderer.device, &renderer.queue, "balloon 1.png")?,
@@ -306,6 +315,7 @@ impl BalloonDisplay {
             bg_bubble,
             drumroll_message,
             balloon_sprite,
+            roll_number_text,
             displaying: false,
         })
     }
@@ -317,7 +327,7 @@ impl BalloonDisplay {
     }
 
     /// Displays the balloon and number of hits left
-    pub fn hit(&mut self, hits_left: u32, _hit_target: u32) {
+    pub fn hit(&mut self, hits_left: u32, hit_target: u32, renderer: &mut Renderer) {
         if !self.displaying {
             self.displaying = true;
         }
@@ -325,6 +335,25 @@ impl BalloonDisplay {
         if hits_left == 0 {
             self.displaying = false;
         }
+
+        self.roll_number_text.set_text(
+            format!("{hits_left}"),
+            &renderer.device,
+            &renderer.queue,
+            &mut renderer.text_renderer,
+        );
+
+        let ratio = hits_left as f32 / hit_target as f32;
+
+        let image_index = if ratio > 0.8 {
+            0
+        } else if ratio > 0.4 {
+            1
+        } else {
+            2
+        };
+
+        self.balloon_sprite.set_index(image_index, renderer);
     }
 
     /// Plays the animation for popping the balloon
@@ -345,6 +374,7 @@ impl Renderable for BalloonDisplay {
             self.balloon_sprite.render(renderer, render_pass);
             self.bg_bubble.render(renderer, render_pass);
             self.drumroll_message.render(renderer, render_pass);
+            self.roll_number_text.render(renderer, render_pass);
         }
     }
 }

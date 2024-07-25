@@ -378,7 +378,7 @@ impl GameState for TaikoMode {
                             hit_target,
                         } => {
                             self.results.drumrolls += 1;
-                            self.balloon_display.hit(hits_left, hit_target);
+                            self.balloon_display.hit(hits_left, hit_target, &mut ctx.renderer);
 
                             if hits_left == 0 {
                                 self.next_note_index = note_index + 1;

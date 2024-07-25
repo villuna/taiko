@@ -13,6 +13,26 @@ use texture::TextureVertex;
 
 use self::texture::SpriteInstance;
 
+macro_rules! rgba {
+    ($r:expr, $g:expr, $b:expr, $a:expr) => {
+        [
+            {$r} as f32 / 255.,
+            {$g} as f32 / 255.,
+            {$b} as f32 / 255.,
+            {$a} as f32 / 255.,
+        ]
+    };
+}
+
+macro_rules! rgb {
+    ($r:expr, $g:expr, $b:expr) => {
+        [{$r} as f32 / 255., {$g} as f32 / 255., {$b} as f32 / 255., 1.]
+    };
+}
+
+pub(crate) use rgb;
+pub(crate) use rgba;
+
 const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -247,7 +267,7 @@ impl Renderer {
             .formats
             .iter()
             .copied()
-            .find(|f| f.is_srgb())
+            .find(|f| !f.is_srgb())
             .unwrap_or(surface_capabilities.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {

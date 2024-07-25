@@ -41,7 +41,10 @@ fn vs_main(in: VertexInput, instance: Instance) -> VertexOutput {
 
     out.clip_position = screen_matrix * vec4<f32>(in.position + instance.world_position, 1.0);
     out.clip_position.z = quick_sigmoid(out.clip_position.z);
-    out.colour = vec4<f32>(pow(in.colour.xyz, vec3<f32>(2.2)), in.colour.w);
+    // For non-srgb:
+    out.colour = in.colour;
+    // // For srgb:
+    // out.colour = vec4<f32>(pow(in.colour.xyz, vec3<f32>(2.2)), in.colour.w);
     return out;
 }
 
