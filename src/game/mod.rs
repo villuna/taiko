@@ -238,9 +238,9 @@ impl Game {
             TextBuilder::new(version_text, renderer.font("mplus regular"), [1910., 1070.])
                 .horizontal_align(HorizontalAlignment::Right)
                 .vertical_align(VerticalAlignment::Bottom)
-                .font_size(Some(FontSize::Px(16.)))
+                .font_size(Some(FontSize::Px(18.)))
                 .color([1.; 4])
-                .outlined([0., 0., 0., 1.], 3.5)
+                .outlined([0., 0., 0., 1.], 2.)
                 .build(
                     &renderer.device,
                     &renderer.queue,

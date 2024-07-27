@@ -1237,9 +1237,9 @@ dependencies = [
 
 [[package]]
 name = "kaku"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94ed765f471b603676ca06bca2f05d95786d8cbfa25e72d080a03b115f9257e8"
+checksum = "465146e418595e34a13d23eed5a865f996d309e36ee23b40e60aeb7ca4ea4bff"
 dependencies = [
  "ab_glyph",
  "ahash",

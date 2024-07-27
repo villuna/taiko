@@ -12,7 +12,7 @@ kira = "0.8.5"
 winit = { version = "0.30.3", features = ["serde"] }
 lyon = "1.0.1"
 wgpu = "0.20.1"
-kaku = "0.1.0"
+kaku = "0.1.1"
 bytemuck = { version = "1.13.1", features = ["derive"] }
 env_logger = "0.10.0"
 lazy_static = "1.4.0"
