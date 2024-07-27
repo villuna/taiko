@@ -102,15 +102,15 @@ impl Default for Song {
     }
 }
 
-/// A single difficulty setting and its associated track.
+/// A single difficulty setting and its associated chart.
 ///
-/// TODO: currently this cannot handle "Diverge Notes". see [NoteTrack]
+/// TODO: currently this cannot handle "Diverge Notes". see [NoteChart]
 /// for details. It also cannot handle multiple tracks for different
 /// players.
 #[derive(Debug, Clone)]
 pub struct Difficulty {
     pub star_level: u8,
-    pub track: NoteTrack,
+    pub chart: NoteChart,
 }
 
 /// The notes for a single difficulty setting.
@@ -119,7 +119,7 @@ pub struct Difficulty {
 /// we will have to handle songs with multiple streams that switch
 /// depending on the player's performance ("diverge notes").
 #[derive(Default, Debug, Clone)]
-pub struct NoteTrack {
+pub struct NoteChart {
     pub notes: Vec<Note>,
     pub barlines: Vec<Barline>,
 }

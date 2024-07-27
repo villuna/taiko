@@ -2,8 +2,8 @@
 use lyon::lyon_tessellation::TessellationError;
 use winit::keyboard::PhysicalKey;
 
-use crate::beatmap_parser::track::NoteType;
-use crate::beatmap_parser::{Barline, Note};
+use crate::notechart_parser::NoteType;
+use crate::notechart_parser::{Barline, Note};
 use crate::render::texture::SpriteBuilder;
 use crate::render::Renderer;
 use crate::{game::TextureCache, render::shapes::ShapeBuilder};

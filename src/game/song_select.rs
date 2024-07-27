@@ -1,8 +1,8 @@
 use std::{io, path::Path, rc::Rc};
 
 use crate::{
-    beatmap_parser::{parse_tja_file, Song},
     game::credits::CreditsScreen,
+    notechart_parser::{parse_tja_file, Song},
     render::texture::SpriteBuilder,
 };
 

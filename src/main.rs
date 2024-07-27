@@ -1,6 +1,6 @@
 mod app;
-mod beatmap_parser;
 mod game;
+mod notechart_parser;
 mod render;
 mod settings;
 

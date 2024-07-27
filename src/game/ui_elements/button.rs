@@ -1,8 +1,8 @@
 use crate::game::Context;
 use crate::render::shapes::{Shape, ShapeBuilder, SolidColour};
 use crate::render::text::BuildTextWithRenderer;
-use crate::render::{rgb, Renderable};
 use crate::render::Renderer;
+use crate::render::{rgb, Renderable};
 use kaku::{FontSize, Text, TextBuilder};
 use winit::event::MouseButton;
 
@@ -59,22 +59,44 @@ impl Button {
 
         let bg = ShapeBuilder::new()
             .position([pos[0], pos[1], 0.])
-            .filled_roundrect([0., 0.], options.size, 12., SolidColour::new(options.colour))?
+            .filled_roundrect(
+                [0., 0.],
+                options.size,
+                12.,
+                SolidColour::new(options.colour),
+            )?
             .build(&renderer.device);
 
         let hover_overlay = ShapeBuilder::new()
             .position([pos[0], pos[1], 0.])
-            .filled_roundrect([0., 0.], options.size, 12., SolidColour::new([1., 1., 1., 0.1]))?
+            .filled_roundrect(
+                [0., 0.],
+                options.size,
+                12.,
+                SolidColour::new([1., 1., 1., 0.1]),
+            )?
             .build(&renderer.device);
 
         let outline = ShapeBuilder::new()
             .position([pos[0], pos[1], 0.])
-            .stroke_roundrect([0., 0.], options.size, 12., SolidColour::new(rgb!(0x24, 0x24, 0x24)), 3.)?
+            .stroke_roundrect(
+                [0., 0.],
+                options.size,
+                12.,
+                SolidColour::new(rgb!(0x24, 0x24, 0x24)),
+                3.,
+            )?
             .build(&renderer.device);
 
         let hover_outline = ShapeBuilder::new()
             .position([pos[0] + 1., pos[1] + 1., 0.])
-            .stroke_roundrect([0., 0.], [options.size[0] - 2., options.size[1] - 2.], 12., SolidColour::new([1.; 4]), 2.)?
+            .stroke_roundrect(
+                [0., 0.],
+                [options.size[0] - 2., options.size[1] - 2.],
+                12.,
+                SolidColour::new([1.; 4]),
+                2.,
+            )?
             .build(&renderer.device);
 
         let shadow = ShapeBuilder::new()

@@ -1,7 +1,10 @@
 use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 
 use crate::{
-    game::{ui_elements::{Button, ButtonOptions}, Context, GameState, RenderContext, StateTransition, TextureCache},
+    game::{
+        ui_elements::{Button, ButtonOptions},
+        Context, GameState, RenderContext, StateTransition, TextureCache,
+    },
     render::{
         rgb,
         shapes::{LinearGradient, Shape, ShapeBuilder, SolidColour},
@@ -42,7 +45,7 @@ impl MainMenu {
                 [40., 940.],
                 [640., 1040.],
                 50.,
-                SolidColour::new(rgb!(0xFF, 0xEB, 0xCE))
+                SolidColour::new(rgb!(0xFF, 0xEB, 0xCE)),
             )?
             .filled_rectangle(
                 [40., 280.],
@@ -54,7 +57,7 @@ impl MainMenu {
                 [640., 1040.],
                 50.,
                 SolidColour::new(rgb!(0, 0, 0.)),
-                5.
+                5.,
             )?
             .build(&renderer.device);
 

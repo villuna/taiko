@@ -12,7 +12,7 @@ use nom::{
     Finish, IResult, Parser,
 };
 
-use super::track::{Barline, Difficulty, Note, NoteTrack, NoteType, Song};
+use super::chart::{Barline, Difficulty, Note, NoteChart, NoteType, Song};
 /// Types of errors that can be encountered while parsing a TJA file. This is used in the
 /// [TJAParseError] struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -464,7 +464,7 @@ fn construct_difficulty(
     metadata: &HashMap<&str, (usize, &str)>,
     course_line_number: usize,
 ) -> Result<Difficulty, TJAParseError> {
-    let mut track = NoteTrack::default();
+    let mut chart = NoteChart::default();
 
     // Various metadata needed for constructing the track
     // The time signature, as numerator divided by denominator (musicians might
@@ -719,13 +719,13 @@ fn construct_difficulty(
         });
     }
 
-    track.notes = track_notes;
-    track.notes.shrink_to_fit();
+    chart.notes = track_notes;
+    chart.notes.shrink_to_fit();
 
     let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None, Some(course_line_number))?;
-    track.barlines = barlines;
+    chart.barlines = barlines;
 
-    Ok(Difficulty { star_level, track })
+    Ok(Difficulty { star_level, chart })
 }
 
 /// Parses a TJA file into a [Song] struct.

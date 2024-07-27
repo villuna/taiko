@@ -18,7 +18,7 @@ use crate::game::{Context, GameState, RenderContext, StateTransition, TextureCac
 use crate::render::texture::SpriteBuilder;
 use crate::settings::{settings, SETTINGS};
 use crate::{
-    beatmap_parser::Song,
+    notechart_parser::Song,
     render::{
         shapes::{Shape, ShapeBuilder, SolidColour},
         texture::Sprite,
@@ -201,7 +201,7 @@ impl TaikoMode {
         let track = &song.difficulties[difficulty]
             .as_ref()
             .expect("Difficulty doesn't exist!")
-            .track;
+            .chart;
 
         Ok(Self {
             song_name: song.title.clone(),
