@@ -239,7 +239,7 @@ impl JudgementText {
             }
 
             let progress = elapsed / JUDGEMENT_TEXT_DISPLAY_TIME;
-            let y = JUDGEMENT_TEXT_Y + JUDGEMENT_TEXT_FLOAT_DIST * (progress * 1.5 + 1.).ln();
+            let y = JUDGEMENT_TEXT_Y + JUDGEMENT_TEXT_FLOAT_DIST * 0.7 * (progress * 2. + 1.).ln();
             // This sets the position of the text relative to the starting position
             self.judgement_sprites[index].set_position([NOTE_HIT_X, y], &renderer.queue);
             // TODO: set transparency using a colour tint
