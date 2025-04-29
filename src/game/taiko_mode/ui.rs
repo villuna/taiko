@@ -18,7 +18,7 @@ pub const HEADER_TOP_COL: [f32; 4] = [30. / 255., 67. / 255., 198. / 255., 1.];
 pub const HEADER_BOTTOM_COL: [f32; 4] = [150. / 255., 90. / 255., 225. / 255., 1.];
 pub const NOTE_FIELD_COL: [f32; 4] = [45. / 255., 45. / 255., 45. / 255., 1.];
 pub const CREAM: [f32; 4] = [1., 235. / 255., 206. / 255., 1.];
-pub const RECEPTACLE_COL: [f32; 4] = [0.26, 0.26, 0.26, 1.0];
+pub const RETICLE_COL: [f32; 4] = [0.26, 0.26, 0.26, 1.0];
 pub const LEFT_PANEL_TOP_COL: [f32; 4] = [1., 73. / 255., 73. / 255., 1.];
 pub const LEFT_PANEL_BOTTOM_COL: [f32; 4] = [229. / 255., 41. / 255., 41. / 255., 1.];
 
@@ -98,7 +98,7 @@ impl NoteField {
                 [1920., NOTE_FIELD_Y + NOTE_FIELD_HEIGHT + SPACER_WIDTH],
                 SolidColour::new(CREAM),
             )?
-            // Note recepticle
+            // Note reticle
             .stroke_shape(|tess, out| {
                 let mut path = Path::builder();
                 path.begin(point(NOTE_HIT_X, NOTE_Y - NOTE_FIELD_HEIGHT / 2.0));
@@ -106,7 +106,7 @@ impl NoteField {
                 path.end(false);
 
                 let options = StrokeOptions::DEFAULT.with_line_width(4.0);
-                let mut builder = BuffersBuilder::new(out, SolidColour::new(RECEPTACLE_COL));
+                let mut builder = BuffersBuilder::new(out, SolidColour::new(RETICLE_COL));
 
                 // A line that shows exactly where notes should be hit
                 tess.tessellate_path(&path.build(), &options, &mut builder)?;
