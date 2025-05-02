@@ -5,6 +5,8 @@
 //! so when constructing more complicated shapes you may need to interface with it (for example, in
 //! the `ShapeBuilder`'s `filled_shape` and `stroke_shape` methods)
 
+use crate::include_shader;
+use crate::render::DEPTH_FORMAT;
 use lyon::geom::vector;
 use lyon::math::Angle;
 use lyon::path::Winding;
@@ -22,7 +24,7 @@ use wgpu::{
     vertex_attr_array,
 };
 
-use super::{Renderable, Renderer, SpriteInstance};
+use super::{create_render_pipeline, Renderable, Renderer, SpriteInstance, SAMPLE_COUNT};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Zeroable, bytemuck::Pod)]
@@ -161,7 +163,7 @@ pub struct Shape {
     index: wgpu::Buffer,
     instance: wgpu::Buffer,
     indices: u32,
-    has_depth: bool,
+    pipeline: &'static str,
 }
 
 /// A builder for creating complicated shapes made up of multiple primitives
@@ -169,7 +171,7 @@ pub struct ShapeBuilder {
     output: VertexBuffers<ShapeVertex, u32>,
     fill_tesselator: FillTessellator,
     stroke_tesselator: StrokeTessellator,
-    has_depth: bool,
+    pipeline: &'static str,
     position: [f32; 3],
 }
 
@@ -182,7 +184,7 @@ impl ShapeBuilder {
             output: VertexBuffers::new(),
             fill_tesselator: FillTessellator::new(),
             stroke_tesselator: StrokeTessellator::new(),
-            has_depth: false,
+            pipeline: "primitive",
             position: [0.; 3],
         }
     }
@@ -215,22 +217,34 @@ impl ShapeBuilder {
             index,
             instance,
             indices: self.output.indices.len() as _,
-            has_depth: self.has_depth,
+            pipeline: self.pipeline,
         }
     }
 
-    /// Sets whether or not the shape will be drawn respecting depth.
+    /// Makes the shape respect depth.
     ///
-    /// If not, then whenever this shape is drawn, its pixels will simply be drawn to the screen
-    /// over whatever was there previously, without writing to the z buffer.
+    /// By default, whenever this shape is drawn its pixels will simply be drawn to the screen
+    /// over whatever was there previously, without writing to the z buffer. If this is set, the
+    /// shape will not be drawn over other pixels that have a lower z value.
     ///
-    /// Defaults to false.
-    pub fn has_depth(mut self, has_depth: bool) -> Self {
-        self.has_depth = has_depth;
+    /// This does not work with custom render pipelines - calling this function is equivalent to
+    /// calling `ShapeBuilder::with_pipeline("primitive depth")`. If you want your custom pipeline
+    /// to respect depth, you must write that into the shader manually.
+    pub fn has_depth(mut self) -> Self {
+        self.pipeline = "primitive depth";
         self
     }
 
-    /// Sets the base position of the entire shape.
+    /// Sets the shape to be drawn with a custom render pipeline.
+    ///
+    /// This pipeline must correspond with a pipeline in the [super::Renderer]'s shader cache, or
+    /// the shape will crash at runtime when you try to render it.
+    pub fn with_pipeline(mut self, pipeline: &'static str) -> Self {
+        self.pipeline = pipeline;
+        self
+    }
+
+    /// Sets the position of the shape.
     pub fn position(mut self, position: [f32; 3]) -> Self {
         self.position = position;
         self
@@ -464,16 +478,10 @@ impl Renderable for Shape {
         renderer: &'pass Renderer,
         render_pass: &mut wgpu::RenderPass<'pass>,
     ) {
-        let pipeline = if self.has_depth {
-            "primitive_depth"
-        } else {
-            "primitive"
-        };
-
         render_pass.set_pipeline(
-            renderer
-                .pipeline(pipeline)
-                .unwrap_or_else(|| panic!("{pipeline} render pipeline doesn't exist!")),
+            renderer.pipeline(self.pipeline).unwrap_or_else(|| {
+                panic!("There is no render pipeline named \"{}\"", self.pipeline)
+            }),
         );
         render_pass.set_bind_group(0, &renderer.screen_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.vertex.slice(..));
@@ -481,4 +489,54 @@ impl Renderable for Shape {
         render_pass.set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint32);
         render_pass.draw_indexed(0..self.indices, 0, 0..1);
     }
+}
+
+/// Creates the pipelines (no depth and depth) needed to render shapes
+/// This is called in render/mod.rs
+pub fn create_primitive_pipelines(
+    device: &wgpu::Device,
+    screen_bgl: &wgpu::BindGroupLayout,
+    config: &wgpu::SurfaceConfiguration,
+) -> (wgpu::RenderPipeline, wgpu::RenderPipeline) {
+    let primitive_pipeline_layout =
+        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Primitive pipeline layout"),
+            bind_group_layouts: &[screen_bgl],
+            push_constant_ranges: &[],
+        });
+
+    let primitive_shader =
+        device.create_shader_module(include_shader!("shaders/primitive_shader.wgsl"));
+
+    let primitive_pipeline = create_render_pipeline(
+        &device,
+        "primitive pipeline",
+        &primitive_pipeline_layout,
+        config.format,
+        Some(DEPTH_FORMAT),
+        false,
+        &[
+            ShapeVertex::vertex_layout(),
+            SpriteInstance::vertex_layout(),
+        ],
+        &primitive_shader,
+        SAMPLE_COUNT,
+    );
+
+    let primitive_pipeline_depth = create_render_pipeline(
+        &device,
+        "primitive pipeline",
+        &primitive_pipeline_layout,
+        config.format,
+        Some(DEPTH_FORMAT),
+        true,
+        &[
+            ShapeVertex::vertex_layout(),
+            SpriteInstance::vertex_layout(),
+        ],
+        &primitive_shader,
+        SAMPLE_COUNT,
+    );
+
+    (primitive_pipeline, primitive_pipeline_depth)
 }

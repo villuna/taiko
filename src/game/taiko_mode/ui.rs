@@ -175,7 +175,6 @@ const JUDGEMENT_TEXT_OK_OUTLINE_COLOUR: [f32; 4] = [21. / 255., 21. / 255., 21. 
 const JUDGEMENT_TEXT_BAD_COLOUR: [f32; 4] = [46. / 255., 103. / 255., 209. / 255., 1.];
 const JUDGEMENT_TEXT_BAD_OUTLINE_COLOUR: [f32; 4] = [0., 0., 0., 1.];
 
-// TODO: Japanese localisation
 /// A UI element that displays some text indicating how well the player hit the last note.
 /// The text is displayed for a short time while moving upwards, and becomes transparent as it ages.
 pub struct JudgementText {

@@ -1,15 +1,13 @@
 use anyhow::anyhow;
 use egui_wgpu::ScreenDescriptor;
 use kaku::{ab_glyph::FontVec, FontId, FontSize, SdfSettings, TextRendererBuilder};
-#[cfg(not(debug_assertions))]
-use wgpu::include_wgsl;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::game::Game;
-use shapes::ShapeVertex;
-use texture::TextureVertex;
+use crate::game::{create_health_bar_pipeline, Game};
+use shapes::create_primitive_pipelines;
+use texture::create_texture_pipelines;
 
 use self::texture::SpriteInstance;
 
@@ -38,9 +36,9 @@ macro_rules! rgb {
 pub(crate) use rgb;
 pub(crate) use rgba;
 
-const SAMPLE_COUNT: u32 = 4;
+pub const SAMPLE_COUNT: u32 = 4;
 const CLEAR_COLOUR: wgpu::Color = wgpu::Color::BLACK;
-const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 mod egui;
 pub mod shapes;
@@ -151,7 +149,7 @@ fn create_msaa_texture(
         .create_view(&Default::default())
 }
 
-fn create_render_pipeline(
+pub fn create_render_pipeline(
     device: &wgpu::Device,
     label: &str,
     layout: &wgpu::PipelineLayout,
@@ -211,6 +209,7 @@ fn create_render_pipeline(
 
 // An extension of the include_wgsl macro that only includes the shaders at compile time if
 // building for release version
+#[macro_export]
 macro_rules! include_shader {
     ($($token:tt)*) => {{
         #[cfg(debug_assertions)]
@@ -218,15 +217,15 @@ macro_rules! include_shader {
             let path = { $($token)* };
             let full_path = format!("{}/src/render/{}", env!("CARGO_MANIFEST_DIR"), path);
 
-            wgpu::ShaderModuleDescriptor {
+            ::wgpu::ShaderModuleDescriptor {
                 label: Some(path),
-                source: wgpu::ShaderSource::Wgsl(std::fs::read_to_string(full_path).unwrap().into())
+                source: ::wgpu::ShaderSource::Wgsl(::std::fs::read_to_string(full_path).unwrap().into())
             }
         }
 
         #[cfg(not(debug_assertions))]
         {
-            include_wgsl!($($token)*)
+            ::wgpu::include_wgsl!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/render/", $($token)*))
         }
     }}
 }
@@ -329,88 +328,14 @@ impl Renderer {
             }],
         });
 
-        let primitive_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Primitive pipeline layout"),
-                bind_group_layouts: &[&screen_bind_group_layout],
-                push_constant_ranges: &[],
-            });
+        let (primitive_pipeline, primitive_pipeline_depth) =
+            create_primitive_pipelines(&device, &screen_bind_group_layout, &config);
 
-        let primitive_shader =
-            device.create_shader_module(include_shader!("shaders/primitive_shader.wgsl"));
+        let (texture_pipeline, texture_pipeline_depth) =
+            create_texture_pipelines(&device, &screen_bind_group_layout, &config);
 
-        let primitive_pipeline = create_render_pipeline(
-            &device,
-            "primitive pipeline",
-            &primitive_pipeline_layout,
-            config.format,
-            Some(DEPTH_FORMAT),
-            false,
-            &[
-                ShapeVertex::vertex_layout(),
-                SpriteInstance::vertex_layout(),
-            ],
-            &primitive_shader,
-            SAMPLE_COUNT,
-        );
-
-        let primitive_pipeline_depth = create_render_pipeline(
-            &device,
-            "primitive pipeline",
-            &primitive_pipeline_layout,
-            config.format,
-            Some(DEPTH_FORMAT),
-            true,
-            &[
-                ShapeVertex::vertex_layout(),
-                SpriteInstance::vertex_layout(),
-            ],
-            &primitive_shader,
-            SAMPLE_COUNT,
-        );
-
-        let texture_shader =
-            device.create_shader_module(include_shader!("shaders/texture_shader.wgsl"));
-
-        let texture_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("texture pipeline layout"),
-                bind_group_layouts: &[
-                    &screen_bind_group_layout,
-                    texture::Texture::bind_group_layout(&device),
-                ],
-                push_constant_ranges: &[],
-            });
-
-        let texture_pipeline = create_render_pipeline(
-            &device,
-            "texture pipeline",
-            &texture_pipeline_layout,
-            format,
-            Some(DEPTH_FORMAT),
-            false,
-            &[
-                TextureVertex::vertex_layout(),
-                SpriteInstance::vertex_layout(),
-            ],
-            &texture_shader,
-            SAMPLE_COUNT,
-        );
-
-        let texture_pipeline_depth = create_render_pipeline(
-            &device,
-            "texture pipeline with depth",
-            &texture_pipeline_layout,
-            format,
-            Some(DEPTH_FORMAT),
-            true,
-            &[
-                TextureVertex::vertex_layout(),
-                SpriteInstance::vertex_layout(),
-            ],
-            &texture_shader,
-            SAMPLE_COUNT,
-        );
+        let health_bar_pipeline =
+            create_health_bar_pipeline(&device, &screen_bind_group_layout, &config);
 
         let depth_view = create_depth_texture(&device, &size);
         let egui_handler = egui::Egui::new(&device, &config, window.scale_factor());
@@ -435,6 +360,7 @@ impl Renderer {
                 SdfSettings { radius: 20. },
             );
             font_cache.push((font.to_string().leak() as &'static str, id));
+            text_renderer.generate_char_textures('0'..'9', id, &device, &queue);
         }
 
         Ok(Self {
@@ -450,9 +376,10 @@ impl Renderer {
             screen_bind_group,
             pipeline_cache: vec![
                 ("texture", texture_pipeline),
-                ("texture_depth", texture_pipeline_depth),
+                ("texture depth", texture_pipeline_depth),
                 ("primitive", primitive_pipeline),
-                ("primitive_depth", primitive_pipeline_depth),
+                ("primitive depth", primitive_pipeline_depth),
+                ("health bar", health_bar_pipeline),
             ],
             font_cache,
             text_renderer,

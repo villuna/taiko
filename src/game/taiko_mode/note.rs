@@ -185,7 +185,7 @@ impl NoteInner {
             let dy = -height / 2.;
 
             Ok(ShapeBuilder::new()
-                .has_depth(true)
+                .has_depth()
                 // Outline
                 .filled_rectangle(
                     [0., dy],

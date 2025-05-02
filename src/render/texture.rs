@@ -7,7 +7,9 @@ use wgpu::{
     vertex_attr_array, RenderPass,
 };
 
-use super::{Renderable, Renderer};
+use crate::include_shader;
+
+use super::{create_render_pipeline, Renderable, Renderer, DEPTH_FORMAT, SAMPLE_COUNT};
 
 static TEXTURE_BIND_GROUP_LAYOUT: OnceLock<wgpu::BindGroupLayout> = OnceLock::new();
 
@@ -312,7 +314,7 @@ impl SpriteInstanceController {
         render_pass.set_pipeline(
             renderer
                 .pipeline(if self.depth.is_some() {
-                    "texture_depth"
+                    "texture depth"
                 } else {
                     "texture"
                 })
@@ -644,4 +646,53 @@ impl AnimatedSpriteBuilder {
             },
         }
     }
+}
+
+/// Creates the pipelines (no depth and depth) needed to render textures
+/// This is called in render/mod.rs
+pub fn create_texture_pipelines(
+    device: &wgpu::Device,
+    screen_bgl: &wgpu::BindGroupLayout,
+    config: &wgpu::SurfaceConfiguration,
+) -> (wgpu::RenderPipeline, wgpu::RenderPipeline) {
+    let texture_shader =
+        device.create_shader_module(include_shader!("shaders/texture_shader.wgsl"));
+
+    let texture_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("texture pipeline layout"),
+        bind_group_layouts: &[&screen_bgl, Texture::bind_group_layout(&device)],
+        push_constant_ranges: &[],
+    });
+
+    let texture_pipeline = create_render_pipeline(
+        &device,
+        "texture pipeline",
+        &texture_pipeline_layout,
+        config.format,
+        Some(DEPTH_FORMAT),
+        false,
+        &[
+            TextureVertex::vertex_layout(),
+            SpriteInstance::vertex_layout(),
+        ],
+        &texture_shader,
+        SAMPLE_COUNT,
+    );
+
+    let texture_pipeline_depth = create_render_pipeline(
+        &device,
+        "texture pipeline with depth",
+        &texture_pipeline_layout,
+        config.format,
+        Some(DEPTH_FORMAT),
+        true,
+        &[
+            TextureVertex::vertex_layout(),
+            SpriteInstance::vertex_layout(),
+        ],
+        &texture_shader,
+        SAMPLE_COUNT,
+    );
+
+    (texture_pipeline, texture_pipeline_depth)
 }

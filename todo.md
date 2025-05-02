@@ -17,12 +17,17 @@ In no particular order, but trying to put things that I think are important high
   - Songs folder
   - Graphical settings
 - Resolution settings and UI scaling
-- 2-Player mode
 - Gameplay settings (set in song select)
+- Translation at least to Japanese
 - Search for beatmaps
+- 2-Player mode
 - Discord rich presence
 
 ## Code Quality
 
 - Use color-eyre for errors and actually use its features to make error messages nicer to look at.
 - Similarly, use tracing for logs and allow dumping logs to file (so users can send error reports)
+
+## Fixes
+
+- Display colours correctly for both SRGB and RGB

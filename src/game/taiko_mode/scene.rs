@@ -14,6 +14,7 @@ use super::note::{
 use super::ui::{BalloonDisplay, Header, JudgementText, NoteField};
 use crate::game::score_screen::ScoreScreen;
 use crate::game::taiko_mode::note::x_position_of_note;
+use crate::game::ui_elements::HealthBar;
 use crate::game::{Context, GameState, RenderContext, StateTransition, TextureCache};
 use crate::render::texture::SpriteBuilder;
 use crate::settings::{settings, SETTINGS};
@@ -142,6 +143,7 @@ pub struct TaikoMode {
     header: Header,
     note_field: NoteField,
     balloon_display: BalloonDisplay,
+    health_bar: HealthBar,
 
     /// A handle to the audio of the song
     song_handle: StaticSoundHandle,
@@ -210,6 +212,7 @@ impl TaikoMode {
             header: Header::new(renderer, &song.title)?,
             note_field: NoteField::new(renderer)?,
             balloon_display: BalloonDisplay::new(textures, renderer)?,
+            health_bar: HealthBar::new(renderer)?,
             song_handle,
             started: false,
             start_time: Instant::now(),
@@ -319,6 +322,7 @@ impl GameState for TaikoMode {
         });
 
         self.note_field.render(ctx, notes, barlines);
+        ctx.render(&self.health_bar);
         ctx.render(&self.note_judgement_text);
         ctx.render(&self.balloon_display);
     }
