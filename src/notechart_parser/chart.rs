@@ -123,3 +123,14 @@ pub struct NoteChart {
     pub notes: Vec<Note>,
     pub barlines: Vec<Barline>,
 }
+
+impl NoteChart {
+    /// The maximum combo possible in this chart.
+    /// That is to say, the number of notes in the chart that are don or ka
+    pub fn max_combo(&self) -> usize {
+        self.notes
+            .iter()
+            .filter(|note| note.note_type.is_don() || note.note_type.is_kat())
+            .count()
+    }
+}

@@ -7,7 +7,7 @@ use kira::tween::Tween;
 use winit::event::{ElementState, WindowEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
-use super::health::clear_threshold;
+use super::health::{clear_threshold, judgement_hp_values};
 use super::note::{
     create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
     TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
@@ -73,9 +73,12 @@ pub struct PlayResult {
     /// A vector containing the judgements for every note recorded.
     /// A None value indicates a miss.
     judgements: Vec<Option<NoteJudgement>>,
+    /// How many times the player has hit the drum in a drumroll or baloon
     drumrolls: u64,
     score: ScoreInt,
+    /// The current number of consecutive notes the player has hit with at least OK timing
     current_combo: usize,
+    /// The maximum combo the player has achieved thus far.
     max_combo: usize,
     /// For all the notes that were hit (good, okay, or bad), records the difference between when
     /// the note was hit and when the note should have been hit.
@@ -166,12 +169,14 @@ pub struct TaikoMode {
     // Note scoring/input handling
     /// The index of the next note to be played
     next_note_index: usize,
-    /// How much the soul gauge is filled
+    /// How much the health bar is filled
     /// Measured in points from 0-10000
-    soul_gauge: u32,
+    health_points: u32,
     /// How many points are needed to clear the song
     /// This depends on the difficulty.
     clear_threshold: u32,
+    /// How many points you get for each note judgement.
+    judgement_hp_values: [i32; 3],
     note_judgement_text: JudgementText,
 
     /// An ongoing record of the player's performance.
@@ -203,10 +208,12 @@ impl TaikoMode {
         // We want to start the song once the scene is actually loaded
         song_handle.pause(Tween::default())?;
 
-        let track = &song.difficulties[difficulty]
+        let diff_data = &song.difficulties[difficulty]
             .as_ref()
-            .expect("Difficulty doesn't exist!")
-            .chart;
+            .expect("Selected difficulty does not exist");
+
+        let chart = &diff_data.chart;
+        let star_rating = diff_data.star_level;
 
         Ok(Self {
             song_name: song.title.clone(),
@@ -221,10 +228,15 @@ impl TaikoMode {
             start_time: Instant::now(),
             global_offset: SETTINGS.read().unwrap().game.global_note_offset / 1000.0,
             difficulty,
-            notes: create_notes(renderer, textures, &track.notes),
-            barlines: create_barlines(renderer, &track.barlines),
+            notes: create_notes(renderer, textures, &chart.notes),
+            barlines: create_barlines(renderer, &chart.barlines),
             next_note_index: 0,
-            soul_gauge: 0,
+            health_points: 0,
+            judgement_hp_values: judgement_hp_values(
+                difficulty,
+                star_rating as _,
+                chart.max_combo(),
+            ),
             clear_threshold: clear_threshold(difficulty),
             note_judgement_text: JudgementText::new(renderer),
             results: PlayResult::new(),
@@ -244,6 +256,22 @@ impl TaikoMode {
         }
     }
 
+    /// Reacts to a timing judgement (or a miss) - records it in results, updates combo and soul
+    /// gauge, etc.
+    fn handle_judgement(&mut self, judgement: Option<NoteJudgement>) {
+        self.results.push_judgement(judgement);
+        // Update the health bar
+        let judgement_id = match judgement {
+            None | Some(NoteJudgement::Bad) => BAD,
+            Some(NoteJudgement::Ok) => OK,
+            Some(NoteJudgement::Good) => GOOD,
+        };
+        self.health_points = self
+            .health_points
+            .saturating_add_signed(self.judgement_hp_values[judgement_id])
+            .clamp(0, 10000);
+    }
+
     /// Moves the note index forward. This function is called when the next note goes too far past
     /// the reticle to be hit anymore. If the note was already hit, this ignores it. If the note was
     /// missed, we record a miss judgement.
@@ -253,7 +281,7 @@ impl TaikoMode {
 
             if note.is_don_or_kat() {
                 if !note.is_hit() {
-                    self.results.push_judgement(None);
+                    self.handle_judgement(None);
                 }
             } else if matches!(note.note, NoteInner::Balloon { .. }) {
                 self.balloon_display.discard();
@@ -278,6 +306,8 @@ impl GameState for TaikoMode {
 
         self.note_judgement_text.update(ctx.renderer);
         self.balloon_display.update(delta_time);
+        self.health_bar
+            .set_fill_amount(self.health_points, ctx.renderer);
 
         let time = self.note_time();
         // Advance our position in the list of notes as far as we can go
@@ -313,6 +343,7 @@ impl GameState for TaikoMode {
         });
 
         for barline in on_screen_barlines {
+            dbg!("hello");
             barline.update_position(ctx.renderer, time);
         }
 
@@ -374,7 +405,7 @@ impl GameState for TaikoMode {
                                 NoteJudgement::from_offset(offset, self.timing_windows()).unwrap();
                             self.note_judgement_text.display_judgement(judgement);
 
-                            self.results.push_judgement(Some(judgement));
+                            self.handle_judgement(Some(judgement));
                             self.results.hit_errors.push(offset);
 
                             // Ensure you only ever hit one note at a time
