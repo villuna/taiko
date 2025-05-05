@@ -11,10 +11,9 @@ use super::note::{
     create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
     TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
 };
-use super::ui::{BalloonDisplay, Header, JudgementText, NoteField};
+use super::ui::{BalloonDisplay, Header, HealthBar, JudgementText, NoteField};
 use crate::game::score_screen::ScoreScreen;
 use crate::game::taiko_mode::note::x_position_of_note;
-use crate::game::ui_elements::HealthBar;
 use crate::game::{Context, GameState, RenderContext, StateTransition, TextureCache};
 use crate::render::texture::SpriteBuilder;
 use crate::settings::{settings, SETTINGS};
@@ -138,24 +137,23 @@ pub struct TaikoMode {
     song_name: String,
     // UI Stuff
     background: Sprite,
-    // TODO: Give sprites a colour tint
+    // TODO: remove this when I give sprites a colour tint
     background_dim: Shape,
     header: Header,
     note_field: NoteField,
     balloon_display: BalloonDisplay,
     health_bar: HealthBar,
 
-    /// A handle to the audio of the song
+    /// The audio stream for the song.
     song_handle: StaticSoundHandle,
     // Record the global offset, so we don't need to keep querying the settings
-    // This is fine bc the settings will never change mid-song but if that's ever possible, we'd
-    // need to update this every time the setting changed.
+    // This is just to make the code cleaner.
     global_offset: f32,
 
     /// The instant the song started.
     ///
     /// Even though the song handle keeps track of the position through the song, that value is
-    /// choppy and using it for the position of the notes will cause the notes to stutter. So we
+    /// choppy and using it for the position of the notes will cause them to stutter. So we
     /// need to keep track of the time ourselves.
     start_time: Instant,
     started: bool,
@@ -167,8 +165,9 @@ pub struct TaikoMode {
     // Note scoring/input handling
     /// The index of the next note to be played
     next_note_index: usize,
-    /// The percentage the soul gauge is filled
-    soul_gauge: f32,
+    /// How much the soul gauge is filled
+    /// Measured in points from 0-10000
+    soul_gauge: u32,
     note_judgement_text: JudgementText,
 
     /// An ongoing record of the player's performance.
@@ -221,7 +220,7 @@ impl TaikoMode {
             notes: create_notes(renderer, textures, &track.notes),
             barlines: create_barlines(renderer, &track.barlines),
             next_note_index: 0,
-            soul_gauge: 0.0,
+            soul_gauge: 0,
             note_judgement_text: JudgementText::new(renderer),
             results: PlayResult::new(),
         })

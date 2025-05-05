@@ -5,7 +5,7 @@ mod song_select;
 mod taiko_mode;
 mod ui_elements;
 
-pub use ui_elements::health_bar::create_health_bar_pipeline;
+pub use taiko_mode::create_health_bar_pipeline;
 
 use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 pub use main_menu::MainMenu;

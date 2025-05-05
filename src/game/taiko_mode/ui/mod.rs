@@ -13,6 +13,9 @@ use wgpu::RenderPass;
 
 use super::note::{TaikoModeBarline, TaikoModeNote};
 
+pub mod health_bar;
+pub use health_bar::HealthBar;
+
 // Colours
 pub const HEADER_TOP_COL: [f32; 4] = [30. / 255., 67. / 255., 198. / 255., 1.];
 pub const HEADER_BOTTOM_COL: [f32; 4] = [150. / 255., 90. / 255., 225. / 255., 1.];

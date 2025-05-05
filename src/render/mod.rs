@@ -5,7 +5,8 @@ use kaku::{ab_glyph::FontVec, FontId, FontSize, SdfSettings, TextRendererBuilder
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::game::{create_health_bar_pipeline, Game};
+use crate::game::create_health_bar_pipeline;
+use crate::game::Game;
 use shapes::create_primitive_pipelines;
 use texture::create_texture_pipelines;
 

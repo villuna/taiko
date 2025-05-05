@@ -2,8 +2,9 @@ use std::{num::NonZeroU64, sync::OnceLock};
 
 use wgpu::util::DeviceExt;
 
-const HEALTH_BAR_LENGTH: f32 = 290.;
+const HEALTH_BAR_LENGTH: f32 = 590.;
 const HEALTH_BAR_PADDING: f32 = 5.;
+const HEALTH_BAR_HEIGHT: f32 = 30.;
 
 use crate::{
     include_shader,
@@ -15,11 +16,10 @@ use crate::{
     },
 };
 
+/// Data used by the custom health bar shader.
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 struct HealthBarUniform {
-    empty_colour: [f32; 4],
-    full_colour: [f32; 4],
     fill_amount: f32,
     length: f32,
     _padding: [f32; 2],
@@ -28,9 +28,6 @@ struct HealthBarUniform {
 impl HealthBarUniform {
     fn new(fill_amount: f32) -> Self {
         Self {
-            // TODO: better colours
-            empty_colour: [0., 0., 0., 1.],
-            full_colour: [1.; 4],
             fill_amount,
             length: HEALTH_BAR_LENGTH,
             _padding: [0.; 2],
@@ -40,6 +37,8 @@ impl HealthBarUniform {
 
 static HEALTH_BAR_UNIFORM_BGL: OnceLock<wgpu::BindGroupLayout> = OnceLock::new();
 
+/// Gets the bind group layout for the [HealthBarUniform]. This is static and only created the first
+/// time the function is called.
 fn health_bar_bgl(device: &wgpu::Device) -> &'static wgpu::BindGroupLayout {
     HEALTH_BAR_UNIFORM_BGL.get_or_init(|| {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -68,13 +67,17 @@ pub struct HealthBar {
 }
 
 impl HealthBar {
+    /// Creates a new visual health bar. Will display as empty by default.
     pub fn new(renderer: &Renderer) -> anyhow::Result<Self> {
         let background = ShapeBuilder::new()
             .position([100., 100., 0.])
             .filled_roundrect(
                 [0., 0.],
-                [HEALTH_BAR_LENGTH + HEALTH_BAR_PADDING * 2., 30.],
-                15.,
+                [
+                    HEALTH_BAR_LENGTH + HEALTH_BAR_PADDING * 2.,
+                    HEALTH_BAR_HEIGHT + HEALTH_BAR_PADDING * 2.,
+                ],
+                HEALTH_BAR_HEIGHT / 2. + HEALTH_BAR_PADDING,
                 SolidColour::new([0.2, 0.2, 0.2, 1.]),
             )?
             .build(&renderer.device);
@@ -83,8 +86,8 @@ impl HealthBar {
             .position([105., 105., 0.])
             .filled_roundrect(
                 [0., 0.],
-                [HEALTH_BAR_LENGTH, 20.],
-                10.,
+                [HEALTH_BAR_LENGTH, HEALTH_BAR_HEIGHT],
+                HEALTH_BAR_HEIGHT / 2.,
                 SolidColour::new([1.; 4]),
             )?
             .with_pipeline("health bar")
@@ -94,7 +97,7 @@ impl HealthBar {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("health bar uniform buffer"),
-                contents: bytemuck::cast_slice(&[HealthBarUniform::new(0.5)]),
+                contents: bytemuck::cast_slice(&[HealthBarUniform::new(0.)]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
@@ -117,6 +120,8 @@ impl HealthBar {
         })
     }
 
+    /// Sets the health bar to display a certain fill amount, from 0-1 where 0 is empty and 1 is
+    /// full. Values outside of this range will be clamped to fit.
     pub fn set_fill_amount(&self, amount: f32, renderer: &Renderer) {
         renderer.queue.write_buffer(
             &self.uniform,
@@ -138,6 +143,7 @@ impl Renderable for HealthBar {
     }
 }
 
+/// Creates a custom pipeline for drawing the health bar.
 pub fn create_health_bar_pipeline(
     device: &wgpu::Device,
     screen_bgl: &wgpu::BindGroupLayout,

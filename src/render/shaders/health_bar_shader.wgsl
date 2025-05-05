@@ -24,8 +24,6 @@ struct ScreenUniform {
 };
 
 struct HealthBarUniform {
-    empty_colour: vec4<f32>,
-    fill_colour: vec4<f32>,
     fill_amount: f32,
     length: f32,
     _padding: vec2<f32>,
@@ -66,11 +64,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // TODO srgb
     // TODO also other colour effects such as rainbow for full
     var colour: vec4<f32>;
+    let empty_colour = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    let fill_colour = vec4<f32>(1.0, 1.0, 1.0, 1.0);
 
     if in.fill_amount > health_bar_uniform.fill_amount {
-        colour = health_bar_uniform.empty_colour;
+        colour = empty_colour;
     } else {
-        colour = health_bar_uniform.fill_colour;
+        colour = fill_colour;
     }
 
     return colour;
