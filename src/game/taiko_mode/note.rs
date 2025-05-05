@@ -51,7 +51,7 @@ pub fn create_barlines(renderer: &mut Renderer, barlines: &[Barline]) -> Vec<Tai
                 .filled_rectangle(
                     [-1., 0.],
                     [1., NOTE_FIELD_HEIGHT],
-                    SolidColour::new([1., 1., 1., 1.]),
+                    SolidColour::new([1., 1., 1., 0.5]),
                 )
                 .expect("Error creating barline shape")
                 .position([

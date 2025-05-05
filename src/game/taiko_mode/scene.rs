@@ -343,7 +343,6 @@ impl GameState for TaikoMode {
         });
 
         for barline in on_screen_barlines {
-            dbg!("hello");
             barline.update_position(ctx.renderer, time);
         }
 
@@ -356,7 +355,7 @@ impl GameState for TaikoMode {
         let barlines = self.barlines.iter().filter(|barline| {
             let pos = x_position_of_note(time, barline.time(), barline.scroll_speed());
             // TODO: another hardcoded resolution to get rid of
-            (0.0..190.0).contains(&pos)
+            (0.0..1920.0).contains(&pos)
         });
 
         self.note_field.render(ctx, notes, barlines);
