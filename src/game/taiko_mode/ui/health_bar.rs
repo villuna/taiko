@@ -120,9 +120,10 @@ impl HealthBar {
         })
     }
 
-    /// Sets the health bar to display a certain fill amount, from 0-1 where 0 is empty and 1 is
-    /// full. Values outside of this range will be clamped to fit.
-    pub fn set_fill_amount(&self, amount: f32, renderer: &Renderer) {
+    /// Sets the health bar to display a certain fill amount, from 0-10000 where 0 is empty and
+    /// 10000 is full. Values outside of this range will be clamped to fit.
+    pub fn set_fill_amount(&self, amount: u32, renderer: &Renderer) {
+        let amount = amount as f32 / 10000.;
         renderer.queue.write_buffer(
             &self.uniform,
             0 as _,

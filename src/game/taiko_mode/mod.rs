@@ -1,3 +1,4 @@
+mod health;
 mod note;
 mod scene;
 mod ui;

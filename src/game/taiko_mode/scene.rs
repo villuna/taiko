@@ -7,6 +7,7 @@ use kira::tween::Tween;
 use winit::event::{ElementState, WindowEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+use super::health::clear_threshold;
 use super::note::{
     create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
     TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
@@ -135,6 +136,7 @@ impl PlayResult {
 
 pub struct TaikoMode {
     song_name: String,
+    difficulty: usize,
     // UI Stuff
     background: Sprite,
     // TODO: remove this when I give sprites a colour tint
@@ -157,7 +159,6 @@ pub struct TaikoMode {
     /// need to keep track of the time ourselves.
     start_time: Instant,
     started: bool,
-    difficulty: usize,
 
     notes: Vec<TaikoModeNote>,
     barlines: Vec<TaikoModeBarline>,
@@ -168,6 +169,9 @@ pub struct TaikoMode {
     /// How much the soul gauge is filled
     /// Measured in points from 0-10000
     soul_gauge: u32,
+    /// How many points are needed to clear the song
+    /// This depends on the difficulty.
+    clear_threshold: u32,
     note_judgement_text: JudgementText,
 
     /// An ongoing record of the player's performance.
@@ -221,6 +225,7 @@ impl TaikoMode {
             barlines: create_barlines(renderer, &track.barlines),
             next_note_index: 0,
             soul_gauge: 0,
+            clear_threshold: clear_threshold(difficulty),
             note_judgement_text: JudgementText::new(renderer),
             results: PlayResult::new(),
         })
@@ -239,14 +244,17 @@ impl TaikoMode {
         }
     }
 
-    /// Considers the next note to have been missed. Updates the index of the next note, and adds a
-    /// miss to the play result if appropriate.
+    /// Moves the note index forward. This function is called when the next note goes too far past
+    /// the reticle to be hit anymore. If the note was already hit, this ignores it. If the note was
+    /// missed, we record a miss judgement.
     fn skip_next_note(&mut self) {
         if let Some(note) = self.notes.get(self.next_note_index) {
             self.next_note_index += 1;
 
             if note.is_don_or_kat() {
-                self.results.push_judgement(None);
+                if !note.is_hit() {
+                    self.results.push_judgement(None);
+                }
             } else if matches!(note.note, NoteInner::Balloon { .. }) {
                 self.balloon_display.discard();
             }
@@ -354,6 +362,8 @@ impl GameState for TaikoMode {
                         // If it's the wrong colour, we'll keep checking to see if there's
                         // a note of the right colour in scope.
                         NoteKeypressReaction::WrongColour => {}
+                        // Same if this note had already been hit, we will ignore it
+                        NoteKeypressReaction::AlreadyHit => {}
 
                         NoteKeypressReaction::TooEarly => {
                             // Now we're only looking at notes that are unhittable, so stop here.
@@ -366,8 +376,6 @@ impl GameState for TaikoMode {
 
                             self.results.push_judgement(Some(judgement));
                             self.results.hit_errors.push(offset);
-
-                            self.next_note_index = note_index + 1;
 
                             // Ensure you only ever hit one note at a time
                             break;

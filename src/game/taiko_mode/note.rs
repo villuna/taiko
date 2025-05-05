@@ -354,6 +354,13 @@ impl NoteInner {
     fn is_don_or_kat(&self) -> bool {
         matches!(self, NoteInner::Note { .. },)
     }
+
+    fn is_hit(&self) -> bool {
+        match self {
+            NoteInner::Note { is_hit, .. } => *is_hit,
+            _ => false,
+        }
+    }
 }
 
 impl Renderable for NoteInner {
@@ -408,6 +415,8 @@ pub enum NoteKeypressReaction {
     /// note time*. For example, if you hit 15ms before you should have, the offset will be -0.015,
     /// that is to say, 0.015 seconds *early*.
     Hit { offset: f32 },
+    /// The note had already been hit prior and can't be hit again.
+    AlreadyHit,
     /// The note was hit, and is a drumroll.
     /// Since drumrolls can be big or small, and can be hit with either don or kat, we return the
     /// note type so that we can display the correct flying note.
@@ -435,6 +444,11 @@ impl TaikoModeNote {
     /// Whether this note is a don/kat note that awards judgement and must be hit.
     pub fn is_don_or_kat(&self) -> bool {
         self.note.is_don_or_kat()
+    }
+
+    /// Returns true only if this note is a don/kat note and has been hit already
+    pub fn is_hit(&self) -> bool {
+        self.note.is_hit()
     }
 
     pub fn visible(&self, note_adjusted_time: f32) -> bool {
@@ -475,7 +489,9 @@ impl TaikoModeNote {
 
         match &mut self.note {
             NoteInner::Note { kind, is_hit, .. } => {
-                if self.time - timing_windows[BAD] > time {
+                if *is_hit {
+                    NoteKeypressReaction::AlreadyHit
+                } else if self.time - timing_windows[BAD] > time {
                     // If the earliest the note could ever be hit is later (greater than) the current
                     // time, then we are too early.
                     NoteKeypressReaction::TooEarly
