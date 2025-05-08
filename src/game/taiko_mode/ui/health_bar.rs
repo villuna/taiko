@@ -20,17 +20,19 @@ use crate::{
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 struct HealthBarUniform {
-    fill_amount: f32,
     length: f32,
-    _padding: [f32; 2],
+    fill: f32,
+    target_fill: f32,
+    _padding: f32,
 }
 
 impl HealthBarUniform {
-    fn new(fill_amount: f32) -> Self {
+    fn new(fill_amount: f32, target_fill: f32) -> Self {
         Self {
-            fill_amount,
             length: HEALTH_BAR_LENGTH,
-            _padding: [0.; 2],
+            fill: fill_amount,
+            target_fill,
+            _padding: 0.,
         }
     }
 }
@@ -64,6 +66,8 @@ pub struct HealthBar {
     bar: Shape,
     uniform: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
+    current_fill: f32,
+    target_fill: f32,
 }
 
 impl HealthBar {
@@ -97,7 +101,7 @@ impl HealthBar {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("health bar uniform buffer"),
-                contents: bytemuck::cast_slice(&[HealthBarUniform::new(0.)]),
+                contents: bytemuck::cast_slice(&[HealthBarUniform::new(0., 0.)]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
@@ -117,18 +121,35 @@ impl HealthBar {
             bar,
             uniform: buffer,
             bind_group,
+            current_fill: 0.,
+            target_fill: 0.,
         })
     }
 
     /// Sets the health bar to display a certain fill amount, from 0-10000 where 0 is empty and
     /// 10000 is full. Values outside of this range will be clamped to fit.
-    pub fn set_fill_amount(&self, amount: u32, renderer: &Renderer) {
-        let amount = amount as f32 / 10000.;
+    ///
+    /// The health bar will animate smoothly to approach this value, provided that [update] is
+    /// called every frame.
+    pub fn set_fill_amount(&mut self, amount: u32) {
+        self.target_fill = (amount as f32 / 10000.0).clamp(0., 1.);
+        //let amount = amount as f32 / 10000.;
+        //renderer.queue.write_buffer(
+        //    &self.uniform,
+        //    0 as _,
+        //    bytemuck::cast_slice(&[HealthBarUniform::new(amount.clamp(0., 1.))]),
+        //);
+    }
+
+    pub fn update(&mut self, renderer: &Renderer, dt: f32) {
+        let lerp = |current, target, t| t * target + (1. - t) * current;
+        let speed = 0.1f32;
+        self.current_fill = lerp(self.current_fill, self.target_fill, 1. - speed.powf(dt));
         renderer.queue.write_buffer(
             &self.uniform,
             0 as _,
-            bytemuck::cast_slice(&[HealthBarUniform::new(amount.clamp(0., 1.))]),
-        );
+            bytemuck::cast_slice(&[HealthBarUniform::new(self.current_fill, self.target_fill)]),
+        )
     }
 }
 

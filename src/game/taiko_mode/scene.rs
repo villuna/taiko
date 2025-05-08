@@ -270,6 +270,7 @@ impl TaikoMode {
             .health_points
             .saturating_add_signed(self.judgement_hp_values[judgement_id])
             .clamp(0, 10000);
+        self.health_bar.set_fill_amount(self.health_points);
     }
 
     /// Moves the note index forward. This function is called when the next note goes too far past
@@ -306,8 +307,7 @@ impl GameState for TaikoMode {
 
         self.note_judgement_text.update(ctx.renderer);
         self.balloon_display.update(delta_time);
-        self.health_bar
-            .set_fill_amount(self.health_points, ctx.renderer);
+        self.health_bar.update(&ctx.renderer, delta_time);
 
         let time = self.note_time();
         // Advance our position in the list of notes as far as we can go

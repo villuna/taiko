@@ -24,9 +24,10 @@ struct ScreenUniform {
 };
 
 struct HealthBarUniform {
-    fill_amount: f32,
     length: f32,
-    _padding: vec2<f32>,
+    fill: f32,
+    target_fill: f32,
+    _padding: f32,
 };
 
 @group(0) @binding(0)
@@ -59,6 +60,16 @@ fn vs_main(in: VertexInput, instance: Instance) -> VertexOutput {
     return out;
 }
 
+fn add_colours(fg: vec4<f32>, bg: vec4<f32>) -> vec4<f32> {
+    var res: vec4<f32>;
+    // from https://stackoverflow.com/a/727339
+    res.a = 1.0 - (1.0 - fg.a) * (1.0 - bg.a);
+    res.r = fg.r * fg.a / res.a + bg.r * bg.a * (1 - fg.a) / res.a;
+    res.g = fg.g * fg.a / res.a + bg.g * bg.a * (1 - fg.a) / res.a;
+    res.b = fg.b * fg.a / res.a + bg.b * bg.a * (1 - fg.a) / res.a;
+    return res;
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // TODO srgb
@@ -67,10 +78,23 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let empty_colour = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     let fill_colour = vec4<f32>(1.0, 1.0, 1.0, 1.0);
 
-    if in.fill_amount > health_bar_uniform.fill_amount {
-        colour = empty_colour;
+    // Currently this doesn't do anything but it will do when we change the empty colour
+    // and make the green and red overlay more transparent
+    let green = add_colours(vec4<f32>(0.0, 1.0, 0.0, 1.0), empty_colour);
+    let red = add_colours(vec4<f32>(1.0, 0.0, 0.0, 1.0), empty_colour);
+
+    if in.fill_amount > health_bar_uniform.fill {
+        if in.fill_amount < health_bar_uniform.target_fill {
+            colour = green;
+        } else {
+            colour = empty_colour;
+        }
     } else {
-        colour = fill_colour;
+        if in.fill_amount > health_bar_uniform.target_fill {
+            colour = red;
+        } else {
+            colour = fill_colour;
+        }
     }
 
     return colour;
