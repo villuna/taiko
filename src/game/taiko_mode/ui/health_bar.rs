@@ -23,16 +23,16 @@ struct HealthBarUniform {
     length: f32,
     fill: f32,
     target_fill: f32,
-    _padding: f32,
+    time: f32,
 }
 
 impl HealthBarUniform {
-    fn new(fill_amount: f32, target_fill: f32) -> Self {
+    fn new(fill_amount: f32, target_fill: f32, time: f32) -> Self {
         Self {
             length: HEALTH_BAR_LENGTH,
             fill: fill_amount,
             target_fill,
-            _padding: 0.,
+            time,
         }
     }
 }
@@ -101,7 +101,7 @@ impl HealthBar {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("health bar uniform buffer"),
-                contents: bytemuck::cast_slice(&[HealthBarUniform::new(0., 0.)]),
+                contents: bytemuck::cast_slice(&[HealthBarUniform::new(0., 0., 0.)]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
@@ -141,14 +141,18 @@ impl HealthBar {
         //);
     }
 
-    pub fn update(&mut self, renderer: &Renderer, dt: f32) {
+    pub fn update(&mut self, renderer: &Renderer, dt: f32, song_time: f32) {
         let lerp = |current, target, t| t * target + (1. - t) * current;
         let speed = 0.1f32;
         self.current_fill = lerp(self.current_fill, self.target_fill, 1. - speed.powf(dt));
         renderer.queue.write_buffer(
             &self.uniform,
             0 as _,
-            bytemuck::cast_slice(&[HealthBarUniform::new(self.current_fill, self.target_fill)]),
+            bytemuck::cast_slice(&[HealthBarUniform::new(
+                self.current_fill,
+                self.target_fill,
+                song_time,
+            )]),
         )
     }
 }

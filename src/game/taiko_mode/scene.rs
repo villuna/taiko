@@ -307,9 +307,10 @@ impl GameState for TaikoMode {
 
         self.note_judgement_text.update(ctx.renderer);
         self.balloon_display.update(delta_time);
-        self.health_bar.update(&ctx.renderer, delta_time);
 
         let time = self.note_time();
+        self.health_bar.update(&ctx.renderer, delta_time, time);
+
         // Advance our position in the list of notes as far as we can go
         while let Some(note) = self.notes.get(self.next_note_index) {
             if note.is_hittable(time, self.timing_windows()) {
