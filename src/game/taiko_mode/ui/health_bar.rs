@@ -5,6 +5,10 @@ use wgpu::util::DeviceExt;
 const HEALTH_BAR_LENGTH: f32 = 590.;
 const HEALTH_BAR_PADDING: f32 = 5.;
 const HEALTH_BAR_HEIGHT: f32 = 30.;
+const HEALTH_BAR_MARGIN_X: f32 = 30.;
+const HEALTH_BAR_MARGIN_Y: f32 = 30.;
+const HEALTH_BAR_X: f32 = 1920. - HEALTH_BAR_LENGTH - HEALTH_BAR_MARGIN_X;
+const HEALTH_BAR_Y: f32 = HEADER_HEIGHT - HEALTH_BAR_HEIGHT - HEALTH_BAR_MARGIN_Y;
 
 use crate::{
     include_shader,
@@ -15,6 +19,8 @@ use crate::{
         Renderable, Renderer, DEPTH_FORMAT, SAMPLE_COUNT,
     },
 };
+
+use super::HEADER_HEIGHT;
 
 /// Data used by the custom health bar shader.
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -74,7 +80,7 @@ impl HealthBar {
     /// Creates a new visual health bar. Will display as empty by default.
     pub fn new(renderer: &Renderer) -> anyhow::Result<Self> {
         let background = ShapeBuilder::new()
-            .position([100., 100., 0.])
+            .position([HEALTH_BAR_X, HEALTH_BAR_Y, 0.])
             .filled_roundrect(
                 [0., 0.],
                 [
@@ -87,7 +93,7 @@ impl HealthBar {
             .build(&renderer.device);
 
         let bar = ShapeBuilder::new()
-            .position([105., 105., 0.])
+            .position([HEALTH_BAR_X + 5., HEALTH_BAR_Y + 5., 0.])
             .filled_roundrect(
                 [0., 0.],
                 [HEALTH_BAR_LENGTH, HEALTH_BAR_HEIGHT],

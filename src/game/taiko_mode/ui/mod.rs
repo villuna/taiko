@@ -37,6 +37,8 @@ pub const NOTE_Y: f32 = NOTE_FIELD_Y + NOTE_FIELD_HEIGHT / 2.0;
 pub const NOTE_FIELD_HEIGHT: f32 = 232.;
 pub const LEFT_PANEL_WIDTH: f32 = 480.;
 
+pub const TITLE_FONT_SIZE: f32 = 60.;
+
 pub struct Header {
     background: Shape,
     title: Text,
@@ -61,7 +63,7 @@ impl Header {
         let title = TextBuilder::new(title, renderer.font("mochiy pop one"), [1880., 20.])
             .horizontal_align(HorizontalAlignment::Right)
             .vertical_align(VerticalAlignment::Top)
-            .font_size(Some(FontSize::Px(80.)))
+            .font_size(Some(FontSize::Px(TITLE_FONT_SIZE)))
             .color([1.0; 4])
             .outlined([0., 0., 0., 1.], 5.)
             .build_text(renderer);
