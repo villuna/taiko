@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use kaku::{FontSize, Text, TextBuilder};
 use kira::manager::AudioManager;
 use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::sound::PlaybackState;
@@ -12,7 +13,9 @@ use super::note::{
     create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
     TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
 };
-use super::ui::{BalloonDisplay, DrumrollDisplay, Header, HealthBar, JudgementText, NoteField};
+use super::ui::{
+    BalloonDisplay, DrumrollDisplay, Header, HealthBar, JudgementText, NoteField, NOTE_FIELD_Y,
+};
 use crate::game::score_screen::ScoreScreen;
 use crate::game::taiko_mode::note::x_position_of_note;
 use crate::game::{Context, GameState, RenderContext, StateTransition, TextureCache};
@@ -26,8 +29,6 @@ use crate::{
         Renderer,
     },
 };
-
-pub type ScoreInt = u64;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum NoteJudgement {
@@ -72,31 +73,39 @@ impl NoteJudgement {
 pub struct PlayResult {
     /// A vector containing the judgements for every note recorded.
     /// A None value indicates a miss.
-    judgements: Vec<Option<NoteJudgement>>,
+    pub judgements: Vec<Option<NoteJudgement>>,
     /// How many times the player has hit the drum in a drumroll or baloon
-    drumrolls: u64,
-    score: ScoreInt,
+    pub drumrolls: u32,
+    pub score: u32,
     /// The current number of consecutive notes the player has hit with at least OK timing
-    current_combo: usize,
+    pub current_combo: usize,
     /// The maximum combo the player has achieved thus far.
-    max_combo: usize,
+    pub max_combo: usize,
     /// For all the notes that were hit (good, okay, or bad), records the difference between when
     /// the note was hit and when the note should have been hit.
-    hit_errors: Vec<f32>,
+    pub hit_errors: Vec<f32>,
+
+    base_score: u32,
 }
 
 impl PlayResult {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(base_score: u32) -> Self {
+        let mut res = Self::default();
+        res.base_score = base_score;
+        res
     }
 
-    fn current_combo(&self) -> usize {
-        self.current_combo
-    }
-
-    fn push_judgement(&mut self, judgement: Option<NoteJudgement>) {
+    pub fn register_hit(&mut self, judgement: Option<NoteJudgement>) {
         self.judgements.push(judgement);
 
+        // Update score
+        self.score += match judgement {
+            Some(NoteJudgement::Good) => self.base_score,
+            Some(NoteJudgement::Ok) => self.base_score / 2,
+            _ => 0,
+        };
+
+        // Update combo
         if matches!(
             judgement,
             Some(NoteJudgement::Good) | Some(NoteJudgement::Ok)
@@ -106,6 +115,11 @@ impl PlayResult {
         } else {
             self.current_combo = 0;
         }
+    }
+
+    pub fn register_drumroll(&mut self, big: bool) {
+        self.drumrolls += 1;
+        self.score += if big { 150 } else { 100 };
     }
 
     fn count_for_judgement(&self, judgement: Option<NoteJudgement>) -> usize {
@@ -128,7 +142,7 @@ impl PlayResult {
         self.count_for_judgement(None)
     }
 
-    pub fn drumrolls(&self) -> u64 {
+    pub fn drumrolls(&self) -> u32 {
         self.drumrolls
     }
 
@@ -148,6 +162,7 @@ pub struct TaikoMode {
     note_field: NoteField,
     balloon_display: BalloonDisplay,
     drumroll_display: DrumrollDisplay,
+    score_text: Text,
     health_bar: HealthBar,
 
     /// The audio stream for the song.
@@ -205,6 +220,21 @@ impl TaikoMode {
             )?
             .build(&renderer.device);
 
+        let score_text = TextBuilder::new(
+            "0",
+            renderer.font("mochiy pop one"),
+            [20., NOTE_FIELD_Y + 20.],
+        )
+        .vertical_align(kaku::VerticalAlignment::Top)
+        .outlined([0., 0., 0., 1.], 3.)
+        .color([1.; 4])
+        .font_size(Some(FontSize::Px(35.)))
+        .build(
+            &renderer.device,
+            &renderer.queue,
+            &mut renderer.text_renderer,
+        );
+
         let mut song_handle = audio_manager.play(song_data)?;
         // We want to start the song once the scene is actually loaded
         song_handle.pause(Tween::default())?;
@@ -224,6 +254,7 @@ impl TaikoMode {
             note_field: NoteField::new(renderer)?,
             balloon_display: BalloonDisplay::new(textures, renderer)?,
             drumroll_display: DrumrollDisplay::new(textures, renderer)?,
+            score_text,
             health_bar: HealthBar::new(renderer)?,
             song_handle,
             started: false,
@@ -241,7 +272,7 @@ impl TaikoMode {
             ),
             clear_threshold: clear_threshold(difficulty),
             note_judgement_text: JudgementText::new(renderer),
-            results: PlayResult::new(),
+            results: PlayResult::new(diff_data.base_score),
         })
     }
 
@@ -261,7 +292,7 @@ impl TaikoMode {
     /// Reacts to a timing judgement (or a miss) - records it in results, updates combo and soul
     /// gauge, etc.
     fn handle_judgement(&mut self, judgement: Option<NoteJudgement>) {
-        self.results.push_judgement(judgement);
+        self.results.register_hit(judgement);
         // Update the health bar
         let judgement_id = match judgement {
             None | Some(NoteJudgement::Bad) => BAD,
@@ -293,6 +324,16 @@ impl TaikoMode {
                 self.drumroll_display.finish();
             }
         }
+    }
+
+    // Sets the score text to display the current score
+    fn update_score_display(&mut self, renderer: &mut Renderer) {
+        self.score_text.set_text(
+            format!("{}", self.results.score),
+            &renderer.device,
+            &renderer.queue,
+            &mut renderer.text_renderer,
+        );
     }
 }
 
@@ -366,6 +407,7 @@ impl GameState for TaikoMode {
         });
 
         self.note_field.render(ctx, notes, barlines);
+        ctx.render(&self.score_text);
         ctx.render(&self.health_bar);
         ctx.render(&self.note_judgement_text);
         ctx.render(&self.balloon_display);
@@ -414,22 +456,25 @@ impl GameState for TaikoMode {
 
                             self.handle_judgement(Some(judgement));
                             self.results.hit_errors.push(offset);
+                            self.update_score_display(&mut ctx.renderer);
 
                             // Ensure you only ever hit one note at a time
                             break;
                         }
-                        NoteKeypressReaction::Drumroll { .. } => {
-                            self.results.drumrolls += 1;
+                        NoteKeypressReaction::Drumroll { roll_note } => {
+                            self.results.register_drumroll(roll_note.big);
                             self.drumroll_display.increment(&mut ctx.renderer);
+                            self.update_score_display(&mut ctx.renderer);
                             break;
                         }
                         NoteKeypressReaction::BalloonRoll {
                             hits_left,
                             hit_target,
                         } => {
-                            self.results.drumrolls += 1;
+                            self.results.register_drumroll(false);
                             self.balloon_display
                                 .hit(hits_left, hit_target, &mut ctx.renderer);
+                            self.update_score_display(&mut ctx.renderer);
 
                             if hits_left == 0 {
                                 self.next_note_index = note_index + 1;

@@ -9,7 +9,8 @@ struct Score {
     okays: usize,
     bads: usize,
     max_combo: usize,
-    drumrolls: u64,
+    drumrolls: u32,
+    score: u32,
 }
 
 impl Score {
@@ -20,6 +21,7 @@ impl Score {
             bads: result.bads() + result.misses(),
             drumrolls: result.drumrolls(),
             max_combo: result.max_combo(),
+            score: result.score,
         }
     }
 }
@@ -53,6 +55,7 @@ impl GameState for ScoreScreen {
         egui::Window::new("Let's see your results!").show(&ctx, |ui| {
             ui.label(egui::RichText::new(&self.song_name).size(20.0).strong());
             ui.add_space(10.0);
+            ui.label(format!("Score: {}", self.score.score));
             ui.label(format!("Good: {}", self.score.goods));
             ui.label(format!("Ok: {}", self.score.okays));
             ui.label(format!("Bad: {}", self.score.bads));

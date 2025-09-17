@@ -92,7 +92,7 @@ enum NoteColour {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BasicNoteType {
     colour: NoteColour,
-    big: bool,
+    pub big: bool,
 }
 
 impl BasicNoteType {

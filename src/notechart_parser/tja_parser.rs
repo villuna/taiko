@@ -723,9 +723,15 @@ fn construct_difficulty(
     chart.notes.shrink_to_fit();
 
     let star_level = get_parsed_metadata::<u8>(metadata, "LEVEL", None, Some(course_line_number))?;
+    let base_score =
+        get_parsed_metadata::<u32>(metadata, "SCOREINIT", None, Some(course_line_number))?;
     chart.barlines = barlines;
 
-    Ok(Difficulty { star_level, chart })
+    Ok(Difficulty {
+        star_level,
+        chart,
+        base_score,
+    })
 }
 
 /// Parses a TJA file into a [Song] struct.

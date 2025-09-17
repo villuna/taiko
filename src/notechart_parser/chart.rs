@@ -110,6 +110,8 @@ impl Default for Song {
 #[derive(Debug, Clone)]
 pub struct Difficulty {
     pub star_level: u8,
+    /// The score the player gets for a Good
+    pub base_score: u32,
     pub chart: NoteChart,
 }
 
