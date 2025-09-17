@@ -259,6 +259,89 @@ impl Renderable for JudgementText {
     }
 }
 
+/// Displays the hit count for the current drumroll
+pub struct DrumrollDisplay {
+    bg_bubble: Sprite,
+    drumroll_message: Text,
+    roll_number_text: Text,
+
+    current_rolls: u64,
+}
+
+impl DrumrollDisplay {
+    /// Creates a new drumroll count display, initialised to display nothing
+    pub fn new(textures: &mut TextureCache, renderer: &mut Renderer) -> anyhow::Result<Self> {
+        let bg_bubble = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "balloon speech bubble.png",
+        )?)
+        .position([575., 130.])
+        .build(renderer);
+
+        let drumroll_message =
+            TextBuilder::new("Drumroll!", renderer.font("mplus bold"), [765., 190.])
+                .color([1.; 4])
+                .font_size(Some(FontSize::Px(40.)))
+                .horizontal_align(HorizontalAlignment::Center)
+                .vertical_align(VerticalAlignment::Top)
+                .outlined([0., 0., 0., 1.], 3.)
+                .build_text(renderer);
+
+        let roll_number_text = TextBuilder::new("0", renderer.font("mochiy pop one"), [765., 240.])
+            .color(rgb!(0xFF, 0x8E, 0x4B))
+            .font_size(Some(FontSize::Px(80.)))
+            .horizontal_align(HorizontalAlignment::Center)
+            .vertical_align(VerticalAlignment::Top)
+            .outlined(rgb!(0x60, 0x2B, 0x0C), 3.)
+            .build_text(renderer);
+
+        Ok(Self {
+            bg_bubble,
+            drumroll_message,
+            roll_number_text,
+            current_rolls: 0,
+        })
+    }
+
+    /// Called every frame. Updates animations.
+    pub fn update(&mut self, dt: f32) {
+        // TODO
+    }
+
+    /// Increases the displayed drumroll count by one
+    pub fn increment(&mut self, renderer: &mut Renderer) {
+        self.current_rolls += 1;
+
+        self.roll_number_text.set_text(
+            format!("{}", self.current_rolls),
+            &renderer.device,
+            &renderer.queue,
+            &mut renderer.text_renderer,
+        );
+    }
+
+    /// Signals to the DrumrollDisplay that the current drumroll section is over. The display will
+    /// stop displaying after a short delay and any calls to increment will reset the counter.
+    pub fn finish(&mut self) {
+        self.current_rolls = 0;
+    }
+}
+
+impl Renderable for DrumrollDisplay {
+    fn render<'pass>(
+        &'pass self,
+        renderer: &'pass Renderer,
+        render_pass: &mut wgpu::RenderPass<'pass>,
+    ) {
+        if self.current_rolls != 0 {
+            self.bg_bubble.render(renderer, render_pass);
+            self.drumroll_message.render(renderer, render_pass);
+            self.roll_number_text.render(renderer, render_pass);
+        }
+    }
+}
+
 /// Displays the progress of a balloon roll as it is being played
 /// visually, it appears to blow up a balloon, while showing how many hits are left
 pub struct BalloonDisplay {

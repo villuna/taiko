@@ -12,7 +12,7 @@ use super::note::{
     create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
     TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
 };
-use super::ui::{BalloonDisplay, Header, HealthBar, JudgementText, NoteField};
+use super::ui::{BalloonDisplay, DrumrollDisplay, Header, HealthBar, JudgementText, NoteField};
 use crate::game::score_screen::ScoreScreen;
 use crate::game::taiko_mode::note::x_position_of_note;
 use crate::game::{Context, GameState, RenderContext, StateTransition, TextureCache};
@@ -147,6 +147,7 @@ pub struct TaikoMode {
     header: Header,
     note_field: NoteField,
     balloon_display: BalloonDisplay,
+    drumroll_display: DrumrollDisplay,
     health_bar: HealthBar,
 
     /// The audio stream for the song.
@@ -222,6 +223,7 @@ impl TaikoMode {
             header: Header::new(renderer, &song.title)?,
             note_field: NoteField::new(renderer)?,
             balloon_display: BalloonDisplay::new(textures, renderer)?,
+            drumroll_display: DrumrollDisplay::new(textures, renderer)?,
             health_bar: HealthBar::new(renderer)?,
             song_handle,
             started: false,
@@ -285,7 +287,10 @@ impl TaikoMode {
                     self.handle_judgement(None);
                 }
             } else if matches!(note.note, NoteInner::Balloon { .. }) {
+                // Stop displaying the balloon hit counter if it hasn't been burst yet
                 self.balloon_display.discard();
+            } else if matches!(note.note, NoteInner::Roll { .. }) {
+                self.drumroll_display.finish();
             }
         }
     }
@@ -307,6 +312,7 @@ impl GameState for TaikoMode {
 
         self.note_judgement_text.update(ctx.renderer);
         self.balloon_display.update(delta_time);
+        self.drumroll_display.update(delta_time);
 
         let time = self.note_time();
         self.health_bar.update(&ctx.renderer, delta_time, time);
@@ -363,6 +369,7 @@ impl GameState for TaikoMode {
         ctx.render(&self.health_bar);
         ctx.render(&self.note_judgement_text);
         ctx.render(&self.balloon_display);
+        ctx.render(&self.drumroll_display)
     }
 
     fn handle_event(&mut self, ctx: &mut Context, event: &WindowEvent) {
@@ -413,6 +420,7 @@ impl GameState for TaikoMode {
                         }
                         NoteKeypressReaction::Drumroll { .. } => {
                             self.results.drumrolls += 1;
+                            self.drumroll_display.increment(&mut ctx.renderer);
                             break;
                         }
                         NoteKeypressReaction::BalloonRoll {
