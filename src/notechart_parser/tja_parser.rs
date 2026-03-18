@@ -508,8 +508,12 @@ fn construct_difficulty(
 
     let mut time = -offset;
     let mut measure_start_time = time;
-    let mut barlines = vec![Barline { time, scroll_speed }];
+    let mut barlines = Vec::new();
     let mut barline_on = true;
+
+    // Is true when the next line notes starts on a new measure. this tells the parser to add a new
+    // barline. This is necessary since a line of notes is not necessarily one whole measure.
+    let mut new_measure = true;
 
     let mut notes = Vec::new();
 
@@ -542,6 +546,11 @@ fn construct_difficulty(
                 notes: new_notes,
                 end_measure,
             } => {
+                // add a new barline if this is a new measure
+                if new_measure && barline_on {
+                    barlines.push(Barline { time, scroll_speed });
+                }
+
                 let num_notes = new_notes.len();
 
                 // The notes that are to be added to the track.
@@ -620,10 +629,6 @@ fn construct_difficulty(
 
                     measure_start_time = time;
 
-                    if barline_on {
-                        barlines.push(Barline { time, scroll_speed });
-                    }
-
                     // Recalculate our measure-based variables
                     notes_in_measure = notes_in_next_measure(&mut items_iter);
 
@@ -633,6 +638,8 @@ fn construct_difficulty(
                         seconds_per_measure / notes_in_measure as f32
                     };
                 }
+
+                new_measure = end_measure;
             }
 
             CourseItem::EndCommand => {
