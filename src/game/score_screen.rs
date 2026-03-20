@@ -1,5 +1,3 @@
-use kira::manager::AudioManager;
-
 use crate::game::taiko_mode::PlayResult;
 use crate::game::{Context, GameState, StateTransition};
 
@@ -51,7 +49,7 @@ impl GameState for ScoreScreen {
         }
     }
 
-    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut AudioManager) {
+    fn debug_ui(&mut self, ctx: egui::Context, _audio: &mut kira::manager::AudioManager) {
         egui::Window::new("Let's see your results!").show(&ctx, |ui| {
             ui.label(egui::RichText::new(&self.song_name).size(20.0).strong());
             ui.add_space(10.0);

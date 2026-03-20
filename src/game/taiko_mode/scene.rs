@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use kaku::{FontSize, Text, TextBuilder};
+use kaku::{FontSize, HorizontalAlignment, Text, TextBuilder, VerticalAlignment};
 use kira::manager::AudioManager;
 use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::sound::PlaybackState;
@@ -13,12 +13,12 @@ use super::note::{
     create_barlines, create_notes, NoteInner, NoteKeypressReaction, TaikoModeBarline,
     TaikoModeNote, BAD, EASY_NORMAL_TIMING, GOOD, HARD_EXTREME_TIMING, OK,
 };
-use super::ui::{
-    BalloonDisplay, DrumrollDisplay, Header, HealthBar, JudgementText, NoteField, NOTE_FIELD_Y,
-};
+use super::ui::{BalloonDisplay, DrumrollDisplay, HealthBar, JudgementText, NOTE_FIELD_Y};
 use crate::game::score_screen::ScoreScreen;
 use crate::game::taiko_mode::note::x_position_of_note;
+use crate::game::taiko_mode::ui::{HEADER_HEIGHT, NOTE_HIT_X, TITLE_FONT_SIZE};
 use crate::game::{Context, GameState, RenderContext, StateTransition, TextureCache};
+use crate::render::text::BuildTextWithRenderer;
 use crate::render::texture::SpriteBuilder;
 use crate::settings::{settings, SETTINGS};
 use crate::{
@@ -158,8 +158,12 @@ pub struct TaikoMode {
     background: Sprite,
     // TODO: remove this when I give sprites a colour tint
     background_dim: Shape,
-    header: Header,
-    note_field: NoteField,
+    header: Sprite,
+    song_title: Text,
+    //note_field: NoteField,
+    note_field: Sprite,
+    left_panel: Sprite,
+    reticle: Sprite,
     balloon_display: BalloonDisplay,
     drumroll_display: DrumrollDisplay,
     score_text: Text,
@@ -246,12 +250,55 @@ impl TaikoMode {
         let chart = &diff_data.chart;
         let star_rating = diff_data.star_level;
 
+        let header = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "taiko mode/header.png",
+        )?)
+        .build(renderer);
+
+        let song_title =
+            TextBuilder::new(&song.title, renderer.font("mochiy pop one"), [1880., 20.])
+                .horizontal_align(HorizontalAlignment::Right)
+                .vertical_align(VerticalAlignment::Top)
+                .font_size(Some(FontSize::Px(TITLE_FONT_SIZE)))
+                .color([1.0; 4])
+                .outlined([0., 0., 0., 1.], 5.)
+                .build_text(renderer);
+
+        let note_field = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "taiko mode/note_field.png",
+        )?)
+        .position([0., HEADER_HEIGHT])
+        .build(renderer);
+
+        let reticle = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "taiko mode/reticle.png",
+        )?)
+        .position([NOTE_HIT_X - 156. / 2., HEADER_HEIGHT + 8.])
+        .build(renderer);
+
+        let left_panel = SpriteBuilder::new(textures.get(
+            &renderer.device,
+            &renderer.queue,
+            "taiko mode/left_panel.png",
+        )?)
+        .position([0., HEADER_HEIGHT])
+        .build(renderer);
+
         Ok(Self {
             song_name: song.title.clone(),
             background,
             background_dim,
-            header: Header::new(renderer, &song.title)?,
-            note_field: NoteField::new(renderer)?,
+            header,
+            song_title,
+            note_field,
+            reticle,
+            left_panel,
             balloon_display: BalloonDisplay::new(textures, renderer)?,
             drumroll_display: DrumrollDisplay::new(textures, renderer)?,
             score_text,
@@ -396,7 +443,10 @@ impl GameState for TaikoMode {
 
         ctx.render(&self.background);
         ctx.render(&self.background_dim);
-        self.header.render(ctx);
+        ctx.render(&self.header);
+        ctx.render(&self.song_title);
+        ctx.render(&self.note_field);
+        ctx.render(&self.reticle);
 
         let notes = self.notes.iter().filter(|note| note.visible(time));
 
@@ -406,7 +456,15 @@ impl GameState for TaikoMode {
             (0.0..1920.0).contains(&pos)
         });
 
-        self.note_field.render(ctx, notes, barlines);
+        for b in barlines {
+            ctx.render(b);
+        }
+
+        for n in notes {
+            ctx.render(n);
+        }
+
+        ctx.render(&self.left_panel);
         ctx.render(&self.score_text);
         ctx.render(&self.health_bar);
         ctx.render(&self.note_judgement_text);
